@@ -1,0 +1,14 @@
+{
+  "appName": "The Q Simulator",
+  "language": {
+    "label": "Idioma",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français"
+  },
+  "actions": {
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "reset": "Restablecer"
+  }
+}

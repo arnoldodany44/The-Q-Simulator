@@ -8,22 +8,24 @@ Documento operativo derivado de [`especificacion.md`](./especificacion.md). La s
 
 ---
 
-## 0. Estado actual y brechas del entorno
+## 0. Estado actual del entorno
 
-Auditoría de la máquina de desarrollo al iniciar:
+| Herramienta       | Estado               | Nota                                        |
+| ----------------- | -------------------- | ------------------------------------------- |
+| Repo git + remoto | ✅ conectado         | `arnoldodany44/The-Q-Simulator`             |
+| Node.js           | ✅ **v24.19.0**      | LTS actual; supera el v22 que pedía la spec |
+| pnpm              | ✅ **v11.21.0**      | vía corepack, ver nota abajo                |
+| Monorepo          | ✅ **M0.0 completo** | 4 workspaces, CI, fronteras, i18n trilingüe |
+| Docker            | ❌ ausente           | bloqueante desde Fase 2 — B9                |
+| GitHub CLI (`gh`) | ❌ ausente           | opcional; facilita PRs                      |
 
-| Herramienta | Estado | Requerido | Acción |
-|---|---|---|---|
-| Repo git + remoto | ✅ conectado | — | listo |
-| `.gitignore` | ✅ creado | — | listo |
-| Node.js | ⚠️ **v18.20.8** | **v22 LTS** | **bloqueante — B1** |
-| npm | ✅ 9.8.1 | — | solo para bootstrap |
-| corepack | ✅ presente | — | habilita pnpm sin instalar nada |
-| pnpm | ❌ ausente | v10 | `corepack enable pnpm` (tras B1) |
-| Docker | ❌ ausente | Redis local | bloqueante desde Fase 2 — B9 |
-| GitHub CLI (`gh`) | ❌ ausente | opcional | facilita PRs; no bloqueante |
+**Detalle de la instalación de pnpm.** `corepack enable pnpm` falla con `EPERM` porque intenta escribir los shims en `C:\Program Files\nodejs`, que requiere elevación. La solución sin permisos de administrador fue apuntar corepack al directorio de npm del usuario, que ya está en el `PATH`:
 
-**Por qué Node 18 no sirve:** llegó a fin de vida en abril de 2025 (ya no recibe parches de seguridad), y Vite 7 exige Node ≥ 20.19. Intentar arrancar sobre 18 produce fallos de instalación confusos que cuestan más que la actualización.
+```bash
+corepack enable --install-directory "$APPDATA/npm" pnpm
+```
+
+**Anomalía menor, sin impacto.** Hay un `npm` viejo en `%APPDATA%\npm` que le hace sombra al 11.17.0 que trae Node 24, y por eso `npm --version` reporta 9.8.1. El proyecto usa pnpm para todo, así que no afecta; queda anotado por si algún día confunde.
 
 ---
 
@@ -31,36 +33,52 @@ Auditoría de la máquina de desarrollo al iniciar:
 
 Estas seis decisiones contaminan todo el código si se cambian tarde. Se deciden ahora y se escriben en el README.
 
-| # | Decisión | Recomendación | Por qué |
-|---|---|---|---|
-| **D1** | **Endianness** | **Little-endian: qubit 0 = bit menos significativo** | Es la convención de Qiskit. Cualquier otra hace que la exportación a Qiskit dé resultados invertidos, y ese bug es infernal de rastrear (riesgo #2 de la spec). El índice `i` del statevector tiene el bit `q` en `(i >> q) & 1`. |
-| **D2** | **Idioma de la UI** | **Trilingüe desde el día 1: `es`, `en`, `fr`** con `react-i18next`. Fallback `en`, detección por navegador, selector manual persistido | Decidido por el propietario del proyecto. Ver §1.1 para las consecuencias operativas. |
-| **D3** | **Scope npm de los paquetes** | `@qsim/*` (`@qsim/core`, `@qsim/schema`, …) | Corto, disponible, y sobrevive a la extracción futura de `qsim` a repo público. |
-| **D4** | **Serialización de circuito en URL** | JSON minificado → deflate → base64url | Un Bell cabe en ~80 caracteres. Evita depender del backend en Fase 0. |
-| **D5** | **Test runner** | **Vitest** en todos los paquetes | Un solo runner para navegador y Node, comparte config con Vite, soporta workers. |
-| **D6** | **Precisión y tolerancia** | `Float64`, renormalizar cada 64 compuertas, tolerancia de test `1e-10` | Riesgo #3 de la spec. Fijarlo evita tests intermitentes. |
+| #      | Decisión                             | Recomendación                                                                                                                          | Por qué                                                                                                                                                                                                                           |
+| ------ | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D1** | **Endianness**                       | **Little-endian: qubit 0 = bit menos significativo**                                                                                   | Es la convención de Qiskit. Cualquier otra hace que la exportación a Qiskit dé resultados invertidos, y ese bug es infernal de rastrear (riesgo #2 de la spec). El índice `i` del statevector tiene el bit `q` en `(i >> q) & 1`. |
+| **D2** | **Idioma de la UI**                  | **Trilingüe desde el día 1: `es`, `en`, `fr`** con `react-i18next`. Fallback `en`, detección por navegador, selector manual persistido | Decidido por el propietario del proyecto. Ver §1.1 para las consecuencias operativas.                                                                                                                                             |
+| **D3** | **Scope npm de los paquetes**        | `@qsim/*` (`@qsim/core`, `@qsim/schema`, …)                                                                                            | Corto, disponible, y sobrevive a la extracción futura de `qsim` a repo público.                                                                                                                                                   |
+| **D4** | **Serialización de circuito en URL** | JSON minificado → deflate → base64url                                                                                                  | Un Bell cabe en ~80 caracteres. Evita depender del backend en Fase 0.                                                                                                                                                             |
+| **D5** | **Test runner**                      | **Vitest** en todos los paquetes                                                                                                       | Un solo runner para navegador y Node, comparte config con Vite, soporta workers.                                                                                                                                                  |
+| **D6** | **Precisión y tolerancia**           | `Float64`, renormalizar cada 64 compuertas, tolerancia de test `1e-10`                                                                 | Riesgo #3 de la spec. Fijarlo evita tests intermitentes.                                                                                                                                                                          |
 
-**Defaults que tomo yo salvo que digas lo contrario:** Tailwind v4 + shadcn/ui, React Router v7 en modo declarativo, ESLint 9 flat config, Prettier, Conventional Commits, `pnpm` + `turbo`.
+**Defaults que tomo yo salvo que digas lo contrario:** Tailwind v4 + shadcn/ui, React Router (v8, modo declarativo), ESLint flat config, Prettier, Conventional Commits, `pnpm` + `turbo`. Las versiones exactas y su justificación están en §1.2.
 
 ### 1.1 Consecuencias de la decisión trilingüe (D2)
 
 Tres locales desde el día 1 es la opción sin refactor futuro, pero tiene costos reales que conviene tener por escrito:
 
 **Lo que hay que montar en M0.0** (antes era "opcional", ahora es infraestructura):
-- `react-i18next` + `i18next-browser-languagedetector`, con los catálogos en `apps/web/src/locales/{es,en,fr}/`
-- Namespaces separados: `common`, `editor`, `gates`, `analysis`, `landing`, `lessons`. Sin esto, el catálogo se vuelve un archivo de miles de líneas imposible de mantener.
+
+- `react-i18next` + `i18next-browser-languagedetector`, con los catálogos en `apps/web/src/i18n/locales/{es,en,fr}/`
+- Namespaces separados, uno por área de funcionalidad, para que ningún catálogo crezca hasta ser irrevisable. Se crean junto con la funcionalidad que los necesita, no por adelantado: M0.0 dejó `common` y `landing`; `editor` y `gates` llegan con M0.5, `analysis` con M0.7, `lessons` en Fase 3.
 - Regla de lint (`i18next/no-literal-string`) en `apps/web` para que ningún string se cuele hardcodeado. Es la única forma de que tres locales no se desincronicen solos.
 - Test de CI que verifica **paridad de claves** entre los tres catálogos: si `es` tiene una clave que `fr` no tiene, el build falla.
 - Formato de números y ángulos con `Intl.NumberFormat` por locale — relevante porque la tabla de amplitudes muestra decimales, y `fr` usa coma decimal.
 
 **Lo que NO se traduce** (queda en notación estándar internacional, igual en los tres):
+
 - Nombres y símbolos de compuertas: `H`, `CNOT`, `Rz(θ)`, `√X`. Traducirlos rompería la correspondencia con Qiskit y con toda la literatura.
 - Notación de estados: `|000⟩`, `a + bi`.
 - Términos con nombre propio: Bloch, Q-sphere, GHZ, Bell, Grover, Deutsch–Jozsa.
 
-**Dónde se paga el costo:** en la **Fase 3**. Las lecciones guiadas son prosa técnica larga sobre superposición, interferencia y teletransportación, y son nueve. Multiplicadas por tres locales, la traducción es una carga sustancial y el vocabulario cuántico en francés es específico (*intrication* para entrelazamiento, *portes quantiques*, *état intriqué*). Recomendación: **texto de lecciones con revisión humana nativa antes de publicar en `fr`**, o marcar `fr` como beta en esa sección. La UI de Fase 0 y 1 son etiquetas cortas y ahí el riesgo es bajo.
+**Dónde se paga el costo:** en la **Fase 3**. Las lecciones guiadas son prosa técnica larga sobre superposición, interferencia y teletransportación, y son nueve. Multiplicadas por tres locales, la traducción es una carga sustancial y el vocabulario cuántico en francés es específico (_intrication_ para entrelazamiento, _portes quantiques_, _état intriqué_). Recomendación: **texto de lecciones con revisión humana nativa antes de publicar en `fr`**, o marcar `fr` como beta en esa sección. La UI de Fase 0 y 1 son etiquetas cortas y ahí el riesgo es bajo.
 
-**Presupuesto de tamaño:** los tres catálogos se cargan con `lazy()` por locale, no de golpe. El bundle inicial solo lleva el locale activo.
+**Presupuesto de tamaño:** los tres catálogos se cargan con `lazy()` por locale, no de golpe. El bundle inicial solo lleva el locale activo. Verificado en el build de M0.0: Vite emite `common-*.js` y `landing-*.js` por separado para cada idioma, de ~0.2 kB cada uno.
+
+**Mecanismo para lo que no se traduce.** El componente `<Notation value="…" />` (`apps/web/src/components/Notation.tsx`) es la única vía sancionada para texto técnico invariante. El texto viaja como prop, no como hijo JSX, precisamente para que `i18next/no-literal-string` siga teniendo dientes: un string suelto en JSX sigue siendo un error, y pasar por `Notation` es una decisión registrada en el código. Además marca `translate="no"`, que impide que el traductor automático de Chrome convierta una etiqueta `CNOT` en otra cosa.
+
+### 1.2 Versiones fijadas y por qué
+
+Las versiones viven en un **catálogo de pnpm** (`pnpm-workspace.yaml`), no repetidas en cada `package.json`. Los paquetes las referencian con `"catalog:"`, así que subir una versión se hace en un solo lugar y es imposible que dos workspaces queden desalineados.
+
+**La decisión no obvia: TypeScript 6.0.3, no 7.0.2.**
+
+TypeScript 7 (el compilador nativo en Go) es el `latest` del registro, pero `typescript-eslint@8.67.0` declara `typescript: ">=4.8.4 <6.1.0"` y no lo soporta. Adoptar TS 7 hoy significaría quedarse sin lint con información de tipos — y con ello sin las reglas de frontera ni la regla anti-literales que son la mitad de la infraestructura de M0.0. La versión estable más alta que sí está soportada es 6.0.3.
+
+**Cuándo revisar:** cuando typescript-eslint publique una mayor que admita TS 7. Es un cambio de una línea en el catálogo más una corrida de `pnpm verify`.
+
+Otras versiones notables, todas verificadas contra el registro al momento de instalar: Vite 8.2.1, Vitest 4.1.10, React 19.2.8, ESLint 10.8.1, Zod 4.4.3, Turbo 2.10.10.
 
 ---
 
@@ -68,7 +86,7 @@ Tres locales desde el día 1 es la opción sin refactor futuro, pero tiene costo
 
 ```mermaid
 graph TD
-    B1["B1 · Node 22"] --> M00["M0.0 Andamiaje monorepo"]
+    M00["M0.0 Andamiaje monorepo ✓"]
     M00 --> M01["M0.1 schema — contrato JSON"]
     M01 --> M02["M0.2 qsim — statevector + kernel"]
     M02 --> M03["M0.3 medición y muestreo"]
@@ -92,7 +110,7 @@ graph TD
     M01 --> M17["M1.7 export QASM3 / Qiskit / SVG"]
     M14 --> M18["M1.8 deploy API en Railway"]
 
-    style B1 fill:#F5445E,color:#fff
+    style M00 fill:#33D6D6,color:#000
     style M10 fill:#7BE04A,color:#000
     style M18 fill:#7BE04A,color:#000
 ```
@@ -110,27 +128,35 @@ Los nodos verdes son los dos hitos demostrables: **M0.10** (app pública jugable
 
 ---
 
-### M0.0 — Andamiaje del monorepo · `chore/scaffold`
+### M0.0 — Andamiaje del monorepo · ✅ **COMPLETADO**
 
-Estructura de §12.2, sin código de dominio todavía.
+Estructura de §12.2. Cuatro workspaces: `web`, `@qsim/core`, `@qsim/schema`, `@qsim/config`.
 
-- `pnpm-workspace.yaml`, `package.json` raíz, `turbo.json`, `tsconfig.base.json`
-- `packages/config`: ESLint flat config, Prettier, preset de Tailwind, tsconfigs base
-- `apps/web`: Vite + React 19 + TS, arranca en blanco
-- `packages/qsim`, `packages/schema`: paquetes vacíos con build y test configurados
-- **i18n (D2)**: `react-i18next` + detector, catálogos `es`/`en`/`fr` por namespace, regla de lint anti-literales, test de paridad de claves (§1.1)
-- `.github/workflows/ci.yml`: install → lint → typecheck → test → build
-- `dependency-cruiser` con las 4 reglas de §12.3
-- README con **D1–D6 escritas explícitamente**
+- `pnpm-workspace.yaml` con **catálogo de versiones** (§1.2), `package.json` raíz, `turbo.json`, `tsconfig.base.json`
+- `packages/config`: ESLint flat config (base + react), tsconfigs (base / lib / react / node)
+- `apps/web`: Vite 8 + React 19 + TS, con headers COOP/COEP ya puestos para el `SharedArrayBuffer` de M0.6
+- `packages/qsim`: la convención de endianness **codificada y probada**, no solo documentada
+- `packages/schema`: `CIRCUIT_SCHEMA_VERSION`, a la espera del contrato completo en M0.1
+- **i18n (D2)**: carga perezosa por locale, catálogos `es`/`en`/`fr`, componente `Notation` para lo intraducible
+- `.github/workflows/ci.yml`: dos jobs — el de verificación completa, y uno que corre el motor **siempre** sin filtro (§12.8)
+- `dependency-cruiser` con 7 reglas
+- README con D1–D6 explícitas
 
-**Definición de terminado**
-- `pnpm dev` levanta `apps/web` en `localhost:5173`
-- `pnpm turbo lint typecheck test build` pasa en verde localmente y en CI
-- Una importación de `apps/web` desde `packages/qsim` **falla** el check de dependencias
-- Un string hardcodeado en un componente **falla** el lint
-- Una clave presente en `es` pero ausente en `fr` **falla** el test de paridad
+**Definición de terminado — verificada**
 
-**Tamaño:** M · **Bloqueado por:** B1
+| Criterio                                                           | Resultado                                              |
+| ------------------------------------------------------------------ | ------------------------------------------------------ |
+| `pnpm dev` levanta `apps/web` en `localhost:5173`                  | ✅ renderiza, sin errores de consola                   |
+| `pnpm verify` en verde (lint, typecheck, test, build, fronteras)   | ✅ 10 tareas, 10 tests, 0 violaciones                  |
+| Import de `apps/web` desde `packages/qsim` **falla** las fronteras | ✅ `error packages-no-apps`, exit 1                    |
+| String hardcodeado **falla** el lint                               | ✅ `i18next/no-literal-string`, exit 1                 |
+| Clave presente en `fr` pero ausente en `en` **falla** la paridad   | ✅ 2 tests rojos, exit 1                               |
+| Los tres idiomas cargan, cambian en caliente y persisten           | ✅ probado en navegador, incluida recarga              |
+| La notación técnica no se traduce                                  | ✅ `@qsim/core`, `\|101⟩` intactos en los tres idiomas |
+
+**Nota de implementación.** Los `tsconfig` de `packages/config` extienden un `./base.json` hermano en vez de un `../../../tsconfig.base.json` del repo. El transformador oxc de Vite 8 no resuelve el symlink de pnpm antes de seguir la cadena de `extends`, así que la ruta relativa se salía del repo y rompía los tests. Mantener los `extends` dentro del propio paquete lo evita. `tsconfig.base.json` en la raíz sigue existiendo (lo usa dependency-cruiser) pero ahora solo reexporta.
+
+**Reglas de frontera activas:** las 4 de §12.3 más `qsim-has-no-dependencies`, `no-circular` y `no-orphans`. La regla de "sin APIs de Node" en los paquetes compartidos se refuerza además a nivel de tipos: `packages/config/tsconfig/lib.json` fija `"types": []`, así que `process` y `Buffer` ni siquiera están en alcance.
 
 ---
 
@@ -150,6 +176,7 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 - Catálogo de metadatos de compuertas: aridad, nº de params, símbolo, categoría
 
 **Definición de terminado**
+
 - Los 5 ejemplos de operación de §6 validan
 - Suite de circuitos malformados, cada uno rechazado con un mensaje de error accionable
 - `depth()` verificado contra casos calculados a mano
@@ -172,6 +199,7 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 - **La convención de endianness (D1) documentada en el encabezado del archivo**, con un ejemplo numérico
 
 **Definición de terminado** — la suite de §13 en verde:
+
 - Bell → `[1/√2, 0, 0, 1/√2]`
 - GHZ-3 → `[1/√2, 0,0,0,0,0,0, 1/√2]`
 - Identidades `H·H = I`, `X·Y·Z = iI`, `T⁸ = I`
@@ -187,7 +215,7 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 ### M0.3 — Medición y muestreo · `feat/qsim-measure`
 
 - `probabilities()` (regla de Born) y `marginalProbability(qubit)`
-- Muestreo de shots: CDF + búsqueda binaria; método *alias* si shots > 10 000
+- Muestreo de shots: CDF + búsqueda binaria; método _alias_ si shots > 10 000
 - `collapse(qubit, outcome)`: anular amplitudes incompatibles y renormalizar
 - Dos modos de ejecución **explícitamente separados**:
   - `analytic` — estado final, prohíbe medición intermedia
@@ -195,6 +223,7 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 - RNG con semilla inyectable (tests deterministas)
 
 **Definición de terminado**
+
 - Bell con 10 000 shots → test chi-cuadrado no rechaza 50/50 (semilla fija)
 - Teletransportación → fidelidad 1.0 para 20 estados de entrada aleatorios
 - Circuito con medición intermedia rechazado en modo `analytic` con error claro
@@ -208,9 +237,10 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 - `run(circuit, options)`: recorre columnas, resuelve parámetros simbólicos, aplica operaciones, respeta `barrier`/`reset`/condicionales
 - Caché incremental de §5.6: checkpoint del statevector cada K columnas (K ≈ 8, medible)
 - `runFrom(checkpoint, fromColumn)` para re-simulación parcial
-- Invalidación: al editar la columna *c*, se descartan los checkpoints ≥ *c*
+- Invalidación: al editar la columna _c_, se descartan los checkpoints ≥ _c_
 
 **Definición de terminado**
+
 - Re-simulación incremental idéntica (dentro de `1e-12`) a la simulación completa, en 200 ediciones aleatorias
 - Benchmark: editar la última columna de un circuito de 40 columnas cuesta < 15 % de una simulación completa
 
@@ -229,6 +259,7 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 - Accesibilidad: navegación por teclado en la rejilla, `aria-label` por celda, foco visible
 
 **Definición de terminado**
+
 - E2E Playwright: arrastrar H a (q0, c0), CNOT de q0 a q1, y el estado del store coincide con el JSON de Bell esperado
 - Undo/redo de 50 operaciones sin corromper el estado
 - Circuito completo construible **solo con teclado**
@@ -246,6 +277,7 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 - Umbral duro: > 20 qubits en cliente muestra aviso en vez de congelar la pestaña
 
 **Definición de terminado**
+
 - Simulación de 20 qubits sin bloquear la UI (el editor sigue respondiendo a 60 fps)
 - Editar rápido 10 veces seguidas dispara una sola simulación y ningún resultado obsoleto pisa al actual
 
@@ -262,6 +294,7 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 - Modo responsivo: en < 768 px el editor pasa a lectura + toque (riesgo #6)
 
 **Definición de terminado**
+
 - Bell muestra exactamente dos barras al 50 %
 - Mover el slider de una Rz hace girar los fasores de forma visible y continua
 - Contraste AA en texto y foco; auditoría de Lighthouse de accesibilidad ≥ 95
@@ -279,6 +312,7 @@ La función educativa más potente del editor (§3.1). Se apoya directamente en 
 - La columna activa se resalta en el lienzo
 
 **Definición de terminado**
+
 - Recorrer un circuito de 20 columnas es fluido (< 16 ms por paso gracias a los checkpoints)
 - El estado en la última columna coincide exactamente con la simulación completa
 
@@ -294,10 +328,11 @@ La función educativa más potente del editor (§3.1). Se apoya directamente en 
 - Copy de la landing en los tres locales — es el texto más visible del producto, merece cuidado especial en `fr`
 
 **Definición de terminado**
+
 - Copiar la URL → abrir en ventana privada → circuito idéntico
 - Un Bell serializa en menos de 120 caracteres
 - Prueba con una persona real que nunca vio un circuito cuántico
-- Landing legible y sin desbordes de layout en los tres idiomas (el alemán no aplica, pero el francés sí alarga: *"entrelazamiento"* → *"intrication quantique"*)
+- Landing legible y sin desbordes de layout en los tres idiomas (el alemán no aplica, pero el francés sí alarga: _"entrelazamiento"_ → _"intrication quantique"_)
 
 **Tamaño:** M
 
@@ -311,6 +346,7 @@ La función educativa más potente del editor (§3.1). Se apoya directamente en 
 - Dominio, meta tags de Open Graph, Sentry opcional
 
 **Definición de terminado**
+
 - URL pública funcionando desde un dispositivo ajeno
 - Cada PR genera un preview deploy
 - **🎉 Fase 0 cerrada — el proyecto ya es demostrable**
@@ -323,17 +359,17 @@ La función educativa más potente del editor (§3.1). Se apoya directamente en 
 
 **Objetivo:** cuentas, persistencia, galería. Con esto, Fase 0 + Fase 1 ya son la app completa y defendible que menciona §14.
 
-| Hito | Contenido | Tamaño | Bloqueos |
-|---|---|---|---|
-| **M1.1** | Proyecto Supabase (dev + prod). `packages/db` con Prisma. Esquema de §7 **con el ajuste de Supabase Auth**: fuera `Account` y `passwordHash`; `User.id` como `@db.Uuid`. Trigger sobre `auth.users`. Doble URL (pooler + directa) de §12.6 | M | **B4** |
-| **M1.2** | `apps/api` con Fastify 5: verificación de JWT contra `SUPABASE_JWT_SECRET`, CORS, rate limiting, validación Zod de todo input, logging con pino, manejo de errores | M | M1.1 |
-| **M1.3** | Auth en el frontend: cliente de Supabase, login con GitHub / Google / email, sesión persistente, rutas protegidas | M | **B7** |
-| **M1.4** | CRUD de circuitos + versionado inmutable. `POST /circuits/:id/versions`, historial navegable, diff visual entre versiones, restaurar | L | M1.2 |
-| **M1.5** | Galería pública, slugs con `nanoid`, visibilidad PRIVATE/UNLISTED/PUBLIC verificada **en servidor**, forks con atribución, estrellas, tags, búsqueda | L | M1.4 |
-| **M1.6** | Esferas de Bloch: traza parcial → ρ reducida → vector (§5.5), three.js con `lazy()`. **El detector visual de entrelazamiento**: en un Bell, `\|r\| = 0` | M | M0.2 |
-| **M1.7** | Export a OpenQASM 3, código Qiskit, SVG/PNG, JSON. `packages/qasm` (serializador primero, parser en Fase 2) | M | M0.1 |
-| **M1.8** | Deploy de `apps/api` en Railway, `prisma migrate deploy` como paso de release, healthcheck, Sentry | M | **B6** |
-| **M1.9** | Perfil de usuario, colecciones, página de settings | M | M1.5 |
+| Hito     | Contenido                                                                                                                                                                                                                                  | Tamaño | Bloqueos |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ | -------- |
+| **M1.1** | Proyecto Supabase (dev + prod). `packages/db` con Prisma. Esquema de §7 **con el ajuste de Supabase Auth**: fuera `Account` y `passwordHash`; `User.id` como `@db.Uuid`. Trigger sobre `auth.users`. Doble URL (pooler + directa) de §12.6 | M      | **B4**   |
+| **M1.2** | `apps/api` con Fastify 5: verificación de JWT contra `SUPABASE_JWT_SECRET`, CORS, rate limiting, validación Zod de todo input, logging con pino, manejo de errores                                                                         | M      | M1.1     |
+| **M1.3** | Auth en el frontend: cliente de Supabase, login con GitHub / Google / email, sesión persistente, rutas protegidas                                                                                                                          | M      | **B7**   |
+| **M1.4** | CRUD de circuitos + versionado inmutable. `POST /circuits/:id/versions`, historial navegable, diff visual entre versiones, restaurar                                                                                                       | L      | M1.2     |
+| **M1.5** | Galería pública, slugs con `nanoid`, visibilidad PRIVATE/UNLISTED/PUBLIC verificada **en servidor**, forks con atribución, estrellas, tags, búsqueda                                                                                       | L      | M1.4     |
+| **M1.6** | Esferas de Bloch: traza parcial → ρ reducida → vector (§5.5), three.js con `lazy()`. **El detector visual de entrelazamiento**: en un Bell, `\|r\| = 0`                                                                                    | M      | M0.2     |
+| **M1.7** | Export a OpenQASM 3, código Qiskit, SVG/PNG, JSON. `packages/qasm` (serializador primero, parser en Fase 2)                                                                                                                                | M      | M0.1     |
+| **M1.8** | Deploy de `apps/api` en Railway, `prisma migrate deploy` como paso de release, healthcheck, Sentry                                                                                                                                         | M      | **B6**   |
+| **M1.9** | Perfil de usuario, colecciones, página de settings                                                                                                                                                                                         | M      | M1.5     |
 
 **Criterio de terminado de la fase:** un usuario se registra con GitHub, construye un circuito, lo guarda, lo hace público, otro usuario lo forkea y le da estrella. Todo en producción.
 
@@ -356,19 +392,19 @@ Se detallarán al cerrar la Fase 1. Orden y dependencias clave:
 
 Ordenado por cuándo bloquea. Los marcados 🔴 detienen el trabajo hasta resolverse.
 
-| # | Qué necesito | Cuándo | Cómo |
-|---|---|---|---|
-| 🔴 **B1** | **Instalar Node 22 LTS** | Antes de M0.0 | Descarga el instalador de nodejs.org, o `winget install OpenJS.NodeJS.LTS`. Yo habilito pnpm con corepack después. |
-| **B2** | Confirmar o corregir **D1–D6** (§1) | Antes de M0.0 | Basta con "adelante" o decirme cuáles cambias. |
-| ~~B3~~ | ~~Idioma de la UI (D2)~~ | ✅ **Resuelto** | Trilingüe `es`/`en`/`fr` desde el inicio. Consecuencias operativas en §1.1. |
-| **B3b** | **Revisión nativa del francés** (y del inglés si quieres) para las lecciones | Fase 3 | Yo produzco las tres versiones; el vocabulario cuántico en `fr` conviene que lo valide alguien nativo antes de publicar. Alternativa: marcar `fr` como beta en lecciones. |
-| **B4** | **Cuenta de Supabase** + dos proyectos (`the-q-simulator-dev`, `the-q-simulator-prod`) | Antes de M1.1 | Tú creas los proyectos y **tú pegas los valores en el `.env` local**. Yo dejo el `.env.example` con la forma exacta. No me mandes las llaves por chat. |
-| **B5** | **Cuenta de Vercel** conectada al repo | Antes de M0.10 | Yo dejo la configuración documentada; tú autorizas la app de GitHub. |
-| **B6** | **Cuenta de Railway** (API + worker + Redis) | Antes de M1.8 | Igual: tú creas, yo configuro los archivos de despliegue. |
-| **B7** | **OAuth apps de GitHub y Google** cargadas en el dashboard de Supabase | Antes de M1.3 | Van en Authentication → Providers. El código nunca ve esos secretos (§12.5). |
-| **B8** | Tu **token de IBM Quantum** para probar (plan abierto gratuito) | Fase 4 | Solo para pruebas de desarrollo, en tu `.env` local. En producción cada usuario aporta el suyo. |
-| **B9** | **Docker Desktop** para Redis local | Fase 2 | Alternativa: usar Upstash y saltarse Docker. |
-| **B10** | Cuenta de **Sentry** (opcional) | Fase 1 en adelante | Se puede posponer sin afectar nada. |
+| #       | Qué necesito                                                                           | Cuándo             | Cómo                                                                                                                                                                      |
+| ------- | -------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~B1~~  | ~~Instalar Node 22 LTS~~                                                               | ✅ **Resuelto**    | Node 24.19.0 instalado; pnpm 11.21.0 vía corepack.                                                                                                                        |
+| ~~B2~~  | ~~Confirmar D1–D6~~                                                                    | ✅ **Resuelto**    | Congeladas y escritas en el README.                                                                                                                                       |
+| ~~B3~~  | ~~Idioma de la UI (D2)~~                                                               | ✅ **Resuelto**    | Trilingüe `es`/`en`/`fr` desde el inicio. Consecuencias operativas en §1.1.                                                                                               |
+| **B3b** | **Revisión nativa del francés** (y del inglés si quieres) para las lecciones           | Fase 3             | Yo produzco las tres versiones; el vocabulario cuántico en `fr` conviene que lo valide alguien nativo antes de publicar. Alternativa: marcar `fr` como beta en lecciones. |
+| **B4**  | **Cuenta de Supabase** + dos proyectos (`the-q-simulator-dev`, `the-q-simulator-prod`) | Antes de M1.1      | Tú creas los proyectos y **tú pegas los valores en el `.env` local**. Yo dejo el `.env.example` con la forma exacta. No me mandes las llaves por chat.                    |
+| **B5**  | **Cuenta de Vercel** conectada al repo                                                 | Antes de M0.10     | Yo dejo la configuración documentada; tú autorizas la app de GitHub.                                                                                                      |
+| **B6**  | **Cuenta de Railway** (API + worker + Redis)                                           | Antes de M1.8      | Igual: tú creas, yo configuro los archivos de despliegue.                                                                                                                 |
+| **B7**  | **OAuth apps de GitHub y Google** cargadas en el dashboard de Supabase                 | Antes de M1.3      | Van en Authentication → Providers. El código nunca ve esos secretos (§12.5).                                                                                              |
+| **B8**  | Tu **token de IBM Quantum** para probar (plan abierto gratuito)                        | Fase 4             | Solo para pruebas de desarrollo, en tu `.env` local. En producción cada usuario aporta el suyo.                                                                           |
+| **B9**  | **Docker Desktop** para Redis local                                                    | Fase 2             | Alternativa: usar Upstash y saltarse Docker.                                                                                                                              |
+| **B10** | Cuenta de **Sentry** (opcional)                                                        | Fase 1 en adelante | Se puede posponer sin afectar nada.                                                                                                                                       |
 
 **Sobre secretos:** nunca me pegues llaves, tokens ni contraseñas en el chat. Yo genero `.env.example` con los nombres y el formato; tú copias los valores desde cada dashboard a tu `.env` local y a las variables de entorno de Vercel/Railway. El `.gitignore` ya excluye `.env`.
 
@@ -387,10 +423,11 @@ Ordenado por cuándo bloquea. Los marcados 🔴 detienen el trabajo hasta resolv
 
 ## 8. Orden de arranque inmediato
 
-1. **B1** — instalas Node 22 ← *lo único que falta*
-2. ~~**B2** — decisiones D1–D6~~ ✅ D2 resuelta (trilingüe); D1, D3–D6 quedan en la recomendación salvo que digas lo contrario
-3. Yo ejecuto **M0.0** (andamiaje + infraestructura i18n) y abro el primer PR
-4. Yo ejecuto **M0.1** y **M0.2** — el contrato y el motor, que es donde está el valor técnico real
-5. Revisamos el motor con sus tests antes de tocar una sola línea de UI
+1. ~~**B1** — Node 22~~ ✅ Node 24.19.0 instalado
+2. ~~**B2** — decisiones D1–D6~~ ✅ congeladas y escritas en el README
+3. ~~**M0.0** — andamiaje + infraestructura i18n~~ ✅ completado y verificado
+4. **M0.1** — el contrato de circuito ← _siguiente_
+5. **M0.2** — el motor de statevector, donde está el valor técnico real
+6. Revisamos el motor con sus tests antes de tocar una sola línea de UI
 
 El motor antes que la interfaz, siempre. Si el motor miente, la interfaz miente bonito.

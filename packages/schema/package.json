@@ -1,0 +1,25 @@
+{
+  "name": "@qsim/schema",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Circuit JSON contract — types and Zod validators shared by client and server",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

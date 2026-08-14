@@ -1,0 +1,57 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Single source of truth for dependency versions across the monorepo.
+# Packages reference these with "catalog:" instead of a literal version,
+# so an upgrade happens in one place and can never drift between workspaces.
+catalog:
+  # Language and build
+  typescript: 6.0.3
+  vite: 8.2.1
+  '@vitejs/plugin-react': 6.0.5
+
+  # Runtime — web
+  react: 19.2.8
+  react-dom: 19.2.8
+  '@types/react': 19.2.18
+  '@types/react-dom': 19.2.4
+
+  # i18n (D2 — es/en/fr from day one)
+  i18next: 26.3.6
+  react-i18next: 17.0.11
+  i18next-browser-languagedetector: 8.2.1
+
+  # Validation
+  zod: 4.4.3
+
+  # Testing
+  vitest: 4.1.10
+  '@vitest/coverage-v8': 4.1.10
+  fast-check: 4.9.0
+  jsdom: 30.0.1
+
+  # Linting and formatting
+  eslint: 10.8.1
+  '@eslint/js': 10.0.1
+  typescript-eslint: 8.67.0
+  eslint-config-prettier: 10.1.8
+  eslint-plugin-i18next: 6.1.5
+  eslint-plugin-react-hooks: 7.1.1
+  eslint-plugin-react-refresh: 0.5.4
+  globals: 17.11.0
+  prettier: 3.9.6
+
+  # Tooling
+  turbo: 2.10.10
+  dependency-cruiser: 18.2.0
+  '@types/node': 26.2.0
+
+minimumReleaseAgeExclude:
+  - '@turbo/darwin-64@2.10.10'
+  - '@turbo/darwin-arm64@2.10.10'
+  - '@turbo/linux-64@2.10.10'
+  - '@turbo/linux-arm64@2.10.10'
+  - '@turbo/windows-64@2.10.10'
+  - '@turbo/windows-arm64@2.10.10'
+  - turbo@2.10.10

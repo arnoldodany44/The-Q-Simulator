@@ -1,0 +1,19 @@
+{
+  "extends": "@qsim/config/tsconfig/lib.json",
+  "compilerOptions": {
+    /*
+     * Deliberately relaxed for this package only.
+     *
+     * The gate-application kernel indexes Float64Array in tight loops where
+     * every index is provably in range by construction. Under
+     * noUncheckedIndexedAccess every one of those reads becomes
+     * `number | undefined` and the only remedy is a non-null assertion on
+     * each line — which adds noise without adding safety, and makes the
+     * hot loops harder to read. Correctness here is guaranteed by the test
+     * suite (analytic states, unitarity, norm preservation), not by the
+     * index checker.
+     */
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*", "vitest.config.ts"]
+}

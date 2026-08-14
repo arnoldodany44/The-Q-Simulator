@@ -28,12 +28,12 @@ El diferenciador no es "otro simulador". Es la combinación de tres cosas que no
 
 ## 2. Audiencia y casos de uso
 
-| Persona | Qué busca | Qué le da The Q Simulator |
-|---|---|---|
-| **Estudiante de cuántica** | Entender qué hace realmente una compuerta | Simulación en vivo + visualizaciones + lecciones guiadas |
-| **Desarrollador curioso** | Probar sin instalar nada | Editor en el navegador, cero setup, exportar a Qiskit cuando quiera profundizar |
-| **Docente** | Material para clase | Circuitos públicos con URL, modo presentación, embeds |
-| **Practicante NISQ** | Comparar ideal vs. ruido vs. hardware | Modo ruido y ejecución en IBM Quantum |
+| Persona                    | Qué busca                                 | Qué le da The Q Simulator                                                       |
+| -------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------- |
+| **Estudiante de cuántica** | Entender qué hace realmente una compuerta | Simulación en vivo + visualizaciones + lecciones guiadas                        |
+| **Desarrollador curioso**  | Probar sin instalar nada                  | Editor en el navegador, cero setup, exportar a Qiskit cuando quiera profundizar |
+| **Docente**                | Material para clase                       | Circuitos públicos con URL, modo presentación, embeds                           |
+| **Practicante NISQ**       | Comparar ideal vs. ruido vs. hardware     | Modo ruido y ejecución en IBM Quantum                                           |
 
 El trabajo principal de la página de inicio: **que alguien que nunca ha visto un circuito cuántico entienda, en menos de un minuto, qué es la superposición y qué es el entrelazamiento.**
 
@@ -43,7 +43,7 @@ El trabajo principal de la página de inicio: **que alguien que nunca ha visto u
 
 ### 3.1 Editor de circuitos
 
-- Lienzo con N qubits (1–20 en cliente, hasta 28 en servidor) y columnas de tiempo (*moments*).
+- Lienzo con N qubits (1–20 en cliente, hasta 28 en servidor) y columnas de tiempo (_moments_).
 - Paleta de compuertas arrastrables:
   - **1 qubit**: I, X, Y, Z, H, S, S†, T, T†, √X
   - **Parametrizadas**: Rx(θ), Ry(θ), Rz(θ), P(φ), U(θ, φ, λ) — con slider y campo numérico, y soporte de parámetros simbólicos (`theta`) para barridos.
@@ -166,7 +166,7 @@ Esta es la pieza técnica central. Vale la pena implementarla con cuidado porque
 
 ### 5.1 Representación del estado
 
-Un sistema de *n* qubits vive en un espacio de 2ⁿ dimensiones. El estado es un vector de 2ⁿ amplitudes complejas:
+Un sistema de _n_ qubits vive en un espacio de 2ⁿ dimensiones. El estado es un vector de 2ⁿ amplitudes complejas:
 
 ```
 |ψ⟩ = Σ aᵢ |i⟩,   con Σ |aᵢ|² = 1
@@ -176,19 +176,19 @@ En memoria se guarda como **dos `Float64Array` paralelos** (parte real y parte i
 
 Consumo de memoria: `2ⁿ × 16 bytes`.
 
-| Qubits | Amplitudes | Memoria |
-|---|---|---|
-| 10 | 1,024 | 16 KB |
-| 16 | 65,536 | 1 MB |
-| 20 | 1,048,576 | 16 MB |
-| 24 | 16,777,216 | 256 MB |
-| 28 | 268,435,456 | 4 GB |
+| Qubits | Amplitudes  | Memoria |
+| ------ | ----------- | ------- |
+| 10     | 1,024       | 16 KB   |
+| 16     | 65,536      | 1 MB    |
+| 20     | 1,048,576   | 16 MB   |
+| 24     | 16,777,216  | 256 MB  |
+| 28     | 268,435,456 | 4 GB    |
 
 De ahí salen los límites: ~20 qubits es cómodo en navegador, ~28 es el techo razonable en servidor.
 
 ### 5.2 Aplicación de compuertas (lo importante)
 
-La forma ingenua de aplicar una compuerta a un qubit dentro de un sistema de *n* qubits es construir la matriz completa con productos de Kronecker:
+La forma ingenua de aplicar una compuerta a un qubit dentro de un sistema de _n_ qubits es construir la matriz completa con productos de Kronecker:
 
 ```
 I ⊗ I ⊗ H ⊗ I  →  matriz de 2ⁿ × 2ⁿ
@@ -196,14 +196,14 @@ I ⊗ I ⊗ H ⊗ I  →  matriz de 2ⁿ × 2ⁿ
 
 **No hagas eso.** Esa matriz tiene 4ⁿ entradas y es casi toda ceros. Aplicarla cuesta O(4ⁿ).
 
-El enfoque correcto es actualizar el statevector **en sitio, por pares de índices**. Aplicar una compuerta de 1 qubit al qubit *t* significa recorrer todos los índices donde el bit *t* vale 0, emparejarlos con el índice donde ese bit vale 1, y aplicar la matriz 2×2 a ese par:
+El enfoque correcto es actualizar el statevector **en sitio, por pares de índices**. Aplicar una compuerta de 1 qubit al qubit _t_ significa recorrer todos los índices donde el bit _t_ vale 0, emparejarlos con el índice donde ese bit vale 1, y aplicar la matriz 2×2 a ese par:
 
 ```ts
-const stride = 1 << target;
+const stride = 1 << target
 for (let base = 0; base < size; base += stride << 1) {
   for (let offset = 0; offset < stride; offset++) {
-    const i0 = base + offset;        // bit target = 0
-    const i1 = i0 + stride;          // bit target = 1
+    const i0 = base + offset // bit target = 0
+    const i1 = i0 + stride // bit target = 1
     // [a0', a1'] = M · [a0, a1]
   }
 }
@@ -217,7 +217,7 @@ Para compuertas controladas, la única diferencia es saltar los índices donde e
 
 **Probabilidades**: regla de Born, `P(i) = |aᵢ|²`. Para la probabilidad marginal de un qubit, se suman las probabilidades de todos los estados base donde ese bit vale 1.
 
-**Muestreo de shots**: se construye la distribución acumulada una vez y se muestrea con búsqueda binaria — O(2ⁿ + shots·n). Para volúmenes altos de shots conviene el método *alias* (O(1) por muestra).
+**Muestreo de shots**: se construye la distribución acumulada una vez y se muestrea con búsqueda binaria — O(2ⁿ + shots·n). Para volúmenes altos de shots conviene el método _alias_ (O(1) por muestra).
 
 **Medición a mitad de circuito**: colapsa el estado. Se elige un resultado según la probabilidad, se anulan las amplitudes incompatibles y se renormaliza el vector. Como el resultado es aleatorio, un circuito con medición intermedia **no tiene un único estado final**: para obtener estadísticas hay que correr trayectorias independientes (una por shot). El motor debe distinguir claramente el modo "estado final analítico" del modo "trayectorias muestreadas".
 
@@ -238,7 +238,7 @@ Alternativa más escalable para circuitos grandes: **trayectorias de Monte Carlo
 
 ### 5.5 Vector de Bloch desde la densidad reducida
 
-Para dibujar la esfera de Bloch del qubit *q* en un sistema entrelazado, se calcula la traza parcial sobre los demás qubits para obtener ρ_q (2×2), y de ahí:
+Para dibujar la esfera de Bloch del qubit _q_ en un sistema entrelazado, se calcula la traza parcial sobre los demás qubits para obtener ρ_q (2×2), y de ahí:
 
 ```
 rx = 2·Re(ρ₀₁),  ry = 2·Im(ρ₁₀),  rz = ρ₀₀ − ρ₁₁
@@ -265,40 +265,44 @@ Todo el sistema gira alrededor de un JSON. Debe ser estable, versionado y valida
   "qubits": 3,
   "clbits": 2,
   "qubitLabels": ["alice", "shared", "bob"],
-  "parameters": [
-    { "name": "theta", "value": 0.7853981634 }
-  ],
+  "parameters": [{ "name": "theta", "value": 0.7853981634 }],
   "operations": [
-    { "id": "op_1", "gate": "h",  "targets": [0], "column": 0 },
-    { "id": "op_2", "gate": "cx", "targets": [2], "controls": [1], "column": 1 },
+    { "id": "op_1", "gate": "h", "targets": [0], "column": 0 },
+    {
+      "id": "op_2",
+      "gate": "cx",
+      "targets": [2],
+      "controls": [1],
+      "column": 1,
+    },
     {
       "id": "op_3",
       "gate": "rz",
       "targets": [0],
       "params": ["theta"],
-      "column": 2
+      "column": 2,
     },
     {
       "id": "op_4",
       "gate": "measure",
       "targets": [0],
       "clbitTargets": [0],
-      "column": 3
+      "column": 3,
     },
     {
       "id": "op_5",
       "gate": "x",
       "targets": [2],
       "column": 4,
-      "condition": { "clbit": 0, "equals": 1 }
-    }
+      "condition": { "clbit": 0, "equals": 1 },
+    },
   ],
   "customGates": {
     "bellPair": {
       "qubits": 2,
-      "operations": [ /* ... */ ]
-    }
-  }
+      "operations": [/* ... */],
+    },
+  },
 }
 ```
 
@@ -707,11 +711,11 @@ hue = fase · 180/π      color = hsl(hue, 85%, 62%)
 
 De esa fórmula salen los cuatro anclajes:
 
-| Fase | Color |
-|---|---|
-| 0 | `#F5445E` |
-| π/2 | `#7BE04A` |
-| π | `#33D6D6` |
+| Fase | Color     |
+| ---- | --------- |
+| 0    | `#F5445E` |
+| π/2  | `#7BE04A` |
+| π    | `#33D6D6` |
 | 3π/2 | `#A24AE0` |
 
 **Paleta de interfaz** (fría, de laboratorio criogénico, para que los colores de fase resalten):
@@ -796,8 +800,8 @@ the-q-simulator/
 
 ```yaml
 packages:
-  - "apps/*"
-  - "packages/*"
+  - 'apps/*'
+  - 'packages/*'
 ```
 
 ### 12.3 Reglas de dependencia entre paquetes
@@ -826,16 +830,16 @@ Vale la pena hacer cumplir esto con `eslint-plugin-boundaries` o con las restric
 
 ### 12.4 Mapa de despliegue
 
-| Servicio | Plataforma | Root directory | Comando de build | Comando de arranque |
-|---|---|---|---|---|
-| Frontend | Vercel | `apps/web` | `pnpm turbo build --filter=web` | (estático) |
-| API | Railway | `apps/api` | `pnpm turbo build --filter=api` | `node dist/server.js` |
-| Worker | Railway | `apps/worker` | `pnpm turbo build --filter=worker` | `node dist/worker.js` |
-| PostgreSQL | Supabase | — | — | — |
-| Redis | Railway (o Upstash) | — | — | — |
-| Auth | Supabase Auth | — | — | — |
-| Almacenamiento (avatares, previews) | Supabase Storage | — | — | — |
-| Observabilidad | Sentry + pino | — | — | — |
+| Servicio                            | Plataforma          | Root directory | Comando de build                   | Comando de arranque   |
+| ----------------------------------- | ------------------- | -------------- | ---------------------------------- | --------------------- |
+| Frontend                            | Vercel              | `apps/web`     | `pnpm turbo build --filter=web`    | (estático)            |
+| API                                 | Railway             | `apps/api`     | `pnpm turbo build --filter=api`    | `node dist/server.js` |
+| Worker                              | Railway             | `apps/worker`  | `pnpm turbo build --filter=worker` | `node dist/worker.js` |
+| PostgreSQL                          | Supabase            | —              | —                                  | —                     |
+| Redis                               | Railway (o Upstash) | —              | —                                  | —                     |
+| Auth                                | Supabase Auth       | —              | —                                  | —                     |
+| Almacenamiento (avatares, previews) | Supabase Storage    | —              | —                                  | —                     |
+| Observabilidad                      | Sentry + pino       | —              | —                                  | —                     |
 
 **Watch paths.** Configura cada servicio para que solo se redespliegue cuando cambian sus rutas relevantes; si no, cada commit rebuildea las tres apps.
 
@@ -982,16 +986,16 @@ Para el entregable de trabajo, **Fase 0 + Fase 1 ya constituyen una app completa
 
 ## 15. Qué necesitas saber en cada módulo
 
-| Módulo | Teoría requerida |
-|---|---|
-| Statevector y compuertas | Álgebra lineal compleja, producto tensorial, unitariedad, matrices de las compuertas estándar |
-| Kernel de aplicación | Indexación por bits, cómo el bit *t* del índice mapea al qubit *t*, orden endian (documéntalo explícitamente: es la fuente #1 de bugs) |
-| Medición | Regla de Born, colapso, probabilidades marginales, renormalización |
-| Esfera de Bloch | Parametrización (θ, φ), traza parcial, matriz de densidad reducida, fase global vs. relativa |
-| Entrelazamiento | Estados producto vs. entrelazados, entropía de von Neumann, concurrencia |
-| Ruido | Formalismo de operadores de Kraus, canales cuánticos, T1/T2, fidelidad |
-| QASM | Gramática de OpenQASM 3, mapeo a tu representación interna |
-| Hardware | Transpilación, conectividad de qubits, gate set nativo, mitigación de error básica |
+| Módulo                   | Teoría requerida                                                                                                                       |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Statevector y compuertas | Álgebra lineal compleja, producto tensorial, unitariedad, matrices de las compuertas estándar                                          |
+| Kernel de aplicación     | Indexación por bits, cómo el bit _t_ del índice mapea al qubit _t_, orden endian (documéntalo explícitamente: es la fuente #1 de bugs) |
+| Medición                 | Regla de Born, colapso, probabilidades marginales, renormalización                                                                     |
+| Esfera de Bloch          | Parametrización (θ, φ), traza parcial, matriz de densidad reducida, fase global vs. relativa                                           |
+| Entrelazamiento          | Estados producto vs. entrelazados, entropía de von Neumann, concurrencia                                                               |
+| Ruido                    | Formalismo de operadores de Kraus, canales cuánticos, T1/T2, fidelidad                                                                 |
+| QASM                     | Gramática de OpenQASM 3, mapeo a tu representación interna                                                                             |
+| Hardware                 | Transpilación, conectividad de qubits, gate set nativo, mitigación de error básica                                                     |
 
 El orden en que los necesitas coincide con el orden de las fases, así que el proyecto te va enseñando en secuencia.
 
