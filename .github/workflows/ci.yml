@@ -65,3 +65,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qsim/core test
+
+      # The wall-clock budgets from the work plan. They belong here rather than
+      # in the verify job because they only mean anything when nothing else is
+      # competing for the CPU, and this job runs the engine on its own.
+      - name: Performance budgets
+        run: pnpm --filter @qsim/core test:perf

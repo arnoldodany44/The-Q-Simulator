@@ -1,7 +1,28 @@
 {
   "extends": "@qsim/config/tsconfig/react.json",
   "compilerOptions": {
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node"],
+
+    /*
+     * Off here for the same reason it is off in packages/qsim, and for a
+     * reason that is not the app's own doing.
+     *
+     * The workspace packages are exported as TypeScript source
+     * (`"exports": "./src/index.ts"`, no build step), so `tsc` in this app
+     * compiles `@qsim/core`'s files as part of this program — and compiler
+     * options belong to the program, not to the file. With the flag on, the
+     * ~100 typed-array reads in the simulation kernel become
+     * `number | undefined` here, even though the engine's own tsconfig
+     * deliberately disables the check (see packages/qsim/tsconfig.json).
+     *
+     * The real fix is to stop compiling package sources in consumers: have
+     * the packages emit declarations and point their `types` condition at
+     * them, or wire up TypeScript project references. Either one makes
+     * `skipLibCheck` apply and lets this flag come back on for app code.
+     * Both are scaffolding changes, so this line is the interim, and it is
+     * the only place in the repo where app code loses the check.
+     */
+    "noUncheckedIndexedAccess": false
   },
   "include": ["src/**/*", "vite.config.ts"]
 }
