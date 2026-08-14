@@ -20,7 +20,7 @@ These are decided once and never revisited casually. Changing them late poisons 
 | # | Decision | Value |
 |---|---|---|
 | **D1** | **Qubit ordering** | **Little-endian — qubit 0 is the least significant bit.** For statevector index `i`, qubit `q` is `(i >> q) & 1`. This matches Qiskit; any other convention makes Qiskit export silently produce mirrored results. |
-| **D2** | UI language | English (i18n scaffolding present, single locale) |
+| **D2** | UI languages | Spanish, English and French from day one (`react-i18next`, fallback `en`, browser detection, persisted manual selector). Gate names, state notation and proper nouns are never translated. |
 | **D3** | Package scope | `@qsim/*` |
 | **D4** | URL circuit encoding | minified JSON → deflate → base64url |
 | **D5** | Test runner | Vitest, all packages |
