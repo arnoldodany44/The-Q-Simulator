@@ -12,7 +12,24 @@ export default defineConfig({
        * simulation worker (M0.6) shares the statevector with the main thread
        * through one, so the headers are set here from the start — discovering
        * they are missing after the worker is written costs an afternoon.
-       * The same two headers must be configured on Vercel for production.
+       * The same two headers are set for production in vercel.json, which
+       * carries no explanation of its own: vercel.json is validated against a
+       * strict schema that rejects unknown properties, so a `"//"` key used as
+       * a comment fails the deployment outright — with an error that points at
+       * the project-configuration docs rather than at the offending line.
+       * Everything that file needs explaining is therefore explained here.
+       *
+       * `require-corp` is only safe because this app loads nothing
+       * cross-origin. The three fonts are self-hosted precisely so that holds;
+       * adding any external resource later means giving it CORP headers or
+       * losing SharedArrayBuffer. The worker checks `crossOriginIsolated` and
+       * falls back to copying transferable buffers rather than assuming, so
+       * getting this wrong costs speed rather than correctness.
+       *
+       * vercel.json also rewrites everything to index.html, because `/new`
+       * and the future `/c/:slug` are React Router paths rather than files.
+       * Vercel checks the filesystem before applying rewrites, so real assets
+       * still serve themselves.
        */
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
