@@ -11,7 +11,24 @@
   --bg-deep: #0b0e1f;
   --bg-panel: #141833;
   --bg-elevated: #1c2145;
-  --wire: #3a4170;
+  /*
+   * §10 first wrote this token as #3A4170. Measured against the surface it is
+   * always drawn on — `--bg-panel` #141833 — that is a contrast ratio of
+   * 1.80:1, and WCAG 1.4.11 asks for 3:1 on "parts of graphics required to
+   * understand the content". A qubit wire is not decoration: it is what says
+   * which gates share a qubit and where the timeline runs, and the SVG is
+   * `aria-hidden`, so a low-vision user who does not use a screen reader has
+   * no second rendering to fall back on. The same token draws the borders of
+   * the palette chips and the toolbar buttons, which are interactive and owe
+   * the same 3:1.
+   *
+   * The value below is the same hue (232°) and the same saturation, lightened
+   * until it passes: 3.21:1 on --bg-panel and 3.53:1 on --bg-deep. §10 now
+   * carries this hex and this reasoning, so the document and the code agree;
+   * the note stays here because a colour is easier to change than to
+   * re-derive.
+   */
+  --wire: #5a65aa;
   --text: #e8eaf6;
   --text-muted: #8b93c4;
   --accent: #5ac8fa;
@@ -88,6 +105,12 @@ body {
   font-size: 0.9375rem;
 }
 
+.section-heading {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  margin: 2rem 0 0.75rem;
+}
+
 .wiring-check {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -108,6 +131,260 @@ body {
   margin: 0;
 }
 
+/*
+ * Present in the accessibility tree, absent from the page. The circuit
+ * canvas leans on this: its SVG is `aria-hidden` and its descriptive table
+ * lives here, so anything that made this rule `display: none` would silently
+ * take the diagram out of the accessibility tree entirely.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Circuit canvas (M0.5b)
+ * ------------------------------------------------------------------ */
+
+.circuit-canvas {
+  /* Width of the pinned gutter; see `.circuit-canvas__gutter`. */
+  --gutter-width: 6.5rem;
+
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.circuit-canvas__notice {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--wire);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+/*
+ * The scroller. `touch-action` states the mobile contract from risk 6: the
+ * editor is read-only below 768px and the only gesture it owns is a pan.
+ *
+ * `scroll-padding-left` reserves the strip the sticky gutter paints over, so
+ * a browser scrolling something into view — a Tab landing in the grid, an
+ * anchor, a future `scrollIntoView` — stops short of hiding it underneath.
+ * The keyboard cursor does not rely on it (`revealCell` in `GridCell.tsx`
+ * measures the gutter and scrolls explicitly), but the declaration is what
+ * makes every *other* route into the canvas behave, and it costs one line.
+ */
+.circuit-canvas__viewport {
+  display: flex;
+  align-items: flex-start;
+  overflow: auto;
+  scroll-padding-left: var(--gutter-width);
+  touch-action: pan-x pan-y;
+}
+
+/*
+ * Pinned wire names. Sticky rather than a second scroll container so the
+ * vertical scroll position is shared by construction — two scrollers kept in
+ * sync by script drift by a pixel on every kinetic scroll.
+ *
+ * The width is a variable because three things have to agree on it: the
+ * gutter itself, the scroll padding above, and `revealCell`, which reads it
+ * back off the element at runtime rather than repeating the number.
+ */
+.circuit-canvas__gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: none;
+  width: var(--gutter-width);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--wire);
+}
+
+.circuit-canvas__row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+}
+
+.circuit-canvas__wire-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text);
+}
+
+.circuit-canvas__row--classical .circuit-canvas__wire-label {
+  color: var(--text-muted);
+}
+
+/*
+ * The row controls are always drawn, never revealed on hover. A control that
+ * appears on hover is a control that does not exist on a trackpad-less
+ * tablet or under a keyboard, and hiding it would also hide it from the
+ * count of what this row can do.
+ */
+.circuit-canvas__row-actions {
+  display: flex;
+  gap: 0.125rem;
+}
+
+/*
+ * 24px, not the 20px this started at. WCAG 2.2 SC 2.5.8 (Target Size,
+ * Minimum, AA) asks for 24×24 CSS pixels, and the spacing exception does not
+ * rescue two 20px buttons 2px apart — their centres are 22px apart, so the
+ * 24px circles the exception measures overlap. These two are the only way to
+ * add or remove a wire with a pointer, and they sit inside a 48px row with
+ * room to spare.
+ */
+.circuit-canvas__row-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--wire);
+  border-radius: 0.25rem;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.circuit-canvas__row-button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.circuit-canvas__row-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+}
+
+.circuit-canvas__plot {
+  display: block;
+  flex: none;
+}
+
+.qsim-wire {
+  stroke: var(--wire);
+  stroke-width: 2;
+}
+
+.qsim-wire--classical {
+  stroke-width: 1.5;
+}
+
+.qsim-wire--slash {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+
+.qsim-register-label {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.qsim-link {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.qsim-link--classical {
+  stroke-width: 1.5;
+}
+
+.qsim-classical-arrow {
+  fill: var(--accent);
+}
+
+.qsim-condition {
+  fill: var(--accent);
+}
+
+.qsim-barrier {
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+
+/*
+ * Positive control: a solid disc. Negative control: a ring on the page
+ * background. The difference is shape, not shade, because it inverts the
+ * meaning of the gate — see the header of GateNode.tsx.
+ */
+.qsim-control {
+  fill: var(--accent);
+}
+
+.qsim-control--negative {
+  fill: var(--bg-deep);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.qsim-plus {
+  fill: var(--bg-deep);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.qsim-plus__arm {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.qsim-swap {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.qsim-box {
+  fill: var(--bg-elevated);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.qsim-box__label {
+  fill: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.qsim-meter {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.qsim-op__halo {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+
 /* Specification §10: the phasors freeze and show a numeric angle instead. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -122,4 +399,535 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Circuit editor (M0.5c)
+ * ------------------------------------------------------------------ */
+
+.page--wide {
+  max-width: 78rem;
+}
+
+.page__cta {
+  display: inline-block;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.375rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-family: var(--font-display);
+}
+
+.page__cta:hover {
+  background: var(--bg-elevated);
+}
+
+.page__header h1 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.circuit-editor__layout {
+  display: grid;
+  grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+/*
+ * One column below the read-only breakpoint of §10. The palette is still
+ * rendered rather than hidden: it is the only place the gate catalog is
+ * written down, and a reader on a phone is still a reader.
+ */
+@media (max-width: 767px) {
+  .circuit-editor__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.circuit-editor__work {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.circuit-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.circuit-editor__toolbar button {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.circuit-editor__toolbar button:hover:enabled {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.circuit-editor__toolbar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/*
+ * The status line keeps its height when empty. A message that appeared by
+ * pushing the canvas down would move the very cell the user is aiming at.
+ */
+.circuit-editor__status {
+  margin: 0;
+  min-height: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--accent);
+}
+
+.circuit-editor__drag-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.375rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-mono);
+  cursor: grabbing;
+}
+
+/* ---- palette ---- */
+
+.gate-palette {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.gate-palette__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.gate-palette__group + .gate-palette__group {
+  margin-top: 0.75rem;
+}
+
+.gate-palette__heading {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.gate-palette__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.gate-palette__chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  height: 2.25rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  cursor: grab;
+}
+
+.gate-palette__chip:hover:enabled {
+  border-color: var(--accent);
+}
+
+/*
+ * The armed gate carries an inset ring as well as a border colour: which
+ * gate is about to be placed is the one piece of state the whole keyboard
+ * flow depends on, and a hue difference alone is not a difference for
+ * everyone.
+ */
+.gate-palette__chip--armed {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.gate-palette__chip--dragging {
+  opacity: 0.4;
+}
+
+.gate-palette__chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.gate-palette__key {
+  position: absolute;
+  right: 0.15rem;
+  bottom: 0.05rem;
+  font-size: 0.5625rem;
+  color: var(--text-muted);
+}
+
+/* ---- the interactive grid over the plot ---- */
+
+.circuit-canvas__stage {
+  position: relative;
+  flex: none;
+}
+
+.circuit-canvas__grid {
+  position: absolute;
+  inset: 0;
+}
+
+.circuit-canvas__grid-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.circuit-canvas__cell {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.circuit-canvas__cell--readonly {
+  cursor: default;
+}
+
+.circuit-canvas__cell--occupied {
+  cursor: grab;
+}
+
+.circuit-canvas__cell:hover {
+  background: rgb(90 200 250 / 8%);
+}
+
+/*
+ * Selection is drawn by the SVG halo around the whole operation; the cell
+ * only tints, so a multi-qubit gate reads as one selected thing rather than
+ * as two independently highlighted squares.
+ */
+.circuit-canvas__cell--selected {
+  background: rgb(90 200 250 / 10%);
+}
+
+/*
+ * The keyboard cursor is the focus ring, not a second marker beside it:
+ * the cell the cursor is on is the element that holds DOM focus, so
+ * "where the cursor is" and "where focus is" cannot become two squares.
+ */
+.circuit-canvas__cell--cursor,
+.circuit-canvas__cell--cursor:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/*
+ * …but the cursor outlives focus. Tab away to the toolbar and the grid still
+ * remembers where the next Enter would land, which is worth showing — and
+ * showing it in the *same* accent ring the focused button is wearing puts
+ * two identical focus indicators on screen at once and lets the user guess
+ * which one the next keystroke belongs to. So while focus is elsewhere the
+ * cursor drops to a dotted muted ring: still legible (5.85:1 on the panel),
+ * plainly not the thing with focus.
+ */
+.circuit-canvas__grid:not(:focus-within) .circuit-canvas__cell--cursor {
+  outline: 2px dotted var(--text-muted);
+}
+
+.circuit-canvas__cell--over {
+  background: rgb(90 200 250 / 18%);
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.circuit-canvas__cell--dragging {
+  opacity: 0.35;
+}
+
+/*
+ * A half-placed multi-qubit gate: the column it is waiting in is tinted,
+ * and the wires it has already claimed more strongly, so the question
+ * "where does the rest of this gate go" is answered on the canvas and not
+ * only in the status line.
+ */
+.circuit-canvas__cell--awaiting {
+  background: rgb(162 74 224 / 10%);
+}
+
+.circuit-canvas__cell--claimed.circuit-canvas__cell--awaiting {
+  background: rgb(162 74 224 / 28%);
+}
+
+/* ---- parameters ---- */
+
+.parameter-editor {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.parameter-editor__heading {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.parameter-editor__empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.parameter-editor__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.parameter-editor__row + .parameter-editor__row {
+  margin-top: 0.5rem;
+}
+
+.parameter-editor__symbol {
+  width: 1.25rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.parameter-editor__slider {
+  flex: 1 1 10rem;
+  min-width: 8rem;
+  accent-color: var(--accent);
+}
+
+.parameter-editor__field {
+  width: 6rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.parameter-editor__reading {
+  display: inline-flex;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.parameter-editor__pi {
+  color: var(--accent);
+}
+
+.parameter-editor__symbolic {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* ---- shortcuts ---- */
+
+.shortcuts {
+  margin-top: 1rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.shortcuts__summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+}
+
+.shortcuts__note {
+  margin: 0.5rem 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.shortcuts__list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.3rem 1rem;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.shortcuts__entry {
+  display: contents;
+}
+
+/*
+ * WCAG 2.2 SC 1.4.10 Reflow: no horizontal page scroll at 320 CSS px. The
+ * two-column template gives the key column whatever its widest `nowrap` key
+ * needs, and translated key names are longer than English ones — "Tecla de
+ * compuerta" and `Ctrl`+`Maj`+`Z` took 215px of a 246px list, collapsing the
+ * description column to fifteen pixels and pushing its text past the edge of
+ * the page in Spanish and French while English merely looked cramped.
+ *
+ * Below the narrowest supported width the two halves stack instead, so each
+ * one has the full column and neither can starve the other. The gap is
+ * asymmetric on purpose: the description belongs to the keys above it, and a
+ * uniform gap would make the list read as one flat run of paragraphs.
+ */
+@media (max-width: 359px) {
+  .shortcuts__list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2rem;
+  }
+
+  .shortcuts__description {
+    margin-bottom: 0.4rem;
+  }
+}
+
+.shortcuts__combos {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.shortcuts__combo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/*
+ * A plus between the keys of one combination and a slash between
+ * alternatives. Generated content rather than text nodes: they are
+ * punctuation belonging to the layout, and as JSX text they would be
+ * untranslatable literals the i18next rule is right to reject.
+ */
+.shortcuts__key + .shortcuts__key::before {
+  content: '+';
+  margin-right: 0.15rem;
+  color: var(--text-muted);
+}
+
+.shortcuts__combo + .shortcuts__combo::before {
+  content: '/';
+  margin-right: 0.25rem;
+  color: var(--text-muted);
+}
+
+.shortcuts__key {
+  border: 1px solid var(--wire);
+  border-radius: 0.25rem;
+  background: var(--bg-elevated);
+  padding: 0.1rem 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.shortcuts__description {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * Simulation panel (M0.6)
+ *
+ * Deliberately plain: the design system and the analysis panel land
+ * together in M0.7, and a bespoke palette invented here would only have to
+ * be unpicked. It borrows the parameter editor's card so the work column
+ * reads as one surface, and every colour is a §10 token.
+ * ------------------------------------------------------------------ */
+
+.simulation-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.simulation-panel__heading {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.simulation-panel__state {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/*
+ * Holds its line whether or not there is a failure, for two reasons: a live
+ * region that appears together with its text is one some screen readers
+ * never announce, and a panel that grows by a line when a refusal arrives
+ * would shove the canvas the user is aiming at.
+ */
+.simulation-panel__failure {
+  margin: 0.35rem 0 0;
+  min-height: 1.5rem;
+  font-size: 0.8125rem;
+  color: var(--accent);
+}
+
+.simulation-panel__facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 1rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.simulation-panel__fact {
+  display: contents;
+}
+
+.simulation-panel__fact dt {
+  color: var(--text-muted);
+}
+
+.simulation-panel__fact dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.simulation-panel__note {
+  margin: 0.6rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }

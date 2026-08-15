@@ -1,5 +1,8 @@
 {
   "appName": "The Q Simulator",
+  "meta": {
+    "description": "Build quantum circuits in your browser, watch the state evolve, and run them on real hardware."
+  },
   "language": {
     "label": "Language",
     "en": "English",
@@ -10,5 +13,9 @@
     "cancel": "Cancel",
     "save": "Save",
     "reset": "Reset"
+  },
+  "nav": {
+    "home": "Home",
+    "editor": "Editor"
   }
 }

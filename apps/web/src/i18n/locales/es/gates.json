@@ -1,0 +1,12 @@
+{
+  "paletteLabel": "Paleta de compuertas",
+  "hint": "Arrastra una compuerta a la rejilla, o pulsa su tecla para elegirla e Intro para colocarla.",
+  "draggable": "compuerta arrastrable",
+  "category": {
+    "single": "Un qubit",
+    "parametrised": "Parametrizadas",
+    "two": "Dos qubits",
+    "three": "Tres qubits",
+    "structural": "Estructurales"
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "title": "Éditeur de circuits",
+  "page": {
+    "heading": "Nouveau circuit",
+    "intro": "Glissez une porte sur la grille, ou appuyez sur sa touche puis sur Entrée dans une case."
+  },
+  "canvas": {
+    "label": "Schéma de circuit quantique",
+    "grid": "Grille du circuit",
+    "contents": "Contenu du circuit, fil par fil et instant par instant.",
+    "summary": "Qubits : {{qubits}}. Colonnes : {{columns}}. Opérations : {{gates}}.",
+    "readOnly": "Lecture seule sur petit écran. Faites défiler pour parcourir le circuit.",
+    "wireHeader": "Fil",
+    "column": "Colonne {{index}}",
+    "classicalRegister_one": "registre classique, {{count}} bit",
+    "classicalRegister_other": "registre classique, {{count}} bits",
+    "cell": {
+      "empty": "libre",
+      "dragHandle": "porte déplaçable",
+      "control": "contrôle",
+      "negativeControl": "contrôle négatif, actif à zéro",
+      "target": "cible",
+      "controlledBy": "contrôlée par {{qubits}}",
+      "barrier": "barrière",
+      "reset": "réinitialisation",
+      "measuredInto": "mesurée vers {{clbit}}",
+      "conditional": "ne s'exécute que si {{clbit}} vaut {{value}}",
+      "classicalWrite": "reçoit la mesure de {{qubits}}",
+      "classicalRead": "lue comme condition, {{clbit}} vaut {{value}}"
+    }
+  },
+  "wire": {
+    "remove": "Supprimer le qubit {{label}}",
+    "insertBelow": "Insérer un qubit sous {{label}}"
+  },
+  "register": {
+    "addBit": "Ajouter un bit classique",
+    "removeBit": "Supprimer le dernier bit classique"
+  },
+  "toolbar": {
+    "label": "Actions sur le circuit",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "copy": "Copier",
+    "paste": "Coller",
+    "remove": "Supprimer",
+    "compact": "Resserrer les colonnes"
+  },
+  "placement": {
+    "pickTarget": "attend un autre qubit cible dans cette colonne. Déplacez le curseur et appuyez sur Entrée.",
+    "pickControl": "attend son qubit de contrôle dans cette colonne. Déplacez le curseur et appuyez sur Entrée.",
+    "no-gate-armed": "Choisissez d'abord une porte, puis appuyez sur Entrée dans une case.",
+    "other-column": "Le reste de la porte doit tenir dans la même colonne.",
+    "qubit-already-used": "Cette porte utilise déjà ce qubit.",
+    "not-enough-qubits": "Cette porte demande plus de fils que le circuit n'en a. Ajoutez d'abord un qubit.",
+    "classical-row": "Le registre classique est en lecture seule. Une mesure l'atteint depuis son propre qubit.",
+    "nothing-here": "Il n'y a rien à supprimer ici.",
+    "read-only": "L'éditeur est en lecture seule sur petit écran.",
+    "cancelled-by-register-edit": "La porte en cours de placement a été annulée : le qubit sur lequel elle se trouvait a changé.",
+    "no-free-clbit": "Tous les bits classiques sont déjà écrits dans cette colonne. Ajoutez-en un au registre classique, ou utilisez une autre colonne."
+  },
+  "feedback": {
+    "placed": "placée sur {{qubits}}, colonne {{column}}.",
+    "moved": "déplacée vers {{qubits}}, colonne {{column}}.",
+    "removed": "supprimée de {{qubits}}, colonne {{column}}.",
+    "removedMany_one": "{{count}} porte supprimée.",
+    "removedMany_other": "{{count}} portes supprimées.",
+    "copied_one": "{{count}} porte copiée.",
+    "copied_other": "{{count}} portes copiées.",
+    "pasted_one": "{{count}} porte collée sur {{qubits}}, colonne {{column}}.",
+    "pasted_other": "{{count}} portes collées sur {{qubits}}, colonne {{column}}.",
+    "undone": "Action annulée.",
+    "redone": "Action rétablie.",
+    "gapsClosed": "Colonnes resserrées.",
+    "noGaps": "Il n'y avait aucune colonne à resserrer.",
+    "qubitAdded": "Qubit {{label}} ajouté.",
+    "qubitRemoved": "Fil {{label}} supprimé.",
+    "qubitRemovedWithGates_one": "Fil {{label}} supprimé, avec {{count}} porte.",
+    "qubitRemovedWithGates_other": "Fil {{label}} supprimé, avec {{count}} portes.",
+    "clbitAdded": "Bit classique {{label}} ajouté.",
+    "clbitRemoved": "Bit classique {{label}} supprimé."
+  },
+  "parameters": {
+    "title": "Paramètres",
+    "none": "Sélectionnez une porte paramétrée pour en changer les angles.",
+    "slider": "Curseur d'angle",
+    "field": "Angle en radians",
+    "symbolic": "Piloté par le paramètre du circuit"
+  },
+  "dnd": {
+    "instructions": "Appuyez sur Espace pour saisir la porte, sur les flèches pour la déplacer case par case, de nouveau sur Espace pour la déposer, et sur Échap pour annuler.",
+    "start": "Porte saisie.",
+    "cancel": "Déplacement annulé."
+  },
+  "shortcuts": {
+    "title": "Raccourcis clavier",
+    "note": "Tout l'éditeur fonctionne sans souris.",
+    "keys": {
+      "arrows": "Flèches",
+      "home": "Origine",
+      "end": "Fin",
+      "gate": "Touche de porte",
+      "enter": "Entrée",
+      "space": "Espace",
+      "escape": "Échap",
+      "delete": "Suppr",
+      "ctrl": "Ctrl",
+      "shift": "Maj"
+    },
+    "move": "Déplacer le curseur sur la grille",
+    "rowEnds": "Aller à la première ou à la dernière colonne du fil",
+    "arm": "Choisir une porte dans la palette",
+    "place": "Poser la porte choisie, ou sélectionner celle sous le curseur",
+    "pickUp": "Saisir une porte et la déplacer avec les flèches",
+    "cancel": "Annuler une porte à moitié posée, reposer la porte choisie, ou vider la sélection",
+    "remove": "Supprimer la porte sous le curseur",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "copy": "Copier la sélection",
+    "paste": "Coller au curseur"
+  },
+  "rejection": {
+    "shape": "Ce fichier ne correspond pas au format de circuit.",
+    "unknown-gate": "Cette porte ne figure pas dans le catalogue.",
+    "arity-mismatch": "Cette porte agit sur un autre nombre de qubits.",
+    "control-count-mismatch": "Cette porte n'accepte pas ce nombre de contrôles.",
+    "param-count-mismatch": "Cette porte prend un autre nombre de paramètres.",
+    "clbit-target-mismatch": "Cette porte écrit dans un autre nombre de bits classiques.",
+    "qubit-out-of-range": "Ce qubit est en dehors du circuit.",
+    "clbit-out-of-range": "Ce bit classique est en dehors du circuit. Ajoutez-en un au registre classique.",
+    "target-control-overlap": "Une porte ne peut pas être contrôlée par un qubit sur lequel elle agit.",
+    "repeated-qubit": "Une porte ne peut pas utiliser deux fois le même qubit.",
+    "column-conflict": "Une autre porte occupe déjà cette case.",
+    "unknown-parameter": "Ce paramètre n'est pas déclaré dans le circuit.",
+    "duplicate-operation-id": "Deux opérations portent le même identifiant.",
+    "duplicate-parameter": "Ce paramètre est déclaré plus d'une fois.",
+    "qubit-label-count": "Le circuit demande un nom par qubit.",
+    "custom-gate-cycle": "Une porte personnalisée ne peut pas se contenir elle-même.",
+    "operation-not-found": "Cette porte n'est plus dans le circuit.",
+    "control-not-found": "Cette porte n'a pas de contrôle sur ce qubit.",
+    "empty-selection": "Sélectionnez d'abord au moins une porte.",
+    "empty-clipboard": "Il n'y a rien à coller.",
+    "register-limit": "Le circuit a atteint sa limite de qubits ou de bits classiques.",
+    "nothing-to-undo": "Il n'y a plus rien à annuler.",
+    "nothing-to-redo": "Il n'y a plus rien à rétablir.",
+    "clbit-in-use": "Une autre opération de cette colonne écrit déjà dans ce bit classique."
+  }
+}

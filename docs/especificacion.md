@@ -724,11 +724,13 @@ De esa fórmula salen los cuatro anclajes:
 --bg-deep     #0B0E1F
 --bg-panel    #141833
 --bg-elevated #1C2145
---wire        #3A4170
+--wire        #5A65AA
 --text        #E8EAF6
 --text-muted  #8B93C4
 --accent      #5AC8FA
 ```
+
+`--wire` se escribió originalmente como `#3A4170`, pero medido contra la superficie sobre la que siempre se dibuja —`--bg-panel` `#141833`— ese valor da un contraste de 1.80:1, y la WCAG 1.4.11 exige 3:1 para «las partes de los gráficos necesarias para comprender el contenido»: un hilo de qubit no es decoración, es lo que dice qué compuertas comparten un qubit y por dónde corre la línea de tiempo, y el SVG es `aria-hidden`, así que una persona con baja visión que no use lector de pantalla no tiene una segunda representación a la que recurrir. El valor que se envía conserva el mismo matiz (232°) y la misma saturación, aclarado hasta pasar la medición: 3.21:1 sobre `--bg-panel` y 3.53:1 sobre `--bg-deep`. El mismo token dibuja los bordes de las fichas de la paleta y de la barra de herramientas, que son interactivos y deben ese mismo 3:1.
 
 **Tipografía**
 

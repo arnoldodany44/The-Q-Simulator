@@ -20,6 +20,14 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    /*
+     * Vitest owns `src` and Playwright owns `e2e` — the two runners never
+     * see each other's files. The pattern is what keeps them apart: an e2e
+     * spec collected by Vitest would run `test()` from `@playwright/test`
+     * inside jsdom, and the error that produces names neither runner.
+     * The suffix differs too (`.test.ts` here, `.spec.ts` there), so the
+     * separation survives either one of the rules being loosened.
+     */
     include: ['src/**/*.test.{ts,tsx}'],
   },
 })

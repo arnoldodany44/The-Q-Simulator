@@ -40,6 +40,44 @@ describe('locale parity', () => {
     expect(onDisk).toEqual([...SUPPORTED_LANGUAGES].sort())
   })
 
+  /*
+   * The guard the header promises, and the one the rest of this file cannot
+   * give: every assertion below iterates NAMESPACES, so a catalog that exists
+   * on disk but was never registered there is invisible to all of them. That
+   * mistake is silent at runtime too — `loadCatalogs` iterates the same list,
+   * so an unregistered file simply never loads and every key in it renders as
+   * a raw identifier. Comparing the *set of files* against NAMESPACES closes
+   * both halves at once: a file nobody registered, and a namespace registered
+   * with a file missing from one language.
+   */
+  it.each(SUPPORTED_LANGUAGES)(
+    'has exactly the registered namespaces on disk in "%s"',
+    (language) => {
+      const onDisk = readdirSync(join(LOCALES_DIR, language))
+        .filter((name) => name.endsWith('.json'))
+        .map((name) => name.replace(/\.json$/, ''))
+        .sort()
+
+      expect(onDisk).toEqual([...NAMESPACES].sort())
+    }
+  )
+
+  /*
+   * French sets a non-breaking space before ':', ';', '!' and '?' so the mark
+   * cannot begin a line. `interpolation.escapeValue` is false, so the
+   * character reaches the DOM intact; the only thing that can put an ordinary
+   * space back is a translator's keyboard, which is what this catches.
+   */
+  it('never leaves a breaking space before French high punctuation', () => {
+    for (const namespace of NAMESPACES) {
+      const catalog = JSON.stringify(readCatalog('fr', namespace))
+      expect(
+        catalog.match(/ [:;!?]/g) ?? [],
+        `fr/${namespace}.json needs U+00A0 before : ; ! ?`
+      ).toEqual([])
+    }
+  })
+
   it.each(NAMESPACES)(
     'has identical keys across all languages in "%s"',
     (namespace) => {

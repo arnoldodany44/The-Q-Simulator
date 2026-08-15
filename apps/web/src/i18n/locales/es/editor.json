@@ -1,0 +1,148 @@
+{
+  "title": "Editor de circuitos",
+  "page": {
+    "heading": "Circuito nuevo",
+    "intro": "Arrastra una compuerta a la rejilla, o pulsa su tecla y luego Intro sobre una celda."
+  },
+  "canvas": {
+    "label": "Diagrama de circuito cuántico",
+    "grid": "Rejilla del circuito",
+    "contents": "Contenido del circuito, línea por línea y momento por momento.",
+    "summary": "Qubits: {{qubits}}. Columnas: {{columns}}. Operaciones: {{gates}}.",
+    "readOnly": "Solo lectura en pantallas pequeñas. Desplázate para recorrer el circuito.",
+    "wireHeader": "Línea",
+    "column": "Columna {{index}}",
+    "classicalRegister_one": "registro clásico, {{count}} bit",
+    "classicalRegister_other": "registro clásico, {{count}} bits",
+    "cell": {
+      "empty": "libre",
+      "dragHandle": "compuerta movible",
+      "control": "control",
+      "negativeControl": "control negativo, se activa en cero",
+      "target": "objetivo",
+      "controlledBy": "controlado por {{qubits}}",
+      "barrier": "barrera",
+      "reset": "reinicio",
+      "measuredInto": "medido en {{clbit}}",
+      "conditional": "se ejecuta solo si {{clbit}} vale {{value}}",
+      "classicalWrite": "recibe la medición de {{qubits}}",
+      "classicalRead": "se lee como condición, {{clbit}} vale {{value}}"
+    }
+  },
+  "wire": {
+    "remove": "Eliminar el qubit {{label}}",
+    "insertBelow": "Insertar un qubit debajo de {{label}}"
+  },
+  "register": {
+    "addBit": "Añadir un bit clásico",
+    "removeBit": "Eliminar el último bit clásico"
+  },
+  "toolbar": {
+    "label": "Acciones del circuito",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "copy": "Copiar",
+    "paste": "Pegar",
+    "remove": "Eliminar",
+    "compact": "Cerrar huecos"
+  },
+  "placement": {
+    "pickTarget": "necesita otro qubit objetivo en esta columna. Mueve el cursor y pulsa Intro.",
+    "pickControl": "necesita su qubit de control en esta columna. Mueve el cursor y pulsa Intro.",
+    "no-gate-armed": "Elige primero una compuerta y luego pulsa Intro sobre una celda.",
+    "other-column": "El resto de la compuerta tiene que ir en la misma columna.",
+    "qubit-already-used": "Esta compuerta ya usa ese qubit.",
+    "not-enough-qubits": "Esa compuerta necesita más líneas de las que tiene el circuito. Añade primero un qubit.",
+    "classical-row": "El registro clásico es de solo lectura. Una medición llega a él desde su propio qubit.",
+    "nothing-here": "Aquí no hay nada que eliminar.",
+    "read-only": "El editor es de solo lectura en pantallas pequeñas.",
+    "cancelled-by-register-edit": "Se canceló la compuerta a medio colocar: el qubit en el que estaba cambió.",
+    "no-free-clbit": "Todos los bits clásicos ya se escriben en esa columna. Agrega uno al registro clásico o usa otra columna."
+  },
+  "feedback": {
+    "placed": "colocada en {{qubits}}, columna {{column}}.",
+    "moved": "movida a {{qubits}}, columna {{column}}.",
+    "removed": "eliminada de {{qubits}}, columna {{column}}.",
+    "removedMany_one": "{{count}} compuerta eliminada.",
+    "removedMany_other": "{{count}} compuertas eliminadas.",
+    "copied_one": "{{count}} compuerta copiada.",
+    "copied_other": "{{count}} compuertas copiadas.",
+    "pasted_one": "{{count}} compuerta pegada en {{qubits}}, columna {{column}}.",
+    "pasted_other": "{{count}} compuertas pegadas en {{qubits}}, columna {{column}}.",
+    "undone": "Acción deshecha.",
+    "redone": "Acción rehecha.",
+    "gapsClosed": "Huecos cerrados.",
+    "noGaps": "No había huecos que cerrar.",
+    "qubitAdded": "Qubit {{label}} añadido.",
+    "qubitRemoved": "Línea {{label}} eliminada.",
+    "qubitRemovedWithGates_one": "Línea {{label}} eliminada, junto con {{count}} compuerta.",
+    "qubitRemovedWithGates_other": "Línea {{label}} eliminada, junto con {{count}} compuertas.",
+    "clbitAdded": "Bit clásico {{label}} añadido.",
+    "clbitRemoved": "Bit clásico {{label}} eliminado."
+  },
+  "parameters": {
+    "title": "Parámetros",
+    "none": "Selecciona una compuerta parametrizada para cambiar sus ángulos.",
+    "slider": "Deslizador de ángulo",
+    "field": "Ángulo en radianes",
+    "symbolic": "Gobernado por el parámetro del circuito"
+  },
+  "dnd": {
+    "instructions": "Pulsa Espacio para tomar la compuerta, las flechas para moverla celda a celda, Espacio otra vez para soltarla y Escape para cancelar.",
+    "start": "Compuerta tomada.",
+    "cancel": "Movimiento cancelado."
+  },
+  "shortcuts": {
+    "title": "Atajos de teclado",
+    "note": "El editor completo funciona sin ratón.",
+    "keys": {
+      "arrows": "Flechas",
+      "home": "Inicio",
+      "end": "Fin",
+      "gate": "Tecla de compuerta",
+      "enter": "Intro",
+      "space": "Espacio",
+      "escape": "Esc",
+      "delete": "Supr",
+      "ctrl": "Ctrl",
+      "shift": "Mayús"
+    },
+    "move": "Mover el cursor por la rejilla",
+    "rowEnds": "Ir a la primera o a la última columna de la línea",
+    "arm": "Elegir una compuerta de la paleta",
+    "place": "Colocar la compuerta elegida, o seleccionar la que está bajo el cursor",
+    "pickUp": "Tomar una compuerta y arrastrarla con las flechas",
+    "cancel": "Cancelar una compuerta a medio colocar, soltar la compuerta elegida, o vaciar la selección",
+    "remove": "Eliminar la compuerta bajo el cursor",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "copy": "Copiar la selección",
+    "paste": "Pegar en el cursor"
+  },
+  "rejection": {
+    "shape": "Ese archivo no corresponde al formato de circuito.",
+    "unknown-gate": "Esa compuerta no está en el catálogo.",
+    "arity-mismatch": "Esa compuerta actúa sobre otra cantidad de qubits.",
+    "control-count-mismatch": "Esa compuerta no admite esa cantidad de controles.",
+    "param-count-mismatch": "Esa compuerta recibe otra cantidad de parámetros.",
+    "clbit-target-mismatch": "Esa compuerta escribe en otra cantidad de bits clásicos.",
+    "qubit-out-of-range": "Ese qubit está fuera del circuito.",
+    "clbit-out-of-range": "Ese bit clásico está fuera del circuito. Añade uno al registro clásico.",
+    "target-control-overlap": "Una compuerta no puede estar controlada por un qubit sobre el que actúa.",
+    "repeated-qubit": "Una compuerta no puede usar dos veces el mismo qubit.",
+    "column-conflict": "Otra compuerta ya ocupa esa celda.",
+    "unknown-parameter": "Ese parámetro no está declarado en el circuito.",
+    "duplicate-operation-id": "Dos operaciones comparten el mismo identificador.",
+    "duplicate-parameter": "Ese parámetro está declarado más de una vez.",
+    "qubit-label-count": "El circuito necesita un nombre por qubit.",
+    "custom-gate-cycle": "Una compuerta personalizada no puede contenerse a sí misma.",
+    "operation-not-found": "Esa compuerta ya no está en el circuito.",
+    "control-not-found": "Esa compuerta no tiene un control en ese qubit.",
+    "empty-selection": "Primero selecciona al menos una compuerta.",
+    "empty-clipboard": "No hay nada que pegar.",
+    "register-limit": "El circuito alcanzó su límite de qubits o de bits clásicos.",
+    "nothing-to-undo": "No queda nada que deshacer.",
+    "nothing-to-redo": "No queda nada que rehacer.",
+    "clbit-in-use": "Otra operación de esa columna ya escribe en ese bit clásico."
+  }
+}

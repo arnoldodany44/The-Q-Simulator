@@ -25,11 +25,38 @@ catalog:
   # Validation
   zod: 4.4.3
 
+  # Editor state (§9: Zustand for circuit state, history middleware for undo/redo)
+  zustand: 5.0.15
+  zundo: 2.3.0
+
+  # Editor interaction (§9: dnd-kit for drag and drop, chosen over the
+  # alternatives for its keyboard sensor — the editor has to be usable with
+  # no pointer at all, and that is not something a mouse-only library can be
+  # retrofitted with). `utilities` carries the CSS transform helper the drag
+  # overlay needs; `sortable` is deliberately absent until qubit reordering
+  # actually needs it.
+  '@dnd-kit/core': 6.3.1
+  '@dnd-kit/utilities': 3.2.2
+
+  # Routing (§9: React Router in declarative mode)
+  react-router: 8.3.0
+
   # Testing
   vitest: 4.1.10
   '@vitest/coverage-v8': 4.1.10
   fast-check: 4.9.0
   jsdom: 30.0.1
+  # Component tests query by role and accessible name, which is the only way
+  # to test the canvas: its SVG is aria-hidden and its accessible surface is
+  # a parallel table (see CircuitCanvas.tsx).
+  '@testing-library/react': 16.3.2
+  '@testing-library/dom': 10.4.1
+  # End-to-end (M0.5). Playwright rather than Cypress for the two things this
+  # suite actually needs: real `pointerdown`/`pointermove` streams, which is
+  # the only way a dnd-kit drag can be exercised at all, and an accessibility
+  # tree the assertions can read — the canvas is asserted through its ARIA
+  # grid, not through the store.
+  '@playwright/test': 1.62.1
 
   # Linting and formatting
   eslint: 10.8.1

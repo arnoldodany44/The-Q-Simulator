@@ -94,7 +94,23 @@ module.exports = {
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {
       exportsFields: ['exports'],
-      conditionNames: ['import', 'require', 'node', 'default', 'types'],
+      /*
+       * `development` leads the list on purpose. The workspace packages
+       * export declarations under `types` and their sources under
+       * `development`/`default`, and `exclude` drops `dist/` from the graph
+       * — so resolving them through `types` would make every app→package
+       * edge point at an excluded file and quietly disappear, taking the
+       * boundary rules with it. What we want to cruise is what actually
+       * gets bundled, which is the source.
+       */
+      conditionNames: [
+        'development',
+        'import',
+        'require',
+        'node',
+        'default',
+        'types',
+      ],
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     },
     reporterOptions: {

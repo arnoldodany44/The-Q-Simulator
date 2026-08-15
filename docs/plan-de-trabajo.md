@@ -275,11 +275,13 @@ El JSON de §6 es el eje del sistema entero. Se hace primero y bien.
 - `useSimulation.ts` — debounce de 150 ms, cancelación del trabajo previo, estados loading/error
 - Transferencia con `SharedArrayBuffer` si los headers COOP/COEP lo permiten; `transferable` como fallback
 - Umbral duro: > 20 qubits en cliente muestra aviso en vez de congelar la pestaña
+- `SimulationPanel.tsx` — **provisional y deliberado**: el editor monta aquí `useSimulation` y muestra lo mínimo honesto (estado del pipeline, tamaño del registro, estados de la base con probabilidad, duración de la última corrida). Sin él la orquestación entera quedaba sin importador y la app nunca creaba un worker: la milestone estaba probada unidad por unidad y muerta en la aplicación. M0.7 lo sustituye en el mismo hueco por el histograma, la tabla de amplitudes y los fasores.
 
 **Definición de terminado**
 
 - Simulación de 20 qubits sin bloquear la UI (el editor sigue respondiendo a 60 fps)
 - Editar rápido 10 veces seguidas dispara una sola simulación y ningún resultado obsoleto pisa al actual
+- El pipeline es visible desde la app: `apps/web/e2e/simulation.spec.ts` construye un par de Bell con el teclado y comprueba que el panel pasa de un estado de la base a dos, con y sin aislamiento cross-origin
 
 **Tamaño:** M
 

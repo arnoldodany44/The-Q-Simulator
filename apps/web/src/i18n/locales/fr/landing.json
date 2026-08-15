@@ -1,5 +1,6 @@
 {
   "tagline": "Un laboratoire de circuits quantiques dans votre navigateur",
   "intro": "Glissez des portes sur un canevas, observez l'état évoluer à mesure que vous construisez, et exécutez le même circuit sur du matériel quantique réel.",
-  "scaffoldNotice": "L'ossature est en place. L'éditeur de circuits arrive en M0.5."
+  "scaffoldNotice": "L'ossature est en place. L'éditeur de circuits arrive en M0.5.",
+  "openEditor": "Ouvrir l'éditeur de circuits"
 }

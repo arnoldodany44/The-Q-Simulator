@@ -1,0 +1,12 @@
+{
+  "paletteLabel": "Palette de portes",
+  "hint": "Glissez une porte sur la grille, ou appuyez sur sa touche pour la choisir et sur Entrée pour la poser.",
+  "draggable": "porte à glisser",
+  "category": {
+    "single": "Un qubit",
+    "parametrised": "Paramétrées",
+    "two": "Deux qubits",
+    "three": "Trois qubits",
+    "structural": "Structurelles"
+  }
+}

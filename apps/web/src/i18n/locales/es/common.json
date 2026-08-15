@@ -1,5 +1,8 @@
 {
   "appName": "The Q Simulator",
+  "meta": {
+    "description": "Construye circuitos cuánticos en tu navegador, observa cómo evoluciona el estado y ejecútalos en hardware real."
+  },
   "language": {
     "label": "Idioma",
     "en": "English",
@@ -10,5 +13,9 @@
     "cancel": "Cancelar",
     "save": "Guardar",
     "reset": "Restablecer"
+  },
+  "nav": {
+    "home": "Inicio",
+    "editor": "Editor"
   }
 }

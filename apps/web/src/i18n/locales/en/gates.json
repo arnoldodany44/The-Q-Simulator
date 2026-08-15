@@ -1,0 +1,12 @@
+{
+  "paletteLabel": "Gate palette",
+  "hint": "Drag a gate onto the grid, or press its key to choose it and Enter to place it.",
+  "draggable": "draggable gate",
+  "category": {
+    "single": "One qubit",
+    "parametrised": "Parametrised",
+    "two": "Two qubits",
+    "three": "Three qubits",
+    "structural": "Structural"
+  }
+}

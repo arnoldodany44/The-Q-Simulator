@@ -1,5 +1,6 @@
 {
   "tagline": "A quantum circuit laboratory in your browser",
   "intro": "Drag gates onto a canvas, watch the state evolve as you build, and run the same circuit on real quantum hardware.",
-  "scaffoldNotice": "Scaffolding is in place. The circuit editor arrives in M0.5."
+  "scaffoldNotice": "Scaffolding is in place. The circuit editor arrives in M0.5.",
+  "openEditor": "Open the circuit editor"
 }

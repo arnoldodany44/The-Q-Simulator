@@ -1,5 +1,6 @@
 {
   "tagline": "Un laboratorio de circuitos cuánticos en tu navegador",
   "intro": "Arrastra compuertas sobre un lienzo, observa cómo evoluciona el estado mientras construyes, y ejecuta el mismo circuito en hardware cuántico real.",
-  "scaffoldNotice": "El andamiaje está listo. El editor de circuitos llega en M0.5."
+  "scaffoldNotice": "El andamiaje está listo. El editor de circuitos llega en M0.5.",
+  "openEditor": "Abrir el editor de circuitos"
 }

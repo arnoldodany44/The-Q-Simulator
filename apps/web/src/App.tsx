@@ -1,63 +1,38 @@
-import { formatKet } from '@qsim/core'
-import { CIRCUIT_SCHEMA_VERSION } from '@qsim/schema'
-import { useTranslation } from 'react-i18next'
+/**
+ * The route table (specification §9).
+ *
+ * React Router in declarative mode: the app is a single-page client with no
+ * server rendering and no data loaders yet, so `BrowserRouter` plus a list
+ * of routes is the whole of it. Loaders and the data router become worth
+ * their weight in Phase 1, when circuits start coming from the API.
+ *
+ * `/new` is the editor over a blank document. `/c/:slug` — the same editor
+ * over a saved one — arrives with persistence.
+ */
 
-import { Notation } from './components/Notation'
-import {
-  SUPPORTED_LANGUAGES,
-  changeLanguage,
-  resolveLanguage,
-  type SupportedLanguage,
-} from './i18n'
+import { BrowserRouter, Route, Routes } from 'react-router'
+
+import { EditorRoute } from './routes/editor'
+import { LandingRoute } from './routes/landing'
 
 /**
- * Scaffold landing page. Its job at M0.0 is to prove the wiring works:
- * both shared workspace packages resolve from the app, and the three
- * catalogs load and switch. The real landing arrives in M0.9.
+ * The table on its own, without a router around it, so a test can mount it
+ * inside a `MemoryRouter` and assert what each path renders. `App` is then
+ * the same table plus the history integration the browser needs.
  */
-export function App() {
-  const { t, i18n } = useTranslation(['landing', 'common'])
-  const active = resolveLanguage(i18n.language)
-
+export function AppRoutes() {
   return (
-    <main className="page">
-      <header className="page__header">
-        <h1>{t('common:appName')}</h1>
+    <Routes>
+      <Route path="/" element={<LandingRoute />} />
+      <Route path="/new" element={<EditorRoute />} />
+    </Routes>
+  )
+}
 
-        <label className="language-picker">
-          <span>{t('common:language.label')}</span>
-          <select
-            value={active}
-            onChange={(event) => {
-              void changeLanguage(event.target.value as SupportedLanguage)
-            }}
-          >
-            {SUPPORTED_LANGUAGES.map((language) => (
-              <option key={language} value={language}>
-                {t(`common:language.${language}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </header>
-
-      <p className="tagline">{t('landing:tagline')}</p>
-      <p>{t('landing:intro')}</p>
-
-      <p className="notice">{t('landing:scaffoldNotice')}</p>
-
-      <dl className="wiring-check">
-        <dt>
-          <Notation value="@qsim/schema" />
-        </dt>
-        <dd>{CIRCUIT_SCHEMA_VERSION}</dd>
-        <dt>
-          <Notation value="@qsim/core" />
-        </dt>
-        <dd>
-          <Notation value={`|${formatKet(5, 3)}⟩`} />
-        </dd>
-      </dl>
-    </main>
+export function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   )
 }

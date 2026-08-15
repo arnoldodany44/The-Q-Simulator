@@ -15,13 +15,23 @@ pnpm install
 pnpm dev          # web client on http://localhost:5173
 ```
 
-| Command           | What it does                                    |
-| ----------------- | ----------------------------------------------- |
-| `pnpm dev`        | Runs every app in watch mode                    |
-| `pnpm verify`     | Lint, typecheck, test, build and boundary check |
-| `pnpm test`       | Test suites only                                |
-| `pnpm boundaries` | Package dependency rules only                   |
-| `pnpm format`     | Rewrites files with Prettier                    |
+| Command                      | What it does                                    |
+| ---------------------------- | ----------------------------------------------- |
+| `pnpm dev`                   | Runs every app in watch mode                    |
+| `pnpm verify`                | Lint, typecheck, test, build and boundary check |
+| `pnpm test`                  | Test suites only                                |
+| `pnpm --filter web test:e2e` | End-to-end suite (Playwright)                   |
+| `pnpm boundaries`            | Package dependency rules only                   |
+| `pnpm format`                | Rewrites files with Prettier                    |
+
+The end-to-end suite is not part of `pnpm verify`: it drives a real browser
+against a real dev server, which is minutes rather than seconds, so it runs on
+`main` (`.github/workflows/e2e.yml`) rather than on every pull request. It
+starts Vite itself, but the browser has to be present — once per machine:
+
+```
+pnpm --filter web exec playwright install chromium
+```
 
 ## Layout
 

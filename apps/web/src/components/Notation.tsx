@@ -12,6 +12,8 @@
  * leave it alone — otherwise Chrome's auto-translate happily turns a CNOT
  * label into something else entirely.
  */
+import type { SVGProps } from 'react'
+
 export function Notation({
   value,
   className,
@@ -23,5 +25,51 @@ export function Notation({
     <span className={className} translate="no">
       {value}
     </span>
+  )
+}
+
+/**
+ * The same guarantee inside an SVG, where a `<span>` is not allowed.
+ *
+ * The circuit canvas paints gate symbols as SVG text, so without this the
+ * one sanctioned route for invariant notation would stop at the edge of the
+ * diagram — and the diagram is where nearly all of the notation lives.
+ * Centring is baked in because every label on the canvas is centred on its
+ * cell, and a caller that had to remember `textAnchor` would eventually
+ * forget it.
+ */
+/*
+ * `translate` is an HTML global attribute, and React's SVG typings do not
+ * carry it — but browsers apply it to SVG text all the same, which is the
+ * whole reason this component exists. One named cast is preferable to
+ * augmenting React's global JSX types, which would let the attribute appear
+ * unremarked on every element in the codebase.
+ */
+const NO_TRANSLATE = {
+  translate: 'no',
+} as unknown as SVGProps<SVGTextElement>
+
+export function NotationText({
+  value,
+  x,
+  y,
+  className,
+}: {
+  value: string
+  x: number
+  y: number
+  className?: string
+}) {
+  return (
+    <text
+      {...NO_TRANSLATE}
+      x={x}
+      y={y}
+      className={className}
+      textAnchor="middle"
+      dominantBaseline="central"
+    >
+      {value}
+    </text>
   )
 }

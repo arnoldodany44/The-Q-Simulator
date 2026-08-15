@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /*
+     * Declarations only. Same arrangement as packages/qsim — see that
+     * package's tsconfig.build.json for the full reasoning. In short:
+     * runtime consumers resolve this package's source (so Vite hot-reloads
+     * it), while the `types` condition sends type resolution to `dist/`, so
+     * no consumer ever compiles these files under its own compiler options.
+     */
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"]
+}

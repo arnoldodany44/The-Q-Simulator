@@ -11,19 +11,28 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@dnd-kit/core": "catalog:",
+    "@dnd-kit/utilities": "catalog:",
     "@qsim/core": "workspace:*",
     "@qsim/schema": "workspace:*",
     "i18next": "catalog:",
     "i18next-browser-languagedetector": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-i18next": "catalog:"
+    "react-i18next": "catalog:",
+    "react-router": "catalog:",
+    "zundo": "catalog:",
+    "zustand": "catalog:"
   },
   "devDependencies": {
+    "@playwright/test": "catalog:",
     "@qsim/config": "workspace:*",
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

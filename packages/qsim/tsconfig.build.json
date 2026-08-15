@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /*
+     * Declarations only — no JavaScript.
+     *
+     * This package is consumed as source at runtime (`package.json` points
+     * every runtime condition at `./src/index.ts`), so Vite and Vitest
+     * always see the real files: HMR works, and a stale `dist/` can never
+     * end up in a production bundle. What `dist/` exists for is the *type*
+     * layer: `"exports"` sends the `types` condition here so that consumers
+     * resolve `@qsim/core` to a declaration file instead of pulling this
+     * package's sources into their own program.
+     *
+     * That distinction is what lets apps/web keep `noUncheckedIndexedAccess`
+     * on. Compiler options belong to the program, not to the file, so a
+     * consumer compiling these sources would apply *its* options to the
+     * simulation kernel and turn every typed-array read into
+     * `number | undefined`. Against a `.d.ts` the question never arises, and
+     * `skipLibCheck` covers the rest.
+     *
+     * `declarationMap` keeps "go to definition" landing on the source rather
+     * than on the generated declaration, which is the editor experience the
+     * source-only `"exports"` used to give for free.
+     *
+     * The one cost is that the type layer is now a build product: a new
+     * export is invisible to consumers until this runs. `pnpm dev` runs it
+     * in watch mode alongside Vite for exactly that reason, and every turbo
+     * task that typechecks declares `dependsOn: ["^build"]`.
+     */
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  /*
+   * `src/testing/` holds fixtures shared between test files. It is not a
+   * `.test.ts` file, so it would otherwise be emitted into the public type
+   * layer — and nothing outside this package's own tests should be able to
+   * see it, let alone depend on it.
+   */
+  "exclude": ["src/**/*.test.ts", "src/testing/**"]
+}
