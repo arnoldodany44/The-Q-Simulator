@@ -4,8 +4,13 @@ A quantum circuit laboratory in the browser — build circuits by dragging gates
 state evolve in real time, save and version your work, and run the same circuit on real
 IBM Quantum hardware.
 
-> **Status:** M0.0 complete — monorepo scaffolded, CI green. Next up is M0.1,
-> the circuit JSON contract. See the [work plan](docs/plan-de-trabajo.md).
+> **Status:** Phase 0 is live at **[the-q-simulator.vercel.app](https://the-q-simulator.vercel.app)** —
+> a circuit editor with live simulation, no account and no backend. Next is
+> Phase 1: accounts, persistence and a public gallery. See the
+> [work plan](docs/plan-de-trabajo.md).
+
+Everything in Phase 0 runs in the reader's own tab. The simulation happens in a
+Web Worker, nothing is uploaded, and a circuit travels inside its own link.
 
 ## Getting started
 

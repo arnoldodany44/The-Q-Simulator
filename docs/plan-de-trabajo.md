@@ -466,13 +466,42 @@ Ordenado por cuándo bloquea. Los marcados 🔴 detienen el trabajo hasta resolv
 
 ---
 
-## 8. Orden de arranque inmediato
+## 8. Estado: Fase 0 cerrada y publicada
 
-1. ~~**B1** — Node 22~~ ✅ Node 24.19.0 instalado
-2. ~~**B2** — decisiones D1–D6~~ ✅ congeladas y escritas en el README
-3. ~~**M0.0** — andamiaje + infraestructura i18n~~ ✅ completado y verificado
-4. **M0.1** — el contrato de circuito ← _siguiente_
-5. **M0.2** — el motor de statevector, donde está el valor técnico real
-6. Revisamos el motor con sus tests antes de tocar una sola línea de UI
+**https://the-q-simulator.vercel.app** — M0.0 a M0.10 completos.
 
-El motor antes que la interfaz, siempre. Si el motor miente, la interfaz miente bonito.
+| Hito  | Qué quedó                                                                |
+| ----- | ------------------------------------------------------------------------ |
+| M0.0  | Monorepo pnpm, CI, fronteras de paquetes, i18n trilingüe                 |
+| M0.1  | Contrato JSON con Zod y trece reglas semánticas                          |
+| M0.2  | Motor de statevector, kernel por pares de índices, O(2ⁿ) por compuerta   |
+| M0.3  | Regla de Born, muestreo con semilla, colapso, analítico vs. trayectorias |
+| M0.4  | Runner con checkpoints incrementales                                     |
+| M0.5  | Editor SVG con arrastre y operación completa por teclado                 |
+| M0.6  | Simulación en Web Worker con debounce y cancelación                      |
+| M0.7  | Histograma con fasores, tabla de amplitudes, muestreo por shots          |
+| M0.8  | Scrubber temporal                                                        |
+| M0.9  | Presets, circuitos en la URL, landing                                    |
+| M0.10 | Despliegue en Vercel con COOP/COEP y aislamiento de origen verificado    |
+
+**2002 tests unitarios, 53 e2e, 3 presupuestos de rendimiento.** Sin cuentas y sin backend: la simulación corre en la pestaña del lector y el circuito viaja dentro de su propio enlace.
+
+### Lo que enseñó la Fase 0
+
+**El motor antes que la interfaz, siempre.** Si el motor miente, la interfaz miente bonito. Los siete verificadores independientes del motor encontraron 8 defectos reales y **0 falsos positivos** — entre ellos una `uMatrix` que perdía unitariedad por sumar dos ángulos antes de evaluar la fase, invisible sobre un estado base y solo detectable sobre una superposición.
+
+**Verificar no es lo mismo que testear.** El caso más instructivo fue un test de teletransportación que afirmaba a través de `marginalProbability`, ciego al signo que introduce quitar la corrección Z de Bob: la suite entera pasaba sobre un teletransportador roto. Se demostró borrando la compuerta y viendo el verde persistir.
+
+**Un pase de reparación es tan bueno como su entrada.** El primero recibió su lista de 15 defectos truncada dentro del prompt —124 KB— y solo pudo leer 2. Lo reportó en vez de fingir. Desde entonces los hallazgos viajan por archivo.
+
+**Ningún gate atrapa lo que ningún gate abre.** La landing publicó tres claves i18n crudas como texto visible. La regla de lint veía una llamada a `t()`, la paridad encontraba la clave en los tres catálogos, y los tests de componente importan los catálogos directamente. Ninguno abre la página. Ahora `e2e/no-raw-keys.spec.ts` sí.
+
+**Las aserciones de reloj no van en el gate de correctitud.** Ni siquiera las relativas: se miden en secuencia, así que cuando lo que cambia entre las dos fases es la carga, la proporción mide la carga.
+
+---
+
+## 9. Siguiente: Fase 1
+
+El código de M1.1 y M1.2 está desbloqueado — las credenciales de Supabase están verificadas y funcionando (PostgreSQL 17.6, pooler compartido IPv4). Lo que falta de tu lado está en §6: las apps OAuth de GitHub y Google (que no bloquean, porque email/contraseña no necesita configuración) y activar el auto-deploy de Railway cuando exista `apps/api`.
+
+**Regla de publicación acordada:** se publica al cerrar cada fase, sin preguntar de nuevo.
