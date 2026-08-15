@@ -46,18 +46,24 @@ export const FALLBACK_LANGUAGE: SupportedLanguage = 'en'
  * Namespaces are added alongside the feature that needs them — `editor`
  * arrives with the circuit store in M0.5, `gates` with the palette,
  * `simulation` with the worker in M0.6, `analysis` with M0.7, `errors` with
- * the API client in M1.3, and `lessons` in Phase 3. Keeping one catalog per
- * feature stops any single file from growing into something nobody can
- * review.
+ * the API client in M1.3, `auth` with the session layer in M1.3a, and
+ * `lessons` in Phase 3. Keeping one catalog per feature stops any single file
+ * from growing into something nobody can review.
  *
  * `errors` is the one catalog whose keys are not chosen here: they are the
  * error codes `@qsim/contract` publishes, because the API sends a code and
  * this app owns every word the reader sees (§11, D2). `lib/api/messages.
  * test.ts` asserts the catalog and the code list are the same set, so a new
  * code cannot ship without three translations.
+ *
+ * `auth` is a second catalog of that kind — its `errors` block is keyed by
+ * Supabase's failure codes rather than by anything a designer invented, and
+ * `features/auth/authCatalog.test.ts` holds it to the same standard.
  */
 export const NAMESPACES = [
   'analysis',
+  'auth',
+  'circuits',
   'common',
   'editor',
   'errors',
@@ -210,7 +216,43 @@ export const SHELL_NAMESPACES = [
  * was twice over, because the active language and the English fallback were
  * awaited one after the other rather than together.
  */
-export const EDITOR_NAMESPACES = ['editor', 'gates', 'simulation'] as const
+export const EDITOR_NAMESPACES = [
+  'editor',
+  'gates',
+  'simulation',
+  /*
+   * `circuits` is here from M1.4a because the save control lives in the
+   * editor, and every word it says — the visibility choices, the conflict
+   * sentence, the note about where an unsaved edit is being kept — is in that
+   * catalog. Sharing it with the listing rather than opening a fifth namespace
+   * is deliberate: they are one vocabulary about one thing, a circuit as a
+   * saved document, and splitting it would mean deciding twice per string
+   * which half it belongs to.
+   */
+  'circuits',
+] as const
+
+/**
+ * What the authentication screens need, fetched alongside their own chunk.
+ *
+ * Deferred rather than added to the shell for the same reason `editor` is:
+ * most visits never open a sign-in form, and the catalog carries a sentence
+ * per failure code. The one string the session layer renders *outside* those
+ * screens — the status line a route guard shows while the stored session is
+ * still being read — comes from `common`, which is already loaded, so a guard
+ * never waits on this.
+ */
+export const AUTH_NAMESPACES = ['auth'] as const
+
+/**
+ * What the circuit listing needs, fetched alongside its own chunk.
+ *
+ * Deferred for the same reason as the account screens: the page is behind a
+ * session, and a first-time reader who never signs in never downloads it. The
+ * failures it can show are already covered by `errors`, which the shell
+ * carries, so the only thing waiting on this chunk is the page's own copy.
+ */
+export const CIRCUITS_NAMESPACES = ['circuits'] as const
 
 /**
  * Adds catalogs for one language, reporting rather than rejecting.

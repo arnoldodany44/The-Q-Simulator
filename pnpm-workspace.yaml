@@ -127,6 +127,19 @@ catalog:
   # .getQueryCache()` away in a console.
   '@tanstack/react-query': 5.101.4
 
+  # Authentication (§11: "delegated to Supabase Auth"). The browser client
+  # only — `@supabase/supabase-js` is what holds the session, refreshes the
+  # access token before it expires, and persists it across a reload. The API
+  # never sees this package: it verifies the resulting JWT against the
+  # project's JWKS with `jose` and shares no code with the client that minted
+  # it, which is the point of delegating.
+  #
+  # It is a dependency of `apps/web` alone. Nothing on the server may import
+  # it, because everything it offers server-side needs the secret key, and a
+  # package that can do both is one import away from putting that key in a
+  # bundle.
+  '@supabase/supabase-js': 2.112.3
+
   # Editor interaction (§9: dnd-kit for drag and drop, chosen over the
   # alternatives for its keyboard sensor — the editor has to be usable with
   # no pointer at all, and that is not something a mouse-only library can be

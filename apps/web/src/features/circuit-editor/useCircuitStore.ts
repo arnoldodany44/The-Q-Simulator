@@ -989,7 +989,7 @@ export function createCircuitStore(
             // tracking was never paused.
             if (open === null || !open.recorded) return
 
-            if (sameDocument(open.circuit, get().circuit)) {
+            if (sameCircuit(open.circuit, get().circuit)) {
               // The gesture ended where it began. Restoring the original
               // object — while tracking is still paused, so this costs no
               // step either — undoes the identity change nobody asked for,
@@ -1151,8 +1151,14 @@ function usableSteps(steps: number): number | null {
  * the same thing. The identity fast path makes it cheap — an edit rebuilds
  * only the operation it touched, so every other one is compared by
  * reference.
+ *
+ * Exported because M1.4a asks the same question from outside: "does the
+ * editor still hold the version it was saved from?" — a circuit that arrived
+ * over the wire and one built by editing are never the same object, so
+ * identity cannot answer it and a second implementation would be one more
+ * place for "unchanged" to mean something slightly different.
  */
-function sameDocument(left: Circuit, right: Circuit): boolean {
+export function sameCircuit(left: Circuit, right: Circuit): boolean {
   return sameJson(left, right)
 }
 

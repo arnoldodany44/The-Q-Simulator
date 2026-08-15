@@ -18,5 +18,15 @@
     "home": "Home",
     "editor": "Editor"
   },
+  "account": {
+    "menu": "account menu",
+    "unnamed": "Your account",
+    "signedInAs": "Signed in as {{email}}",
+    "signedIn": "You are signed in.",
+    "circuits": "Your circuits",
+    "signOut": "Sign out",
+    "signIn": "Sign in",
+    "signOutFailed": "Sign-out did not complete. Check your connection and try again."
+  },
   "loading": "Loading…"
 }

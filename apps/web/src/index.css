@@ -209,6 +209,27 @@
   --chart-axis: var(--text-muted);
 
   /*
+   * ---- the four states of a version diff (M1.4b) ----
+   *
+   * Hues only. The saturation and the lightness are the phase circle's, which
+   * is not decoration but the whole reason these are safe: the sweep in
+   * `verification/design/token-contrast.test.ts` proves that *every* hue at
+   * 85%/66% clears 3:1 on all three surfaces, so any hue chosen here inherits
+   * that proof instead of needing its own measurement.
+   *
+   * And colour is the last of three carriers here, never the distinction
+   * itself (§10). Added, removed, moved and changed each have a silhouette of
+   * their own — triangle, square, diamond, circle — and a dash pattern of
+   * their own on the cell outline, both of which survive a reader who cannot
+   * separate green from red. The hues are chosen to be far apart anyway,
+   * because "far apart" costs nothing once the shapes are doing the work.
+   */
+  --diff-added-hue: 100;
+  --diff-removed-hue: 0;
+  --diff-moved-hue: 45;
+  --diff-changed-hue: 275;
+
+  /*
    * Named so the focus indicator is a token rather than a colour repeated
    * at every `:focus-visible`. It is deliberately the accent, which measures
    * 9.17:1 on --bg-panel: focus is the one indicator that must never be
@@ -1749,7 +1770,9 @@ body {
 }
 
 .preset-picker,
-.share-link {
+.share-link,
+.save-panel,
+.history-panel {
   background: var(--bg-panel);
   border: 1px solid var(--wire);
   border-radius: 0.5rem;
@@ -1757,7 +1780,9 @@ body {
 }
 
 .preset-picker__heading,
-.share-link__heading {
+.share-link__heading,
+.save-panel__heading,
+.history-panel__heading {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-data);
@@ -1765,7 +1790,8 @@ body {
 }
 
 .preset-picker__hint,
-.share-link__hint {
+.share-link__hint,
+.history-panel__hint {
   margin: 0.25rem 0 0;
   font-size: var(--text-caption);
   color: var(--text-muted);
@@ -2305,5 +2331,1077 @@ body {
 /* ---- while a route's chunk is on its way (M0.9b) ---- */
 
 .page__loading {
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * Account screens and the account menu (M1.3b)
+ *
+ * Two rules run through everything below.
+ *
+ * COLOUR IS NEVER THE ONLY CARRIER. §10 says it for the phase circle and it
+ * holds for an error message: the failure text is `--text`, the highest
+ * contrast ink on the page, and the *signal* is a rule down its left edge in
+ * the phase-0 hue. A red sentence would put the meaning in the one channel a
+ * colour-blind reader does not have, and it would drop the text itself under
+ * the 4.5:1 WCAG 1.4.3 asks of body copy in order to do it.
+ *
+ * THE FOCUS RING IS THE GLOBAL ONE. `:focus-visible` near the top of this
+ * file already draws 2px of `--focus-ring` with an offset, measured at
+ * 9.17:1. Nothing here removes an outline and nothing re-implements one — an
+ * input that draws its own focus style is how a form ends up with two
+ * conventions on one page.
+ * ------------------------------------------------------------------ */
+
+/*
+ * The header's right-hand cluster. `.page__header` is a two-child flex with
+ * `space-between`, so dropping a third child straight into it would strand
+ * the language picker in the middle of the row. Grouping keeps the product
+ * name at one end and everything else at the other, on every route.
+ */
+.page__header-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.account-menu {
+  position: relative;
+}
+
+/*
+ * Space held while the stored session is being read. Empty and `aria-hidden`
+ * — see `AccountMenu.tsx`: there is nothing true to say yet, and the reason
+ * it is not simply nothing is that the header would otherwise reflow under
+ * the pointer at the moment the answer arrives.
+ */
+.account-menu__pending {
+  display: inline-block;
+  min-width: 6rem;
+  min-height: 1.5rem;
+}
+
+.account-menu__signin,
+.account-menu__toggle {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  /* 0.45rem of padding on a 0.875rem line leaves the target over 24px tall,
+     which is what WCAG 2.2 SC 2.5.8 asks of anything a pointer must hit. */
+  padding: 0.45rem 0.7rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-menu__signin:hover,
+.account-menu__toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/*
+ * An address can be long and a header is not. It truncates rather than
+ * breaking the row apart — and the untruncated address is a line inside the
+ * panel, so nothing is only available in the clipped copy.
+ */
+.account-menu__name {
+  display: inline-block;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.account-menu__panel {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  min-width: 14rem;
+  margin-top: 0.35rem;
+  padding: 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+}
+
+.account-menu__identity {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.account-menu__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.account-menu__items a,
+.account-menu__items button {
+  display: block;
+  width: 100%;
+  text-align: start;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-menu__items a:hover,
+.account-menu__items button:hover {
+  background: var(--bg-panel);
+  color: var(--accent);
+}
+
+.account-menu__error {
+  margin: 0.5rem 0 0;
+  padding-left: 0.6rem;
+  border-left: 3px solid hsl(0 var(--phase-saturation) var(--phase-lightness));
+  font-size: var(--text-caption);
+  color: var(--text);
+}
+
+/* ---- the four account screens ---- */
+
+.auth-page {
+  max-width: 30rem;
+}
+
+.auth-page__title {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  margin: 2rem 0 0.5rem;
+}
+
+.auth-page__lead {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1.5rem;
+}
+
+.auth-form button[type='submit'] {
+  justify-self: start;
+  font: inherit;
+  font-family: var(--font-display);
+  background: transparent;
+  cursor: pointer;
+}
+
+/*
+ * A control that is saying "not now" still has to be readable: 0.6 keeps
+ * `--text` above 4.5:1 on `--bg-deep`.
+ *
+ * `[aria-disabled]` and not `:disabled`, throughout. A disabled element cannot
+ * hold focus, so disabling the control somebody just activated hands the caret
+ * to the document body — the focus ring disappears and Tab restarts from the
+ * top of the page. Every one of these is guarded in its own handler instead.
+ */
+.auth-form button[type='submit'][aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/*
+ * A button that reads as a link: it performs an action rather than navigating,
+ * so it may not be an `<a>`, and the reader should not have to know that.
+ */
+.link-button {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/*
+ * The answer to a provider round trip that came back without a session. Above
+ * whichever page `redirect_to` named — usually the landing — so it needs its
+ * own gutter rather than a page container's.
+ */
+.provider-return {
+  max-width: 46rem;
+  margin: 1rem auto 0;
+  padding: 0 1.25rem;
+}
+
+.provider-return:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.auth-form__pending {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.field__label {
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+.field__hint {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/*
+ * 1rem, not `--text-body`. Mobile Safari zooms the viewport when a focused
+ * input's text is under 16px and does not zoom back out, which leaves a
+ * one-handed user panning a form sideways.
+ */
+.field__input {
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.55rem 0.7rem;
+}
+
+/*
+ * The second carrier for an invalid field, alongside the message underneath
+ * and `aria-invalid` in the accessibility tree. Thicker as well as differently
+ * coloured, so it survives being seen without colour.
+ */
+.field__input[aria-invalid='true'] {
+  border-width: 2px;
+  border-color: hsl(0 var(--phase-saturation) var(--phase-lightness));
+}
+
+.field__input:disabled,
+.field__input[aria-disabled='true'] {
+  opacity: 0.6;
+}
+
+.field__error,
+.auth-alert {
+  margin: 0;
+  padding: 0.35rem 0 0.35rem 0.6rem;
+  border-left: 3px solid hsl(0 var(--phase-saturation) var(--phase-lightness));
+  color: var(--text);
+  font-size: var(--text-body);
+}
+
+.auth-alert {
+  margin-bottom: 0.5rem;
+}
+
+/*
+ * A confirmation, and the standing note about the confirmation email. Both
+ * belong to the accent: they are information, not failure, and the day the
+ * two look alike is the day neither is read.
+ */
+.auth-notice,
+.auth-warning {
+  background: var(--bg-panel);
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem;
+  font-size: var(--text-body);
+}
+
+.auth-notice p,
+.auth-warning {
+  margin: 0;
+}
+
+.auth-notice p + p {
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+}
+
+.auth-warning {
+  margin: 0 0 1.5rem;
+}
+
+.auth-links {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-body);
+  color: var(--text-muted);
+}
+
+.auth-links a {
+  color: var(--accent);
+}
+
+.provider-signin {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.provider-signin__button {
+  width: 100%;
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  /*
+   * The label is built from a provider key this app has never seen — Supabase
+   * owns that list and adds to it. A key with no break points in it made the
+   * whole page scroll sideways, which is the one input in the discovery path
+   * that did not degrade gracefully. Same declaration `.circuit-card__title`
+   * uses against a user-typed title, for the same reason.
+   */
+  overflow-wrap: anywhere;
+}
+
+.provider-signin__button:hover:not([aria-disabled='true']) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.provider-signin__button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---- the circuit listing behind the menu ---- */
+
+.circuit-list {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.circuit-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1rem;
+}
+
+.circuit-card__title {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Label above figure, wrapping as the column allows. `auto-fit` keeps the
+ * five metrics on one row on a desktop and stacks them readably at 320 CSS px
+ * (WCAG 1.4.10) without a media query of their own.
+ */
+.circuit-card__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.circuit-card__meta dt {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.circuit-card__meta dd {
+  margin: 0.1rem 0 0;
+  font-size: var(--text-body);
+}
+
+.circuit-list__note {
+  margin-top: 0.75rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.circuit-card__title a {
+  color: var(--text);
+  text-decoration-color: var(--wire);
+}
+
+.circuit-card__title a:hover {
+  color: var(--accent);
+  text-decoration-color: currentcolor;
+}
+
+/*
+ * The pager. `flex-wrap` rather than a media query: at 320 CSS px the position
+ * line drops under the two buttons on its own (WCAG 1.4.10), and the buttons
+ * stay side by side where the thumb expects them.
+ */
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.pager button {
+  font: inherit;
+  font-family: var(--font-display);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  /* 0.5rem of padding on a 1rem line box clears the 24px target of SC 2.5.8. */
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.pager button:hover:not([aria-disabled='true']) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pager button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pager__position {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/* ---- the save control in the editor's document bar (M1.4a) ---- */
+
+/*
+ * Holds the same space the real panel will take, so the document bar does not
+ * jump when the session or the circuit resolves. It carries no text and is
+ * `aria-hidden`, which is why the height is set here and not by content.
+ */
+.save-panel--pending {
+  min-height: 6rem;
+}
+
+.save-panel__status,
+.save-panel__note {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.save-panel__signin {
+  display: inline-block;
+  margin-top: 0.6rem;
+  color: var(--accent);
+}
+
+.save-panel__toggle {
+  margin-top: 0.6rem;
+  font: inherit;
+  font-family: var(--font-display);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.save-panel__toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/*
+ * A conflict and a failure are both news the reader did not ask for, and both
+ * carry it in the border rather than only in the colour: the accent hue for
+ * "something happened that you need to know", the phase-zero red for "this did
+ * not work". Neither is the only carrier — each one is a sentence as well.
+ */
+.save-panel__conflict {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elevated);
+  font-size: var(--text-body);
+}
+
+.save-panel__conflict p {
+  margin: 0;
+}
+
+.save-panel__conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.save-panel__conflict-actions button {
+  font: inherit;
+  font-size: var(--text-caption);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+}
+
+.save-panel__conflict-actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.save-panel__error {
+  margin: 0.6rem 0 0;
+  padding: 0.35rem 0 0.35rem 0.6rem;
+  border-left: 3px solid hsl(0 var(--phase-saturation) var(--phase-lightness));
+  font-size: var(--text-body);
+  color: var(--text);
+}
+
+.save-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.save-form button[type='submit'] {
+  justify-self: start;
+  font: inherit;
+  font-family: var(--font-display);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.save-form button[type='submit'][aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.save-form__pending {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.save-form__visibility {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+}
+
+.save-form__option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 0.5rem;
+}
+
+/* The hint sits under the label, in the label's column, not the radio's. */
+.save-form__hint {
+  grid-column: 2;
+  margin: 0.1rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.editor__document-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ *
+ * Version history, the past-version preview, and the visual diff (M1.4b)
+ *
+ * Three surfaces that belong together: the list of what has been saved, one
+ * of those versions on screen, and the difference between two of them. The
+ * one rule running through all of it is §10's — the state of a thing is never
+ * carried by colour alone. A row you are looking at carries `aria-current` and
+ * a thick left edge; a version preview carries a banner in words above an
+ * inert canvas; a diff mark carries a silhouette and a dash pattern before it
+ * carries a hue.
+ * ------------------------------------------------------------------ */
+
+.history-panel__toggle {
+  margin-top: 0.6rem;
+  font: inherit;
+  font-family: var(--font-display);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  /* 0.5rem of padding on a 1rem line box clears the 24px target of SC 2.5.8. */
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.history-panel__toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.history-panel__empty {
+  margin: 0.6rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.history-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.history-item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-left-width: 3px;
+  border-radius: 0.375rem;
+  padding: 0.55rem 0.7rem;
+}
+
+/*
+ * The version on screen. Styled from `aria-current` rather than from a class,
+ * so the two channels cannot be separated: a row cannot look current without
+ * announcing itself as current to a screen reader, and the thicker edge is
+ * not the only signal either way.
+ */
+.history-item[aria-current] {
+  border-left-color: var(--accent);
+}
+
+.history-item__version {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+}
+
+.history-item__badge {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: var(--text-micro);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.history-item__when {
+  margin: 0.15rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.history-item__message {
+  margin: 0.3rem 0 0;
+  font-size: var(--text-caption);
+  overflow-wrap: anywhere;
+}
+
+.history-item__message--absent {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.history-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.history-item__actions button {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: var(--text-caption);
+  font-family: var(--font-display);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.history-item__actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.history-compare {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--wire);
+}
+
+.history-compare button[type='submit'] {
+  justify-self: start;
+  font: inherit;
+  font-family: var(--font-display);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.history-compare button[type='submit']:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---- a past version on screen ---- */
+
+.version-preview {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/*
+ * Deliberately loud. A historical circuit drawn in the editor's own frame is
+ * a circuit somebody can mistake for their work, and the cost of that mistake
+ * is edits made to the wrong document. The accent bar is a thick edge rather
+ * than a tint, and the explanation is above the canvas rather than beside it.
+ */
+.version-preview__banner {
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+  border-left-width: 5px;
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+}
+
+.version-preview__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+  color: var(--accent);
+}
+
+.version-preview__when {
+  margin: 0.2rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.version-preview__message {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+.version-preview__explain {
+  margin: 0.5rem 0 0.75rem;
+  font-size: var(--text-body);
+  color: var(--text-muted);
+}
+
+.version-preview__note,
+.version-preview__done {
+  background: var(--bg-panel);
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem;
+  font-size: var(--text-body);
+}
+
+.version-preview__done p {
+  margin: 0 0 0.75rem;
+}
+
+.version-preview__restore,
+.version-preview__conflict {
+  display: grid;
+  gap: 0.6rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+}
+
+.version-preview__restore button[type='submit'] {
+  justify-self: start;
+  font: inherit;
+  font-family: var(--font-display);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.version-preview__restore button[type='submit'][aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/*
+ * Unsaved work is about to be replaced. Amber rather than the accent, and a
+ * left rule rather than a fill, so it reads as a caution beside the form
+ * rather than as an error about something that has already gone wrong.
+ */
+.version-preview__warning {
+  margin: 0;
+  padding: 0.35rem 0 0.35rem 0.6rem;
+  border-left: 3px solid
+    hsl(var(--diff-moved-hue) var(--phase-saturation) var(--phase-lightness));
+  font-size: var(--text-body);
+}
+
+/* ---- the visual diff ---- */
+
+.circuit-diff {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+  /*
+   * The declaration that makes `.circuit-diff__viewport` below work at all.
+   * This block is a grid item of `.version-preview`, and a grid item's
+   * automatic minimum size is its content's — so the diagram's intrinsic width
+   * pushed straight through the scrolling viewport inside it and stretched the
+   * whole column, taking the banner, the heading and the change list off the
+   * side of the page with it (WCAG 2.2 SC 1.4.10). The sibling
+   * `.circuit-canvas` escapes the same trap only because it carries
+   * `overflow: hidden`, which zeroes that minimum as a side effect; this says
+   * it outright.
+   */
+  min-width: 0;
+}
+
+.circuit-diff__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+}
+
+.circuit-diff__summary,
+.circuit-diff__register {
+  margin: 0.35rem 0 0;
+  font-size: var(--text-body);
+  color: var(--text-muted);
+}
+
+/*
+ * The legend and the tally in one: each mark, its name, and how many. Label
+ * above figure, as on a circuit card, because "2 added" as a sentence needs a
+ * plural rule in each of the three languages and this needs none.
+ */
+.circuit-diff__tally {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+}
+
+.circuit-diff__tally dt {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.circuit-diff__tally dd {
+  margin: 0.1rem 0 0;
+  font-size: var(--text-body);
+}
+
+/*
+ * The drawing scrolls inside its own box. A circuit is a wide thing and the
+ * page must not scroll sideways to accommodate one (WCAG 1.4.10), which is
+ * the same arrangement `.circuit-canvas__viewport` makes for the editor.
+ */
+.circuit-diff__viewport {
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.circuit-diff__plot {
+  display: block;
+}
+
+.circuit-diff__wire-label {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/*
+ * What is no longer there. Faded *and* dashed: opacity alone is a difference
+ * of degree, and at a glance a pale gate reads as a gate rather than as an
+ * absence.
+ */
+.circuit-diff__ghosts {
+  opacity: 0.45;
+}
+
+.circuit-diff__ghosts .qsim-box,
+.circuit-diff__ghosts .qsim-plus,
+.circuit-diff__ghosts .qsim-control--negative {
+  stroke-dasharray: 3 2;
+}
+
+.circuit-diff__cell {
+  fill: none;
+  stroke-width: 2;
+}
+
+.circuit-diff__arrow line {
+  stroke-width: 2;
+}
+
+/*
+ * Four silhouettes, four dash patterns, four hues — in that order of
+ * importance. Everything above the `stroke:` line still works on a monochrome
+ * screen, which is the point (§10).
+ */
+.circuit-diff__mark--added .circuit-diff__cell {
+  stroke: hsl(
+    var(--diff-added-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+.circuit-diff__mark--removed .circuit-diff__cell {
+  stroke: hsl(
+    var(--diff-removed-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+  stroke-dasharray: 5 3;
+}
+
+.circuit-diff__mark--moved .circuit-diff__cell {
+  stroke: hsl(
+    var(--diff-moved-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+  stroke-dasharray: 1 4;
+  stroke-linecap: round;
+}
+
+.circuit-diff__mark--changed .circuit-diff__cell {
+  stroke: hsl(
+    var(--diff-changed-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+  stroke-dasharray: 8 3 2 3;
+}
+
+.circuit-diff__mark--moved .circuit-diff__arrow line,
+.circuit-diff__mark--moved .circuit-diff__arrow-head {
+  stroke: hsl(
+    var(--diff-moved-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+  fill: hsl(
+    var(--diff-moved-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+.circuit-diff__badge {
+  overflow: visible;
+  vertical-align: -0.15em;
+}
+
+.circuit-diff__badge-shape {
+  stroke-width: 1.5;
+  stroke: var(--bg-deep);
+}
+
+/*
+ * The glyph is drawn in the page's darkest ink rather than in the hue's
+ * complement, for the same reason `--phase-ink` exists: a light stroke
+ * vanishes over the yellows, and the plus inside the "added" mark is the half
+ * of it that says which mark it is.
+ */
+.circuit-diff__badge-glyph {
+  fill: none;
+  stroke: var(--phase-ink);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.circuit-diff__mark--added .circuit-diff__badge-shape {
+  fill: hsl(
+    var(--diff-added-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+.circuit-diff__mark--removed .circuit-diff__badge-shape {
+  fill: hsl(
+    var(--diff-removed-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+.circuit-diff__mark--moved .circuit-diff__badge-shape {
+  fill: hsl(
+    var(--diff-moved-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+.circuit-diff__mark--changed .circuit-diff__badge-shape {
+  fill: hsl(
+    var(--diff-changed-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+.circuit-diff__changes {
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  font-size: var(--text-body);
+}
+
+.circuit-diff__gate {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.circuit-diff__change-detail {
   color: var(--text-muted);
 }

@@ -40,6 +40,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 
 import { LanguagePicker } from '../components/LanguagePicker'
+import { AccountMenu } from '../features/auth'
 import { LiveDemo } from '../features/landing/LiveDemo'
 
 /** The example the demo ends on, so "start from an example" starts from it. */
@@ -53,7 +54,17 @@ export function LandingRoute() {
     <main className="page landing">
       <header className="page__header">
         <h1>{t('common:appName')}</h1>
-        <LanguagePicker />
+        {/*
+         * The account menu is shell, so it is here as well as in the editor:
+         * this is the page a signed-in reader lands on, and "where are my
+         * circuits" has to be answerable from it. It renders nothing at all
+         * on a deployment with no Supabase project, which is what Phase 0's
+         * deployment was — see `AccountMenu.tsx`.
+         */}
+        <div className="page__header-tools">
+          <AccountMenu />
+          <LanguagePicker />
+        </div>
       </header>
 
       <p className="tagline">{t('landing:tagline')}</p>

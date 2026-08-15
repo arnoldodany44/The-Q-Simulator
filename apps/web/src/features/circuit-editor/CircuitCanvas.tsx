@@ -119,6 +119,16 @@ export interface CircuitCanvasProps {
   readonly selection?: readonly string[]
   /** Overrides the viewport-derived read-only mode. */
   readonly readOnly?: boolean
+  /**
+   * What the canvas says about being read-only, or `null` for silence.
+   *
+   * The default explains the *viewport* rule — below 768px the editor is a
+   * reader (§10, risk 6) — and that sentence is a lie anywhere else. M1.4b's
+   * version preview is locked because it is a past version, on a screen of any
+   * size, and it says so in a banner above the canvas; repeating "read-only on
+   * small screens" underneath would contradict it on every desktop.
+   */
+  readonly readOnlyNotice?: string | null
   readonly minColumns?: number
   readonly metrics?: GridMetrics
   readonly onRemoveQubit?: (index: number) => void
@@ -155,6 +165,7 @@ export function CircuitCanvas({
   circuit,
   selection = NO_SELECTION,
   readOnly,
+  readOnlyNotice,
   minColumns = MIN_COLUMNS,
   metrics = DEFAULT_METRICS,
   onRemoveQubit,
@@ -221,8 +232,10 @@ export function CircuitCanvas({
 
   return (
     <section className="circuit-canvas" aria-label={t('canvas.label')}>
-      {locked ? (
-        <p className="circuit-canvas__notice">{t('canvas.readOnly')}</p>
+      {locked && readOnlyNotice !== null ? (
+        <p className="circuit-canvas__notice">
+          {readOnlyNotice ?? t('canvas.readOnly')}
+        </p>
       ) : null}
 
       {undrawn > 0 ? (

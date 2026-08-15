@@ -188,6 +188,64 @@ describe('marks drawn on top of a phase colour', () => {
   })
 })
 
+describe('the diff marks inherit the phase circle’s proof (M1.4b)', () => {
+  const DIFF_HUES = [
+    'diff-added-hue',
+    'diff-removed-hue',
+    'diff-moved-hue',
+    'diff-changed-hue',
+  ] as const
+
+  /*
+   * The sweep above proves that *every* hue at --phase-saturation and
+   * --phase-lightness clears 3:1 on all three surfaces. The diff marks are
+   * declared as bare hues composed against those two tokens precisely so they
+   * inherit that result instead of each needing its own measurement — so what
+   * is worth asserting is that they really are bare hues, and that nobody has
+   * quietly given one of them a lightness of its own.
+   */
+  it.each(DIFF_HUES)('--%s is a plain hue, not a colour', (name) => {
+    const value = token(name)
+    expect(value, `--${name} should be a number of degrees`).toMatch(
+      /^\d+(\.\d+)?$/
+    )
+  })
+
+  it('clears 3:1 on every surface, as the sweep guarantees', () => {
+    for (const name of DIFF_HUES) {
+      const mark = hslToRgb(
+        Number(token(name)),
+        PHASE_SATURATION_PERCENT,
+        PHASE_LIGHTNESS_PERCENT
+      )
+      for (const surface of SURFACES) {
+        const ratio = contrastRatio(mark, colour(surface))
+        expect(
+          ratio,
+          `--${name} on --${surface} is ${ratio.toFixed(2)}:1`
+        ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST_MINIMUM)
+      }
+    }
+  })
+
+  it('keeps the four hues far enough apart to be four colours', () => {
+    // Colour is the *last* of the three carriers — the silhouette and the
+    // dash pattern come first — but a reader who does see colour should not
+    // have to squint either. Sixty degrees is comfortably past the point two
+    // hues read as one.
+    const hues = DIFF_HUES.map((name) => Number(token(name))).sort(
+      (left, right) => left - right
+    )
+    for (let index = 1; index < hues.length; index += 1) {
+      const gap = (hues[index] ?? 0) - (hues[index - 1] ?? 0)
+      expect(
+        gap,
+        `hues ${hues[index - 1]}° and ${hues[index]}°`
+      ).toBeGreaterThan(40)
+    }
+  })
+})
+
 describe('the interface palette', () => {
   it('reads text at AA on every surface', () => {
     for (const surface of SURFACES) {

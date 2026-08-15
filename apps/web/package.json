@@ -23,6 +23,7 @@
     "@qsim/contract": "workspace:*",
     "@qsim/core": "workspace:*",
     "@qsim/schema": "workspace:*",
+    "@supabase/supabase-js": "catalog:",
     "@tanstack/react-query": "catalog:",
     "fflate": "catalog:",
     "i18next": "catalog:",
@@ -31,6 +32,7 @@
     "react-dom": "catalog:",
     "react-i18next": "catalog:",
     "react-router": "catalog:",
+    "zod": "catalog:",
     "zundo": "catalog:",
     "zustand": "catalog:"
   },

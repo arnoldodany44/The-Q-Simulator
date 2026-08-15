@@ -1,0 +1,167 @@
+{
+  "title": "Your circuits",
+  "lead": "Every circuit saved to your account, newest first.",
+  "loading": "Loading your circuits…",
+  "empty": {
+    "heading": "Nothing saved yet",
+    "body": "Build a circuit in the editor and save it. It will be listed here, with every version you keep.",
+    "action": "Open the editor",
+    "pastTheEnd": "There is nothing on this page. The listing may have grown shorter since this link was made.",
+    "firstPage": "Back to the first page"
+  },
+  "item": {
+    "qubits": "Qubits",
+    "gates": "Gates",
+    "depth": "Depth",
+    "updated": "Last saved",
+    "visibility": "Visibility"
+  },
+  "visibility": {
+    "PRIVATE": "Private",
+    "UNLISTED": "Unlisted",
+    "PUBLIC": "Public"
+  },
+  "pager": {
+    "label": "Pages",
+    "previous": "Previous",
+    "next": "Next",
+    "position": "Page {{page}} of {{pages}}, {{total}} circuits in all"
+  },
+  "retry": "Try again",
+  "document": {
+    "loading": "Opening this circuit…",
+    "unavailableAction": "Start a new circuit",
+    "offline": "You are offline, so this circuit has not been asked for yet. It will open as soon as the connection is back."
+  },
+  "save": {
+    "heading": "Save",
+    "openNew": "Save this circuit…",
+    "openVersion": "Save a new version…",
+    "close": "Cancel",
+    "submitNew": "Save circuit",
+    "submitVersion": "Save version",
+    "saving": "Saving…",
+    "signIn": "Sign in to save it",
+    "nothingToSave": "Nothing has changed since the last save.",
+    "ownershipLost": "This circuit is not yours to add to. You can keep your work as a circuit of your own instead.",
+    "status": {
+      "anonymous": "Not saved to an account. This circuit travels in the page address, exactly as it did before you signed up — sign in and it can have a home.",
+      "unsaved": "Not saved yet. The circuit is held in this page's address until you save it.",
+      "clean": "Saved as version {{version}}.",
+      "dirty": "Edited since version {{version}}. The change is held in this page's address until you save it.",
+      "uncarried": "Edited since version {{version}}. This circuit is too large to fit in the page address, so the change exists only in this tab — save it before you close the page."
+    },
+    "title": {
+      "label": "Title"
+    },
+    "description": {
+      "label": "Description (optional)"
+    },
+    "visibility": {
+      "label": "Who can open it",
+      "PRIVATE": "Only you.",
+      "UNLISTED": "Anyone holding the link. It appears in no listing.",
+      "PUBLIC": "Anyone, and it appears in the gallery."
+    },
+    "message": {
+      "label": "What changed (optional)",
+      "hint": "A short note, kept with this version in the history."
+    },
+    "problem": {
+      "title-required": "A circuit needs a title.",
+      "title-too-long": "That title is too long.",
+      "description-too-long": "That description is too long.",
+      "message-too-long": "That note is too long."
+    }
+  },
+  "conflict": {
+    "body": "Somebody saved while you were editing. You started from version {{base}} and the newest is now version {{server}}, which you have not seen.",
+    "saveAnyway": "Save mine on top, keeping both",
+    "discardMine": "Discard my changes and open version {{version}}",
+    "keepEditing": "Keep editing, save nothing",
+    "raced": "Your work was saved as version {{landed}}. Version {{other}} arrived a moment earlier and you have not seen it — nothing was lost, and both are in the history."
+  },
+  "history": {
+    "heading": "History",
+    "hint": "Every save is a version of its own. Nothing here is ever rewritten or removed.",
+    "open": "Show the history…",
+    "close": "Hide the history",
+    "loading": "Loading the history…",
+    "empty": "No versions yet.",
+    "version": "Version {{number}}",
+    "current": "the one you are editing",
+    "noMessage": "No note was left with this version.",
+    "view": "Open it",
+    "compareWithPrevious": "Compare with the version before it",
+    "backToDocument": "Back to the circuit you are editing",
+    "opening": "Opening version {{number}}…",
+    "viewing": "You are looking at version {{number}}",
+    "notLive": "This is a past version, kept exactly as it was saved. It cannot be edited, and the circuit you were working on is untouched.",
+    "pager": {
+      "label": "History pages",
+      "position": "Page {{page}} of {{pages}}, {{total}} versions in all"
+    },
+    "compare": {
+      "from": "Compare from",
+      "to": "with",
+      "submit": "Show the difference",
+      "toAccessible": "with version"
+    },
+    "restore": {
+      "explain": "Restoring saves version {{number}}'s circuit again, as a new version. Version {{number}} stays exactly where it is, and so does everything after it.",
+      "submit": "Restore version {{number}}",
+      "saving": "Restoring…",
+      "cancel": "Leave the history as it is",
+      "anyway": "Restore it anyway",
+      "defaultMessage": "Restored version {{number}}",
+      "alreadyHere": "This is already the circuit you have open, saved as version {{number}}. There is nothing to bring back.",
+      "dirtyWarning": "You have edits that are not saved. Restoring replaces what is on the canvas with this version, and those edits are not part of it.",
+      "done": "Version {{number}} is back. It was saved as version {{landed}}, so the history now runs up to {{landed}} and nothing in it was rewritten or removed.",
+      "stale": "Somebody saved while you were reading. The newest is now version {{server}}, which you have not seen. Restoring version {{number}} lands after it and loses nothing — both stay in the history.",
+      "message": {
+        "label": "Note for the new version",
+        "hint": "Kept with the version this restore creates, so the history says what happened."
+      }
+    },
+    "compareUnavailable": "The version you asked to compare against could not be opened, so only the version below is shown.",
+    "versionUnavailable": "That version does not exist, or it is not shared with you."
+  },
+  "diff": {
+    "heading": "What changed between version {{from}} and version {{to}}",
+    "identical": "These two versions hold the same circuit.",
+    "registersOnly": "No operation changed.",
+    "tooManyColumns": "The diagram draws the first {{drawn}} columns. The {{hidden}} past that are in both documents but not in this picture.",
+    "kind": {
+      "added": "Added",
+      "removed": "Removed",
+      "moved": "Moved",
+      "changed": "Changed"
+    },
+    "change": {
+      "added": "added on {{qubits}}, moment {{column}}",
+      "removed": "removed from {{qubits}}, moment {{column}}",
+      "moved": "moved from {{fromQubits}}, moment {{fromColumn}}, to {{toQubits}}, moment {{toColumn}}",
+      "changed": "changed on {{qubits}}, moment {{column}}",
+      "detail": "({{aspects}})"
+    },
+    "aspect": {
+      "gate": "a different gate",
+      "column": "a different moment",
+      "qubits": "different wires",
+      "controls": "different controls",
+      "params": "different angles",
+      "classical": "a different classical link",
+      "order": "the wires in a different order"
+    },
+    "register": {
+      "qubits": "The register went from {{before}} to {{after}} qubits.",
+      "clbits": "The classical register went from {{before}} to {{after}} bits.",
+      "labels": "At least one wire was renamed."
+    },
+    "document": {
+      "parameters": "A named parameter was added, removed or retuned.",
+      "customGates": "A reusable subcircuit was added, removed or redefined."
+    }
+  },
+  "offline": "You are offline, so this has not been asked for yet. It will load as soon as the connection is back."
+}

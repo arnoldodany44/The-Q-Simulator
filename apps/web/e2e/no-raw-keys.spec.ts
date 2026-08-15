@@ -50,7 +50,22 @@ async function rawKeysOn(page: Page): Promise<string[]> {
   }, KEY_SHAPE.source)
 }
 
-const ROUTES = ['/', '/new']
+/*
+ * Every route reachable without a session. The four account screens (M1.3b)
+ * are here because they are the ones whose catalog is code-split away from
+ * the shell — exactly the arrangement that produced the defect this file
+ * exists for. `/update-password` renders its expired-link explanation when
+ * there is no recovery session, which is still a page made entirely of
+ * translated strings. `/circuits` is behind a session and redirects here.
+ */
+const ROUTES = [
+  '/',
+  '/new',
+  '/sign-in',
+  '/sign-up',
+  '/reset-password',
+  '/update-password',
+]
 const LANGUAGES = ['en', 'es', 'fr'] as const
 
 for (const route of ROUTES) {

@@ -249,15 +249,20 @@ module.exports = {
       name: 'web-testing-helpers-stay-in-tests',
       severity: 'error',
       comment:
-        'apps/web/src/lib/api/testing.ts builds fake `Response` objects and a ' +
-        '`fetch` that answers from a queue. Importing it from a component ' +
-        'would put a stub transport inside the shipped bundle — and would do ' +
-        'it invisibly, since the tests would still pass.',
+        'A `testing.ts` under apps/web/src builds doubles: lib/api/testing.ts ' +
+        'a fake `Response` and a `fetch` that answers from a queue, ' +
+        'features/auth/testing.ts a Supabase auth port that never reaches a ' +
+        'network and hands the test control of the loading window. Importing ' +
+        'either from a component would put a stub inside the shipped bundle — ' +
+        'and would do it invisibly, since the tests would still pass. The ' +
+        'auth one is the worse of the two: a fake session provider that ' +
+        'answers `signInWithPassword` with success is an authentication ' +
+        'bypass wearing a helper’s name.',
       from: {
         path: '^apps/web/src/',
         pathNot: '\\.test\\.tsx?$',
       },
-      to: { path: '^apps/web/src/lib/api/testing\\.ts$' },
+      to: { path: '^apps/web/src/.*/testing\\.ts$' },
     },
     {
       name: 'no-circular',

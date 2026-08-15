@@ -5,11 +5,20 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { AppRoutes } from './App'
+import { SessionProvider } from './features/auth'
 import enAnalysis from './i18n/locales/en/analysis.json'
+import enCircuits from './i18n/locales/en/circuits.json'
 import enCommon from './i18n/locales/en/common.json'
 import enEditor from './i18n/locales/en/editor.json'
 import enGates from './i18n/locales/en/gates.json'
 import enLanding from './i18n/locales/en/landing.json'
+import { ApiProvider, createApiClient, createQueryClient } from './lib/api'
+import {
+  TEST_BASE_URL,
+  circuitWithVersionPayload,
+  jsonResponse,
+  stubFetch,
+} from './lib/api/testing.js'
 
 /**
  * The route table, and only the route table. Each page has its own tests;
@@ -32,11 +41,12 @@ function i18n(): I18n {
   void instance.use(initReactI18next).init({
     lng: 'en',
     fallbackLng: 'en',
-    ns: ['analysis', 'common', 'editor', 'gates', 'landing'],
+    ns: ['analysis', 'circuits', 'common', 'editor', 'gates', 'landing'],
     defaultNS: 'common',
     resources: {
       en: {
         analysis: enAnalysis,
+        circuits: enCircuits,
         common: enCommon,
         editor: enEditor,
         gates: enGates,
@@ -49,12 +59,33 @@ function i18n(): I18n {
   return instance
 }
 
-function at(path: string) {
+/**
+ * The providers `main.tsx` mounts around the router. `runtime={null}` is the
+ * deployment-without-accounts case, which is the right one here: these tests
+ * are about the route table, and it keeps the account menu and the save
+ * control — both of which read the session — out of the way of assertions
+ * about the page.
+ *
+ * The API client answers from a queue rather than a network. `/c/:slug` fetches
+ * on its first paint (M1.4a), so a route table test that mounted it without
+ * one would be testing the transport's "no provider" error message.
+ */
+function at(path: string, responses: readonly unknown[] = []) {
+  const client = createApiClient({
+    baseUrl: TEST_BASE_URL,
+    fetch: stubFetch(responses).fetch,
+    getAccessToken: () => null,
+  })
+
   return render(
     <I18nextProvider i18n={i18n()}>
-      <MemoryRouter initialEntries={[path]}>
-        <AppRoutes />
-      </MemoryRouter>
+      <ApiProvider client={client} queryClient={createQueryClient()}>
+        <SessionProvider runtime={null} origin="https://qsim.test">
+          <MemoryRouter initialEntries={[path]}>
+            <AppRoutes />
+          </MemoryRouter>
+        </SessionProvider>
+      </ApiProvider>
     </I18nextProvider>
   )
 }
@@ -112,5 +143,39 @@ describe('routes', () => {
     expect(
       screen.getByRole('toolbar', { name: 'Circuit actions' })
     ).toBeDefined()
+  })
+
+  it('shows the same editor at /c/:slug, over the saved circuit', async () => {
+    at('/c/V1StGXR8Z5jdHi6BmyT8a', [jsonResponse(circuitWithVersionPayload)])
+
+    expect(
+      await screen.findByRole(
+        'grid',
+        { name: 'Circuit grid' },
+        { timeout: 5_000 }
+      )
+    ).toBeDefined()
+    // The circuit's own title, which is the one thing this route shows that
+    // `/new` does not — proof the document arrived rather than the frame.
+    expect(await screen.findByText('Bell pair')).toBeDefined()
+  })
+
+  it('does not put a session guard in front of a shared circuit', async () => {
+    /*
+     * `GET /circuits/:id` is `auth: 'optional'` in `apps/api`, which is what
+     * makes a PUBLIC circuit readable by anyone and an UNLISTED link work at
+     * all. This session is anonymous (`runtime={null}`), so a guard would
+     * redirect — and every link anybody ever shared would break.
+     */
+    at('/c/V1StGXR8Z5jdHi6BmyT8a', [jsonResponse(circuitWithVersionPayload)])
+
+    expect(
+      await screen.findByRole(
+        'grid',
+        { name: 'Circuit grid' },
+        { timeout: 5_000 }
+      )
+    ).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull()
   })
 })

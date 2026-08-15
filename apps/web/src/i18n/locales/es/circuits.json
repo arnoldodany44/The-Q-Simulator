@@ -1,0 +1,167 @@
+{
+  "title": "Tus circuitos",
+  "lead": "Todos los circuitos guardados en tu cuenta, del más reciente al más antiguo.",
+  "loading": "Cargando tus circuitos…",
+  "empty": {
+    "heading": "Todavía no has guardado nada",
+    "body": "Construye un circuito en el editor y guárdalo. Aparecerá aquí, con todas las versiones que conserves.",
+    "action": "Abrir el editor",
+    "pastTheEnd": "En esta página no hay nada. Puede que la lista se haya acortado desde que se creó este enlace.",
+    "firstPage": "Volver a la primera página"
+  },
+  "item": {
+    "qubits": "Qubits",
+    "gates": "Compuertas",
+    "depth": "Profundidad",
+    "updated": "Guardado por última vez",
+    "visibility": "Visibilidad"
+  },
+  "visibility": {
+    "PRIVATE": "Privado",
+    "UNLISTED": "No listado",
+    "PUBLIC": "Público"
+  },
+  "pager": {
+    "label": "Páginas",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "position": "Página {{page}} de {{pages}}, {{total}} circuitos en total"
+  },
+  "retry": "Reintentar",
+  "document": {
+    "loading": "Abriendo este circuito…",
+    "unavailableAction": "Empezar un circuito nuevo",
+    "offline": "Estás sin conexión, así que este circuito todavía no se ha pedido. Se abrirá en cuanto vuelva la conexión."
+  },
+  "save": {
+    "heading": "Guardar",
+    "openNew": "Guardar este circuito…",
+    "openVersion": "Guardar una versión nueva…",
+    "close": "Cancelar",
+    "submitNew": "Guardar circuito",
+    "submitVersion": "Guardar versión",
+    "saving": "Guardando…",
+    "signIn": "Inicia sesión para guardarlo",
+    "nothingToSave": "No ha cambiado nada desde el último guardado.",
+    "ownershipLost": "Este circuito no es tuyo y no puedes añadirle versiones. Puedes conservar tu trabajo como un circuito propio.",
+    "status": {
+      "anonymous": "No está guardado en ninguna cuenta. El circuito viaja en la dirección de la página, igual que antes de que existieran las cuentas: inicia sesión y podrá tener casa propia.",
+      "unsaved": "Todavía sin guardar. El circuito vive en la dirección de esta página hasta que lo guardes.",
+      "clean": "Guardado como versión {{version}}.",
+      "dirty": "Editado desde la versión {{version}}. El cambio vive en la dirección de esta página hasta que lo guardes.",
+      "uncarried": "Editado desde la versión {{version}}. Este circuito es demasiado grande para caber en la dirección de la página, así que el cambio solo existe en esta pestaña: guárdalo antes de cerrarla."
+    },
+    "title": {
+      "label": "Título"
+    },
+    "description": {
+      "label": "Descripción (opcional)"
+    },
+    "visibility": {
+      "label": "Quién puede abrirlo",
+      "PRIVATE": "Solo tú.",
+      "UNLISTED": "Quien tenga el enlace. No aparece en ninguna lista.",
+      "PUBLIC": "Cualquiera, y aparece en la galería."
+    },
+    "message": {
+      "label": "Qué cambió (opcional)",
+      "hint": "Una nota breve, que se guarda con esta versión en el historial."
+    },
+    "problem": {
+      "title-required": "Un circuito necesita un título.",
+      "title-too-long": "Ese título es demasiado largo.",
+      "description-too-long": "Esa descripción es demasiado larga.",
+      "message-too-long": "Esa nota es demasiado larga."
+    }
+  },
+  "conflict": {
+    "body": "Alguien guardó mientras editabas. Partiste de la versión {{base}} y la más reciente ya es la {{server}}, que no has visto.",
+    "saveAnyway": "Guardar la mía encima, conservando ambas",
+    "discardMine": "Descartar mis cambios y abrir la versión {{version}}",
+    "keepEditing": "Seguir editando sin guardar",
+    "raced": "Tu trabajo se guardó como versión {{landed}}. La versión {{other}} llegó un instante antes y no la has visto: no se perdió nada y ambas están en el historial."
+  },
+  "history": {
+    "heading": "Historial",
+    "hint": "Cada guardado es una versión propia. Aquí nunca se reescribe ni se borra nada.",
+    "open": "Ver el historial…",
+    "close": "Ocultar el historial",
+    "loading": "Cargando el historial…",
+    "empty": "Todavía no hay versiones.",
+    "version": "Versión {{number}}",
+    "current": "la que estás editando",
+    "noMessage": "Esta versión se guardó sin nota.",
+    "view": "Abrirla",
+    "compareWithPrevious": "Comparar con la versión anterior",
+    "backToDocument": "Volver al circuito que estás editando",
+    "opening": "Abriendo la versión {{number}}…",
+    "viewing": "Estás viendo la versión {{number}}",
+    "notLive": "Es una versión pasada, tal como se guardó. No se puede editar, y el circuito en el que trabajabas sigue intacto.",
+    "pager": {
+      "label": "Páginas del historial",
+      "position": "Página {{page}} de {{pages}}, {{total}} versiones en total"
+    },
+    "compare": {
+      "from": "Comparar desde",
+      "to": "con",
+      "submit": "Mostrar la diferencia",
+      "toAccessible": "con la versión"
+    },
+    "restore": {
+      "explain": "Restaurar vuelve a guardar el circuito de la versión {{number}} como una versión nueva. La versión {{number}} se queda donde está, y todo lo que vino después también.",
+      "submit": "Restaurar la versión {{number}}",
+      "saving": "Restaurando…",
+      "cancel": "Dejar el historial como está",
+      "anyway": "Restaurarla de todos modos",
+      "defaultMessage": "Restaurada la versión {{number}}",
+      "alreadyHere": "Este ya es el circuito que tienes abierto, guardado como versión {{number}}. No hay nada que recuperar.",
+      "dirtyWarning": "Tienes cambios sin guardar. Restaurar sustituye lo que hay en el lienzo por esta versión, y esos cambios no forman parte de ella.",
+      "done": "La versión {{number}} está de vuelta. Se guardó como versión {{landed}}, así que el historial llega ahora hasta la {{landed}} y no se reescribió ni se borró nada.",
+      "stale": "Alguien guardó mientras leías. La más reciente ya es la versión {{server}}, que no has visto. Restaurar la versión {{number}} se guarda después de ella y no pierde nada: ambas siguen en el historial.",
+      "message": {
+        "label": "Nota para la versión nueva",
+        "hint": "Se guarda con la versión que crea esta restauración, para que el historial diga qué pasó."
+      }
+    },
+    "compareUnavailable": "No se pudo abrir la versión con la que querías comparar, así que solo se muestra la versión de abajo.",
+    "versionUnavailable": "Esa versión no existe, o no está compartida contigo."
+  },
+  "diff": {
+    "heading": "Qué cambió entre la versión {{from}} y la versión {{to}}",
+    "identical": "Estas dos versiones contienen el mismo circuito.",
+    "registersOnly": "Ninguna operación cambió.",
+    "tooManyColumns": "El diagrama dibuja las primeras {{drawn}} columnas. Las {{hidden}} restantes están en ambos documentos, pero no en esta imagen.",
+    "kind": {
+      "added": "Añadidas",
+      "removed": "Eliminadas",
+      "moved": "Movidas",
+      "changed": "Modificadas"
+    },
+    "change": {
+      "added": "añadida en {{qubits}}, momento {{column}}",
+      "removed": "eliminada de {{qubits}}, momento {{column}}",
+      "moved": "movida de {{fromQubits}}, momento {{fromColumn}}, a {{toQubits}}, momento {{toColumn}}",
+      "changed": "modificada en {{qubits}}, momento {{column}}",
+      "detail": "({{aspects}})"
+    },
+    "aspect": {
+      "gate": "otra compuerta",
+      "column": "otro momento",
+      "qubits": "otros hilos",
+      "controls": "otros controles",
+      "params": "otros ángulos",
+      "classical": "otro enlace clásico",
+      "order": "los hilos en otro orden"
+    },
+    "register": {
+      "qubits": "El registro pasó de {{before}} a {{after}} qubits.",
+      "clbits": "El registro clásico pasó de {{before}} a {{after}} bits.",
+      "labels": "Se renombró al menos un hilo."
+    },
+    "document": {
+      "parameters": "Se agregó, se quitó o se reajustó un parámetro con nombre.",
+      "customGates": "Se agregó, se quitó o se redefinió un subcircuito reutilizable."
+    }
+  },
+  "offline": "Estás sin conexión, así que esto todavía no se ha pedido. Se cargará en cuanto vuelva la conexión."
+}

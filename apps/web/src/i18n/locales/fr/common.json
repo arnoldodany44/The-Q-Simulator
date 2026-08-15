@@ -18,5 +18,15 @@
     "home": "Accueil",
     "editor": "Éditeur"
   },
+  "account": {
+    "menu": "menu du compte",
+    "unnamed": "Votre compte",
+    "signedInAs": "Connecté en tant que {{email}}",
+    "signedIn": "Vous êtes connecté.",
+    "circuits": "Vos circuits",
+    "signOut": "Se déconnecter",
+    "signIn": "Se connecter",
+    "signOutFailed": "La déconnexion n'a pas abouti. Vérifiez votre connexion et réessayez."
+  },
   "loading": "Chargement…"
 }

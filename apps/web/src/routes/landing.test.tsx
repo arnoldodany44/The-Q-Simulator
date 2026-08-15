@@ -1,8 +1,11 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen } from '@testing-library/react'
 import { createInstance, type i18n as I18n } from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
+
+import { SessionProvider } from '../features/auth'
 
 import enAnalysis from '../i18n/locales/en/analysis.json'
 import enCommon from '../i18n/locales/en/common.json'
@@ -49,12 +52,22 @@ function i18nFor(language: Language): I18n {
   return instance
 }
 
+/**
+ * The header carries the account menu since M1.3b, so the page needs the two
+ * providers the shell has in `main.tsx`. `runtime={null}` is a deployment
+ * without accounts — the menu renders nothing, which keeps this file about
+ * the landing page rather than about the session.
+ */
 function open(language: Language = 'en') {
   return render(
     <I18nextProvider i18n={i18nFor(language)}>
-      <MemoryRouter initialEntries={['/']}>
-        <LandingRoute />
-      </MemoryRouter>
+      <QueryClientProvider client={new QueryClient()}>
+        <SessionProvider runtime={null} origin="https://qsim.test">
+          <MemoryRouter initialEntries={['/']}>
+            <LandingRoute />
+          </MemoryRouter>
+        </SessionProvider>
+      </QueryClientProvider>
     </I18nextProvider>
   )
 }

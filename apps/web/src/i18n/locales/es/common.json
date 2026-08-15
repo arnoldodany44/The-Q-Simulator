@@ -18,5 +18,15 @@
     "home": "Inicio",
     "editor": "Editor"
   },
+  "account": {
+    "menu": "menú de la cuenta",
+    "unnamed": "Tu cuenta",
+    "signedInAs": "Sesión iniciada como {{email}}",
+    "signedIn": "Tu sesión está iniciada.",
+    "circuits": "Tus circuitos",
+    "signOut": "Cerrar sesión",
+    "signIn": "Iniciar sesión",
+    "signOutFailed": "No se pudo cerrar la sesión. Revisa tu conexión e inténtalo de nuevo."
+  },
   "loading": "Cargando…"
 }

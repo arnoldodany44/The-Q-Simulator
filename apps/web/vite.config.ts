@@ -4,6 +4,22 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react()],
+  /*
+   * The monorepo keeps ONE `.env`, at the repository root — that is where
+   * `.env.example` documents it, where `.gitignore` excludes it, and where
+   * `apps/api` reads it from. Vite looks in its own project root by default,
+   * so without this it would read `apps/web/.env`, a file that does not exist
+   * and must not be created: two env files is how the API and the browser end
+   * up pointed at different Supabase projects, which fails as "the token is
+   * invalid" rather than as anything that names the cause.
+   *
+   * Only `VITE_`-prefixed variables are exposed to the bundle (`envPrefix`
+   * defaults to that), so widening where the file is *found* does not widen
+   * what is *shipped*: `SUPABASE_SECRET_KEY` and `DATABASE_URL` sit in the
+   * same file and stay server-side. `verification/bundle-secrets.test.ts`
+   * checks that claim against the built output rather than trusting it.
+   */
+  envDir: '../..',
   server: {
     port: 5173,
     headers: {

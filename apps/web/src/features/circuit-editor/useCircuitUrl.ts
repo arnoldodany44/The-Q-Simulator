@@ -48,6 +48,32 @@
  * and leaving them with an error about a URL that no longer says anything.
  * The first real edit takes ownership of the URL, and from then on it is the
  * document's.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * A PAYLOAD THIS TAB WROTE IS A SNAPSHOT, NOT A SOURCE.
+ *
+ * The debounce has a cost the design above did not account for. Leave the
+ * editor inside those 400 ms — click the header link, open the listing — and
+ * the history entry keeps the payload from *before* the last few edits. Press
+ * Back and the route remounts, this hook reads that stale payload, and
+ * `loadCircuit` replaces the newer document with the older one and clears the
+ * undo history with it. Measured: leaving 47 ms after the last gate lost two
+ * of four, and the toolbar then reported there was nothing left to undo. The
+ * work was not recoverable by any means the interface offers, and
+ * `useUnsavedWork.ts` deliberately arms no `beforeunload` for a carried
+ * document precisely because "?c= is written as the circuit is edited".
+ *
+ * Flushing on unmount does not fix it: React Router pushes the new address
+ * before the editor comes down, so by then `window.location` is the page being
+ * navigated *to* and the entry being left is out of reach.
+ *
+ * What does fix it is noticing that the circuit store outlives the navigation.
+ * Every payload this hook writes is recorded in `WRITTEN_PARAMS`, so on mount
+ * it can tell "a snapshot this tab took a moment ago" from "a document
+ * somebody sent me". Against the first, a non-empty store is the newer of the
+ * two documents and wins — the address bar catches up on the next write.
+ * Against the second — a fresh page load, a pasted link, an in-app link
+ * carrying somebody else's circuit — the payload is the input it always was.
  */
 
 import {
@@ -80,9 +106,52 @@ import type { CircuitStore } from './useCircuitStore'
  */
 export const CIRCUIT_URL_DEBOUNCE_MS = 400
 
+/**
+ * Every `?c=` payload this page session has written, so a remount can tell a
+ * snapshot of its own from a document that came from outside. See the header.
+ *
+ * Module-scoped, because the thing it has to outlive is the component. Capped
+ * because an afternoon of editing writes one entry per pause and none of them
+ * is ever removed; past the cap the set is emptied, which costs nothing worse
+ * than the behaviour this exists to improve on.
+ */
+const WRITTEN_PARAMS = new Set<string>()
+
+const MAX_REMEMBERED_PARAMS = 256
+
+/** Exported for the tests, which need a clean page session per case. */
+export function forgetWrittenCircuitParams(): void {
+  WRITTEN_PARAMS.clear()
+}
+
+function rememberWrittenParam(param: string | null): void {
+  if (param === null) return
+  if (WRITTEN_PARAMS.size >= MAX_REMEMBERED_PARAMS) WRITTEN_PARAMS.clear()
+  WRITTEN_PARAMS.add(param)
+}
+
 export interface CircuitUrlOptions {
   readonly store: CircuitStore
   readonly debounceMs?: number
+  /**
+   * Stop carrying the document, because something else already does — M1.4a.
+   *
+   * The editor route sets this when the circuit on screen is byte-for-byte the
+   * version stored under `/c/:slug`. Then `?c=` is not a draft, it is a second
+   * copy of a document that has a home, and it makes a clean address unusable:
+   * `/c/abc` is a link somebody can read and `/c/abc?c=eJyrVk…` is not, even
+   * though the two open the same circuit.
+   *
+   * So the parameter is removed while the two agree and written again on the
+   * first edit, which makes the address bar itself say whether there is
+   * unsaved work — the visible half of the decision argued in
+   * `features/circuit-storage/useUnsavedWork.ts`. Nothing is at risk when it
+   * is removed: what it held is exactly what the server holds.
+   *
+   * Default `false`, which is Phase 0 and is what `/new` and every anonymous
+   * visitor keep getting.
+   */
+  readonly suppressed?: boolean
 }
 
 export interface CircuitUrlView {
@@ -110,6 +179,7 @@ export interface CircuitUrlView {
 export function useCircuitUrl({
   store,
   debounceMs = CIRCUIT_URL_DEBOUNCE_MS,
+  suppressed = false,
 }: CircuitUrlOptions): CircuitUrlView {
   const circuit = useStore(store, (state) => state.circuit)
 
@@ -127,6 +197,11 @@ export function useCircuitUrl({
   const [incoming] = useState(() => {
     const param = readCircuitParam(window.location.search)
     return param === null ? null : decode(param)
+  })
+  /** Whether that payload is one this page session wrote. See the header. */
+  const [incomingIsOurs] = useState(() => {
+    const param = readCircuitParam(window.location.search)
+    return param !== null && WRITTEN_PARAMS.has(param)
   })
   const [dismissed, setDismissed] = useState(false)
   const rejected =
@@ -158,10 +233,23 @@ export function useCircuitUrl({
     // never saw. A refused payload loads nothing and leaves what is on screen
     // alone, and stays in the address bar with it.
     if (incoming !== null && incoming.ok) {
+      /*
+       * Unless this tab wrote that payload and is still holding a document.
+       * Then the store is the newer of the two — see the header — and loading
+       * the snapshot back over it is how edits made inside the debounce were
+       * lost on a Back. `openedWith` is set to the *incoming* circuit rather
+       * than to the store's, so the writer below sees a difference and brings
+       * the address bar up to date rather than leaving it a snapshot behind.
+       */
+      const carried = store.getState().circuit
+      if (incomingIsOurs && carried.operations.length > 0) {
+        openedWith.current = incoming.circuit
+        return
+      }
       store.getState().loadCircuit(incoming.circuit)
     }
     openedWith.current = store.getState().circuit
-  }, [incoming, store])
+  }, [incoming, incomingIsOurs, store])
 
   /**
    * The payload for the circuit on screen, or `null` for a document with
@@ -176,20 +264,27 @@ export function useCircuitUrl({
   const tooLarge = param !== null && exceedsUrlBudget(param)
 
   useEffect(() => {
-    // Still showing exactly what the page opened with: the URL already says
-    // this, correctly or otherwise, and it is not ours to rewrite yet.
-    if (openedWith.current === circuit) return
+    /*
+     * Still showing exactly what the page opened with: the URL already says
+     * this, correctly or otherwise, and it is not ours to rewrite yet.
+     *
+     * `suppressed` overrides that, and has to: a document that has just been
+     * saved is byte-for-byte its stored version, and leaving the parameter
+     * behind would keep a draft in the address bar for an edit that no longer
+     * exists.
+     */
+    if (openedWith.current === circuit && !suppressed) return
 
     const timer = setTimeout(() => {
       // A circuit too large to share leaves *no* parameter rather than the
       // previous one: a stale payload in the address bar is a link that
       // silently promises a different circuit from the one on screen.
-      writeParam(tooLarge ? null : param)
+      writeParam(suppressed || tooLarge ? null : param)
     }, debounceMs)
     return () => {
       clearTimeout(timer)
     }
-  }, [circuit, param, tooLarge, debounceMs])
+  }, [circuit, param, tooLarge, suppressed, debounceMs])
 
   const link = useMemo(() => {
     if (param === null || tooLarge) return null
@@ -214,6 +309,13 @@ export function useCircuitUrl({
  * control builds its link from the circuit rather than from the URL.
  */
 function writeParam(param: string | null): void {
+  /*
+   * Recorded even when the write below is a no-op or throws: what the set
+   * answers is "did this tab produce that payload", and a payload this hook
+   * decided on is one it produced whether or not the browser accepted the
+   * `replaceState`.
+   */
+  rememberWrittenParam(param)
   const next = circuitUrl(window.location.href, param)
   if (next === window.location.href) return
   try {

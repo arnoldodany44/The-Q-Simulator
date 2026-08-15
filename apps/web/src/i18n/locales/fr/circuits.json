@@ -1,0 +1,167 @@
+{
+  "title": "Vos circuits",
+  "lead": "Tous les circuits enregistrés sur votre compte, du plus récent au plus ancien.",
+  "loading": "Chargement de vos circuits…",
+  "empty": {
+    "heading": "Rien d'enregistré pour l'instant",
+    "body": "Construisez un circuit dans l'éditeur et enregistrez-le. Il apparaîtra ici, avec chaque version que vous conservez.",
+    "action": "Ouvrir l'éditeur",
+    "pastTheEnd": "Il n'y a rien sur cette page. La liste s'est peut-être raccourcie depuis la création de ce lien.",
+    "firstPage": "Revenir à la première page"
+  },
+  "item": {
+    "qubits": "Qubits",
+    "gates": "Portes",
+    "depth": "Profondeur",
+    "updated": "Dernier enregistrement",
+    "visibility": "Visibilité"
+  },
+  "visibility": {
+    "PRIVATE": "Privé",
+    "UNLISTED": "Non répertorié",
+    "PUBLIC": "Public"
+  },
+  "pager": {
+    "label": "Pages",
+    "previous": "Précédente",
+    "next": "Suivante",
+    "position": "Page {{page}} sur {{pages}}, {{total}} circuits au total"
+  },
+  "retry": "Réessayer",
+  "document": {
+    "loading": "Ouverture de ce circuit…",
+    "unavailableAction": "Commencer un nouveau circuit",
+    "offline": "Vous êtes hors ligne : ce circuit n'a pas encore été demandé. Il s'ouvrira dès le retour de la connexion."
+  },
+  "save": {
+    "heading": "Enregistrer",
+    "openNew": "Enregistrer ce circuit…",
+    "openVersion": "Enregistrer une nouvelle version…",
+    "close": "Annuler",
+    "submitNew": "Enregistrer le circuit",
+    "submitVersion": "Enregistrer la version",
+    "saving": "Enregistrement…",
+    "signIn": "Connectez-vous pour l'enregistrer",
+    "nothingToSave": "Rien n'a changé depuis le dernier enregistrement.",
+    "ownershipLost": "Ce circuit ne vous appartient pas et vous ne pouvez pas y ajouter de version. Vous pouvez conserver votre travail sous la forme d'un circuit à vous.",
+    "status": {
+      "anonymous": "N'est enregistré sur aucun compte. Le circuit voyage dans l'adresse de la page, exactement comme avant l'existence des comptes — connectez-vous et il aura un chez-soi.",
+      "unsaved": "Pas encore enregistré. Le circuit tient dans l'adresse de cette page jusqu'à ce que vous l'enregistriez.",
+      "clean": "Enregistré comme version {{version}}.",
+      "dirty": "Modifié depuis la version {{version}}. La modification tient dans l'adresse de cette page jusqu'à ce que vous l'enregistriez.",
+      "uncarried": "Modifié depuis la version {{version}}. Ce circuit est trop grand pour tenir dans l'adresse de la page : la modification n'existe que dans cet onglet — enregistrez-la avant de fermer."
+    },
+    "title": {
+      "label": "Titre"
+    },
+    "description": {
+      "label": "Description (facultative)"
+    },
+    "visibility": {
+      "label": "Qui peut l'ouvrir",
+      "PRIVATE": "Vous seulement.",
+      "UNLISTED": "Toute personne qui a le lien. N'apparaît dans aucune liste.",
+      "PUBLIC": "Tout le monde, et il apparaît dans la galerie."
+    },
+    "message": {
+      "label": "Ce qui a changé (facultatif)",
+      "hint": "Une note brève, conservée avec cette version dans l'historique."
+    },
+    "problem": {
+      "title-required": "Un circuit a besoin d'un titre.",
+      "title-too-long": "Ce titre est trop long.",
+      "description-too-long": "Cette description est trop longue.",
+      "message-too-long": "Cette note est trop longue."
+    }
+  },
+  "conflict": {
+    "body": "Quelqu'un a enregistré pendant que vous modifiiez. Vous êtes parti de la version {{base}} et la plus récente est maintenant la version {{server}}, que vous n'avez pas vue.",
+    "saveAnyway": "Enregistrer la mienne par-dessus, en gardant les deux",
+    "discardMine": "Abandonner mes modifications et ouvrir la version {{version}}",
+    "keepEditing": "Continuer à modifier, sans rien enregistrer",
+    "raced": "Votre travail a été enregistré comme version {{landed}}. La version {{other}} est arrivée un instant plus tôt et vous ne l'avez pas vue — rien n'a été perdu, les deux sont dans l'historique."
+  },
+  "history": {
+    "heading": "Historique",
+    "hint": "Chaque enregistrement est une version à part entière. Rien n'y est jamais réécrit ni supprimé.",
+    "open": "Afficher l'historique…",
+    "close": "Masquer l'historique",
+    "loading": "Chargement de l'historique…",
+    "empty": "Aucune version pour l'instant.",
+    "version": "Version {{number}}",
+    "current": "celle que vous modifiez",
+    "noMessage": "Cette version a été enregistrée sans note.",
+    "view": "L'ouvrir",
+    "compareWithPrevious": "Comparer avec la version précédente",
+    "backToDocument": "Revenir au circuit que vous modifiez",
+    "opening": "Ouverture de la version {{number}}…",
+    "viewing": "Vous consultez la version {{number}}",
+    "notLive": "C'est une version passée, telle qu'elle a été enregistrée. Elle ne peut pas être modifiée, et le circuit sur lequel vous travailliez reste intact.",
+    "pager": {
+      "label": "Pages de l'historique",
+      "position": "Page {{page}} sur {{pages}}, {{total}} versions au total"
+    },
+    "compare": {
+      "from": "Comparer depuis",
+      "to": "avec",
+      "submit": "Afficher la différence",
+      "toAccessible": "avec la version"
+    },
+    "restore": {
+      "explain": "Restaurer enregistre à nouveau le circuit de la version {{number}}, sous la forme d'une nouvelle version. La version {{number}} reste où elle est, et tout ce qui l'a suivie aussi.",
+      "submit": "Restaurer la version {{number}}",
+      "saving": "Restauration…",
+      "cancel": "Laisser l'historique tel quel",
+      "anyway": "La restaurer quand même",
+      "defaultMessage": "Version {{number}} restaurée",
+      "alreadyHere": "C'est déjà le circuit que vous avez ouvert, enregistré comme version {{number}}. Il n'y a rien à ramener.",
+      "dirtyWarning": "Vous avez des modifications non enregistrées. Restaurer remplace ce qui est sur le canevas par cette version, et ces modifications n'en font pas partie.",
+      "done": "La version {{number}} est de retour. Elle a été enregistrée comme version {{landed}}, l'historique va donc maintenant jusqu'à la {{landed}} et rien n'y a été réécrit ni supprimé.",
+      "stale": "Quelqu'un a enregistré pendant votre lecture. La plus récente est maintenant la version {{server}}, que vous n'avez pas vue. Restaurer la version {{number}} se place après elle et ne perd rien — les deux restent dans l'historique.",
+      "message": {
+        "label": "Note pour la nouvelle version",
+        "hint": "Conservée avec la version que cette restauration crée, pour que l'historique dise ce qui s'est passé."
+      }
+    },
+    "compareUnavailable": "La version à laquelle vous vouliez comparer n'a pas pu être ouverte, seule la version ci-dessous est donc affichée.",
+    "versionUnavailable": "Cette version n'existe pas, ou elle n'est pas partagée avec vous."
+  },
+  "diff": {
+    "heading": "Ce qui a changé entre la version {{from}} et la version {{to}}",
+    "identical": "Ces deux versions contiennent le même circuit.",
+    "registersOnly": "Aucune opération n'a changé.",
+    "tooManyColumns": "Le diagramme dessine les {{drawn}} premières colonnes. Les {{hidden}} suivantes sont dans les deux documents, mais pas dans cette image.",
+    "kind": {
+      "added": "Ajoutées",
+      "removed": "Supprimées",
+      "moved": "Déplacées",
+      "changed": "Modifiées"
+    },
+    "change": {
+      "added": "ajoutée sur {{qubits}}, moment {{column}}",
+      "removed": "supprimée de {{qubits}}, moment {{column}}",
+      "moved": "déplacée de {{fromQubits}}, moment {{fromColumn}}, vers {{toQubits}}, moment {{toColumn}}",
+      "changed": "modifiée sur {{qubits}}, moment {{column}}",
+      "detail": "({{aspects}})"
+    },
+    "aspect": {
+      "gate": "une autre porte",
+      "column": "un autre moment",
+      "qubits": "d'autres fils",
+      "controls": "d'autres contrôles",
+      "params": "d'autres angles",
+      "classical": "un autre lien classique",
+      "order": "les fils dans un autre ordre"
+    },
+    "register": {
+      "qubits": "Le registre est passé de {{before}} à {{after}} qubits.",
+      "clbits": "Le registre classique est passé de {{before}} à {{after}} bits.",
+      "labels": "Au moins un fil a été renommé."
+    },
+    "document": {
+      "parameters": "Un paramètre nommé a été ajouté, retiré ou réglé autrement.",
+      "customGates": "Un sous-circuit réutilisable a été ajouté, retiré ou redéfini."
+    }
+  },
+  "offline": "Vous êtes hors ligne : rien n'a encore été demandé. Le chargement reprendra dès le retour de la connexion."
+}
