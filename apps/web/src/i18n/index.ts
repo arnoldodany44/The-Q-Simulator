@@ -45,14 +45,22 @@ export const FALLBACK_LANGUAGE: SupportedLanguage = 'en'
 /**
  * Namespaces are added alongside the feature that needs them — `editor`
  * arrives with the circuit store in M0.5, `gates` with the palette,
- * `simulation` with the worker in M0.6, `analysis` with M0.7 and `lessons` in
- * Phase 3. Keeping one catalog per feature stops any single file from growing
- * into something nobody can review.
+ * `simulation` with the worker in M0.6, `analysis` with M0.7, `errors` with
+ * the API client in M1.3, and `lessons` in Phase 3. Keeping one catalog per
+ * feature stops any single file from growing into something nobody can
+ * review.
+ *
+ * `errors` is the one catalog whose keys are not chosen here: they are the
+ * error codes `@qsim/contract` publishes, because the API sends a code and
+ * this app owns every word the reader sees (§11, D2). `lib/api/messages.
+ * test.ts` asserts the catalog and the code list are the same set, so a new
+ * code cannot ship without three translations.
  */
 export const NAMESPACES = [
   'analysis',
   'common',
   'editor',
+  'errors',
   'gates',
   'landing',
   'simulation',
@@ -176,8 +184,21 @@ function syncDocumentLanguage(tag: string | undefined): void {
  * The cost is ~5 kB of JSON per language on first paint. The optimisation this
  * slightly walks back was mostly about `editor`, which is twice that and is
  * still deferred along with `gates` and `simulation`.
+ *
+ * `errors` is here for a different reason than the others: it is not tied to
+ * a route at all. Any screen that touches the API can produce one of these
+ * sentences — a session that expired while the tab was open, a request that
+ * left before the network came back — so deferring it would mean the one
+ * moment the user most needs a sentence is the moment the catalog has not
+ * arrived. It is ~1.5 kB per language and it is a fixed list, not a growing
+ * one.
  */
-export const SHELL_NAMESPACES = ['common', 'landing', 'analysis'] as const
+export const SHELL_NAMESPACES = [
+  'common',
+  'landing',
+  'analysis',
+  'errors',
+] as const
 
 /**
  * What the editor route needs, fetched alongside its own chunk (`App.tsx`).

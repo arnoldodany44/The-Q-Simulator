@@ -23,6 +23,7 @@
  */
 
 import { z } from 'zod'
+import { storableText } from './text.js'
 
 /**
  * Version of the circuit JSON contract.
@@ -129,8 +130,15 @@ export const ConditionSchema = z.strictObject({
  * `column` is the time coordinate — see the note on `depth()`.
  */
 export const OperationSchema = z.strictObject({
-  id: z.string().min(1).max(64),
-  gate: z.string().min(1).max(64),
+  /*
+   * `storableText` on every free-form string in this file, and not only on the
+   * ones a person types. `CircuitVersion.data` is `jsonb`, and Postgres
+   * refuses a JSON u0000 escape inside one with SQLSTATE 22P05 — so a NUL in an
+   * operation id is a 500 from the driver rather than a 400 from the
+   * validator, unless it is caught here. See `text.ts`.
+   */
+  id: storableText(z.string().min(1).max(64)),
+  gate: storableText(z.string().min(1).max(64)),
   targets: z.array(QubitIndexSchema).min(1).max(MAX_QUBITS),
   controls: z.array(ControlSchema).max(MAX_QUBITS).optional(),
   params: z.array(ParamValueSchema).optional(),
@@ -150,7 +158,7 @@ export const OperationSchema = z.strictObject({
 export const CustomGateSchema = z.strictObject({
   qubits: z.int().min(1).max(MAX_QUBITS),
   operations: z.array(OperationSchema),
-  symbol: z.string().min(1).max(8).optional(),
+  symbol: storableText(z.string().min(1).max(8)).optional(),
 })
 
 /**
@@ -165,7 +173,10 @@ export const CircuitSchema = z.strictObject({
   schemaVersion: z.literal(CIRCUIT_SCHEMA_VERSION),
   qubits: z.int().min(1).max(MAX_QUBITS),
   clbits: z.int().min(0).max(MAX_CLBITS).default(0),
-  qubitLabels: z.array(z.string().min(1).max(32)).max(MAX_QUBITS).optional(),
+  qubitLabels: z
+    .array(storableText(z.string().min(1).max(32)))
+    .max(MAX_QUBITS)
+    .optional(),
   parameters: z.array(ParameterSchema).optional(),
   operations: z.array(OperationSchema),
   customGates: z.record(IdentifierSchema, CustomGateSchema).optional(),

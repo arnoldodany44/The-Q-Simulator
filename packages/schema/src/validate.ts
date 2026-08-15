@@ -275,41 +275,94 @@ function checkParameters(
  * itself. Without this the expander in Fase 2 would recurse until the stack
  * gives out, and the user would see a crash instead of the name of the gate
  * they wired into a loop.
+ *
+ * ── Why the walk is iterative ─────────────────────────────────────────────
+ *
+ * It used to recurse, one JavaScript frame per gate in the chain, and that is
+ * the same unbounded recursion the check exists to prevent — only in the
+ * checker rather than in the expander. A document declaring a chain
+ * `g0 → g1 → … → gN` costs about 87 bytes per link, so roughly twelve
+ * thousand links fit inside the API's 1 MiB body limit and overflow the
+ * default stack: `RangeError: Maximum call stack size exceeded`, which
+ * reaches the client as a 500 that a client produced. The margin is worse
+ * than it looks, because a smaller stack (a container tuned down, or simply a
+ * deeper call stack under a real HTTP server than under `inject`) moves the
+ * threshold below the 256 KiB a version is allowed to *store* — and stored
+ * payloads are re-parsed through here on every read, so the circuit would
+ * then 500 forever.
+ *
+ * An explicit stack costs one array and removes the bound entirely: depth is
+ * limited by the payload, and the payload is limited by the body limit.
  */
 function checkCustomGateCycles(
   customGates: Readonly<Record<string, CustomGate>>,
   issues: ValidationIssue[]
 ): void {
   const status = new Map<string, 'visiting' | 'done'>()
+  /** The current DFS path, as the cycle message needs to name it. */
+  const path: string[] = []
 
-  const visit = (name: string, path: string[]): void => {
-    const state = status.get(name)
-    if (state === 'done') return
-    if (state === 'visiting') {
-      const cycle = [...path.slice(path.indexOf(name)), name].join(' → ')
-      issues.push({
-        code: 'custom-gate-cycle',
-        customGate: name,
-        message:
-          `Custom gate "${name}" contains itself: ${cycle}. A custom gate ` +
-          `cannot use itself, directly or through another custom gate.`,
-      })
-      return
-    }
-
-    status.set(name, 'visiting')
-    path.push(name)
-    const definition = customGates[name]
-    for (const operation of definition?.operations ?? []) {
-      if (Object.hasOwn(customGates, operation.gate)) {
-        visit(operation.gate, path)
-      }
-    }
-    path.pop()
-    status.set(name, 'done')
+  /*
+   * Each frame is a gate plus how far through its operations we are. `enter`
+   * is false on the bookkeeping visit that pops the path again — the explicit
+   * form of "the code after the recursive call".
+   */
+  interface Frame {
+    readonly name: string
+    index: number
   }
 
-  for (const name of Object.keys(customGates)) visit(name, [])
+  const walk = (root: string): void => {
+    const stack: Frame[] = [{ name: root, index: -1 }]
+
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1] as Frame
+      const { name } = frame
+
+      if (frame.index === -1) {
+        const state = status.get(name)
+        if (state === 'done') {
+          stack.pop()
+          continue
+        }
+        if (state === 'visiting') {
+          const cycle = [...path.slice(path.indexOf(name)), name].join(' → ')
+          issues.push({
+            code: 'custom-gate-cycle',
+            customGate: name,
+            message:
+              `Custom gate "${name}" contains itself: ${cycle}. A custom ` +
+              `gate cannot use itself, directly or through another custom ` +
+              `gate.`,
+          })
+          stack.pop()
+          continue
+        }
+        status.set(name, 'visiting')
+        path.push(name)
+        frame.index = 0
+      }
+
+      const operations = customGates[name]?.operations ?? []
+      let descended = false
+      while (frame.index < operations.length) {
+        const operation = operations[frame.index] as Operation
+        frame.index += 1
+        if (Object.hasOwn(customGates, operation.gate)) {
+          stack.push({ name: operation.gate, index: -1 })
+          descended = true
+          break
+        }
+      }
+      if (descended) continue
+
+      path.pop()
+      status.set(name, 'done')
+      stack.pop()
+    }
+  }
+
+  for (const name of Object.keys(customGates)) walk(name)
 }
 
 function checkOperations(

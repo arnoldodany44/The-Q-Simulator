@@ -18,6 +18,12 @@ out/
 # Prisma
 packages/db/prisma/*.db
 packages/db/prisma/*.db-journal
+# The Prisma 7 client is generated TypeScript rather than a binary binding,
+# so it is real source — but it is source `prisma generate` rewrites from
+# schema.prisma on every install and build, and committing it would put a
+# few thousand lines into every schema diff. Migrations, which ARE the
+# history, are committed.
+packages/db/src/generated/
 
 # Test / coverage
 coverage/

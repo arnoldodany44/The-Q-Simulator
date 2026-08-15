@@ -439,6 +439,82 @@ describe('custom gates', () => {
     expect(cycle?.message).toContain('a → b → a')
   })
 
+  it('walks a chain far deeper than the JavaScript stack allows', () => {
+    /*
+     * The guard against unbounded recursion used to recurse once per gate in
+     * the chain, which made it the unbounded recursion. Roughly 87 bytes per
+     * link means about twelve thousand links fit inside the API's 1 MiB body
+     * limit — `RangeError: Maximum call stack size exceeded`, reaching the
+     * client as a 500 that a client produced. Worse on a smaller stack, where
+     * the threshold drops below the 256 KiB a version is allowed to *store*,
+     * and stored payloads are re-parsed through here on every read.
+     *
+     * Twenty thousand links is comfortably past the default stack and runs in
+     * milliseconds iteratively.
+     */
+    const customGates: Record<string, unknown> = {}
+    const depth = 20_000
+    for (let i = 0; i < depth; i += 1) {
+      customGates[`g${String(i)}`] = {
+        qubits: 1,
+        operations:
+          i === depth - 1
+            ? []
+            : [
+                {
+                  id: 'a',
+                  gate: `g${String(i + 1)}`,
+                  targets: [0],
+                  column: 0,
+                },
+              ],
+      }
+    }
+
+    const result = safeParseCircuit({
+      schemaVersion: 1,
+      qubits: 1,
+      operations: [],
+      customGates,
+    })
+
+    // No cycle in a chain, so this is a clean parse rather than a crash.
+    expect(result.ok).toBe(true)
+  })
+
+  it('still names the loop in a chain that long', () => {
+    const customGates: Record<string, unknown> = {}
+    const depth = 20_000
+    for (let i = 0; i < depth; i += 1) {
+      customGates[`g${String(i)}`] = {
+        qubits: 1,
+        operations: [
+          {
+            id: 'a',
+            // The last link points back at the first: one cycle, at the far
+            // end of a chain no recursive walk could reach.
+            gate: `g${String((i + 1) % depth)}`,
+            targets: [0],
+            column: 0,
+          },
+        ],
+      }
+    }
+
+    const result = safeParseCircuit({
+      schemaVersion: 1,
+      qubits: 1,
+      operations: [],
+      customGates,
+    })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(
+      result.issues.some((issue) => issue.code === 'custom-gate-cycle')
+    ).toBe(true)
+  })
+
   /*
    * The two hazards a plain object brings to a lookup keyed by untrusted text.
    * Both were reachable from a `?c=` link.

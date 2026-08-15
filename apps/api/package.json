@@ -1,0 +1,40 @@
+{
+  "name": "api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Q Simulator REST API — Fastify 5 on Railway",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "node build.js --watch",
+    "start": "node dist/server.js",
+    "build": "node build.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@fastify/cors": "catalog:",
+    "@fastify/rate-limit": "catalog:",
+    "@prisma/adapter-pg": "catalog:",
+    "@prisma/client": "catalog:",
+    "@qsim/contract": "workspace:*",
+    "@qsim/db": "workspace:*",
+    "@qsim/schema": "workspace:*",
+    "fastify": "catalog:",
+    "fastify-plugin": "catalog:",
+    "jose": "catalog:",
+    "nanoid": "catalog:",
+    "pino": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "@types/node": "catalog:",
+    "esbuild": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

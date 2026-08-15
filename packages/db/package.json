@@ -1,0 +1,41 @@
+{
+  "name": "@qsim/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Prisma schema, migrations and the shared PrismaClient — consumed by apps/api and apps/worker only",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "generate": "prisma generate",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "prisma generate && tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate:create": "prisma migrate dev --create-only",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "catalog:",
+    "@prisma/client": "catalog:",
+    "@qsim/schema": "workspace:*",
+    "nanoid": "catalog:"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "prisma": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

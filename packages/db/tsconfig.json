@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@qsim/config/tsconfig/node.json",
+  "compilerOptions": {
+    /*
+     * The Prisma 7 client is generated TypeScript, and its own files import
+     * each other with explicit `.ts` specifiers. That is deliberate on
+     * Prisma's side — it is what lets Node run the client through native type
+     * stripping with no build step — but it needs this flag to compile, and
+     * the flag is only legal when nothing is emitted from those files.
+     * `tsconfig.build.json` sets `emitDeclarationOnly`, which satisfies that.
+     */
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*", "prisma.config.ts", "vitest.config.ts"]
+}

@@ -92,8 +92,21 @@ describe('routes', () => {
   it('shows the editor at /new once its chunk arrives', async () => {
     at('/new')
 
+    /*
+     * The default `findBy*` budget is one second, and what is being waited on
+     * here is a real dynamic `import()` of the editor chunk — Zustand, Zundo,
+     * dnd-kit and the whole canvas — compiled on demand by Vite. That is not
+     * a fixed cost: it is the machine's, and on a loaded CI runner (or under
+     * `turbo` building three workspaces at once) it lands either side of the
+     * second. The assertion is about routing, not about speed, so the budget
+     * is raised rather than left to decide the outcome by coin flip.
+     */
     expect(
-      await screen.findByRole('grid', { name: 'Circuit grid' })
+      await screen.findByRole(
+        'grid',
+        { name: 'Circuit grid' },
+        { timeout: 5_000 }
+      )
     ).toBeDefined()
     expect(screen.getByRole('button', { name: 'CNOT' })).toBeDefined()
     expect(

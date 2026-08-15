@@ -41,18 +41,74 @@ pnpm --filter web exec playwright install chromium
 ## Layout
 
 ```
-apps/web            React client (Vite)
-packages/qsim       @qsim/core   — simulation engine, zero dependencies
-packages/schema     @qsim/schema — circuit JSON contract, Zod validators
-packages/config     @qsim/config — shared ESLint and TypeScript config
+apps/web            React client (Vite)                    → Vercel
+apps/api            Fastify 5 REST service                 → Railway
+packages/qsim       @qsim/core     — simulation engine, zero dependencies
+packages/schema     @qsim/schema   — circuit JSON contract, Zod validators
+packages/contract   @qsim/contract — REST wire contract, shared by web and api
+packages/db         @qsim/db       — Prisma schema, migrations, client singleton
+packages/config     @qsim/config   — shared ESLint and TypeScript config
 ```
 
 `packages/qsim` and `packages/schema` are consumed by both the client and (from
 Phase 1) the server, and must stay a single implementation: the client
 simulates for live feedback while the server simulates authoritatively to
 validate challenges. A divergence between them would let a user see "solved"
-locally and "failed" remotely. Four dependency rules enforce the boundaries and
-run in CI — see `.dependency-cruiser.cjs`.
+locally and "failed" remotely. Dependency rules enforce the boundaries and run
+in CI — see `.dependency-cruiser.cjs`.
+
+`apps/api` verifies Supabase user tokens against the project's **public**
+signing keys (ES256, fetched from `SUPABASE_JWKS_URL` and cached), not against
+a shared secret. Specification §11 still describes the legacy HS256 scheme;
+the asymmetric one is strictly better and is what the code does, because an
+attacker who reads every environment variable the API holds still cannot mint
+a token. Every visibility rule is enforced in the query layer rather than by
+Postgres RLS, which Prisma bypasses by connecting as `postgres`.
+
+It is also the one workspace whose build is a **bundle** rather than `tsc`
+output. The shared packages are published as TypeScript source, and Node can
+strip types but never rewrites a module specifier — so `node dist/server.js`
+would fail on the `./client.js` that `@qsim/db` was compiled to expect.
+`apps/api/build.js` explains that in full.
+
+`packages/contract` exists because of that last rule. The browser cannot see
+the Prisma types the API's responses are projected from, so the request and
+response shapes are declared once, in a package both apps import, instead of
+being hand-copied into the client — a copy compiles forever and diverges
+silently. It also holds the error-code vocabulary: the API answers with a code
+and never with display text, and `apps/web` translates that code into `es`,
+`en` and `fr` (D2), with a test that refuses a code no catalog has a sentence
+for. The client that consumes all of this is `apps/web/src/lib/api`, which is
+the only place in the frontend that builds a URL or sets a header.
+
+`packages/db` is server-only and the browser never imports it. Its client is
+generated from `prisma/schema.prisma` into `src/generated/`, which is
+gitignored: `pnpm install` regenerates it, and so does any turbo task that
+needs it. If it goes missing between installs, `pnpm --filter @qsim/db generate`
+brings it back.
+
+**The database is shared: development and production are the same Supabase
+project.** There is no second copy. Create migrations with
+`prisma migrate dev --create-only`, read the generated SQL, then apply it with
+`prisma migrate deploy` — never plain `migrate dev`, which offers to reset on
+any drift. `pnpm --filter @qsim/db test` asserts that no committed migration
+contains a destructive statement or touches Supabase's `auth` schema.
+
+Because there is one database, no suite reaches it by default — `pnpm verify`
+runs entirely offline. Two opt-in suites exist for the questions only Postgres
+can answer, and both clean up after themselves:
+
+```bash
+QSIM_DB_INTROSPECTION=1 pnpm --filter @qsim/db test   # read-only, after a migration
+QSIM_DB_INTEGRATION=1   pnpm --filter @qsim/db test   # writes, then deletes what it wrote
+```
+
+The second creates everything under two reserved identities and deletes those
+two `User` rows afterwards, letting `ON DELETE CASCADE` remove the rest — so it
+can never touch a row it did not create. It earns its keep: it is what caught
+that Prisma 7's driver adapter reports a unique-constraint violation with no
+`meta.target` at all, which had silently disabled two retry paths written from
+the documentation (`packages/db/src/prisma-errors.ts`).
 
 ## Documentation
 

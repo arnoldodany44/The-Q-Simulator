@@ -6,6 +6,23 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "generate": {
+      "inputs": ["prisma/schema.prisma", "prisma.config.ts"],
+      "outputs": ["src/generated/**"]
+    },
+    "@qsim/db#build": {
+      "dependsOn": ["^build", "generate"],
+      "outputs": ["dist/**"]
+    },
+    "@qsim/db#lint": {
+      "dependsOn": ["^build", "generate"]
+    },
+    "@qsim/db#typecheck": {
+      "dependsOn": ["^build", "generate"]
+    },
+    "@qsim/db#test": {
+      "dependsOn": ["^build", "generate"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

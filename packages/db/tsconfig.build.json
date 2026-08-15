@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /*
+     * Declarations only, same arrangement as packages/schema and
+     * packages/qsim: runtime consumers resolve this package's source, while
+     * the `types` export condition sends type resolution to `dist/`.
+     *
+     * It matters more here than elsewhere. The generated Prisma client
+     * carries `@ts-nocheck` and imports with `.ts` extensions; if apps/api
+     * compiled those files under its own options, its build would inherit
+     * both. Emitting declarations here means the API sees a finished `.d.ts`
+     * surface and never compiles a generated file at all.
+     */
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"]
+}

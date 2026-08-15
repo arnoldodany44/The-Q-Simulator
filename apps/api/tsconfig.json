@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@qsim/config/tsconfig/node.json",
+  /*
+   * There is no `tsconfig.build.json` here, and that is the difference from
+   * every package in `packages/`.
+   *
+   * Those are libraries consumed as TypeScript source, so their build emits
+   * declarations only and `tsc` is the whole build. This is a deployable that
+   * Railway starts with `node dist/server.js`, so it needs runnable
+   * JavaScript — and `tsc` cannot produce a runnable one, because the
+   * workspace packages it imports are source with no emitted `.js` for Node
+   * to find. `build.js` explains that failure in full and bundles instead.
+   *
+   * So this config exists for `tsc --noEmit` and for the editor. Type
+   * checking is a separate turbo task from building, which is also why
+   * esbuild not type-checking costs nothing.
+   */
+  "include": ["src/**/*", "vitest.config.ts"]
+}

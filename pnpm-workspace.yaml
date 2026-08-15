@@ -2,6 +2,21 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
+# Postinstall scripts are denied by default. These two are allowed because
+# `prisma migrate` cannot work without them: @prisma/engines downloads the
+# schema engine binary that diffs the datamodel against the database, and the
+# prisma CLI's own postinstall resolves that binary for the host platform.
+# The query engine is gone in Prisma 7 — the generated client is TypeScript —
+# so this is the migration toolchain only, not anything the API runs.
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+  # esbuild ships its compiler as a platform-specific binary in an optional
+  # dependency, and its postinstall is what resolves the right one for this
+  # host. It is a build-time tool for `apps/api` only — see that package's
+  # `build.js` for why the API is bundled rather than emitted file by file.
+  esbuild: true
+
 # Single source of truth for dependency versions across the monorepo.
 # Packages reference these with "catalog:" instead of a literal version,
 # so an upgrade happens in one place and can never drift between workspaces.
@@ -40,6 +55,43 @@ catalog:
   # Validation
   zod: 4.4.3
 
+  # Runtime — API (§12.4: Fastify on Railway). The `@fastify/*` plugins are
+  # versioned independently of the core, and each major of a plugin targets one
+  # major of Fastify: `cors@11` and `rate-limit@11` are the Fastify 5 lines.
+  # `fastify-plugin` is what stops a plugin from being encapsulated — without
+  # it, a decorator or hook registered inside a plugin is invisible to the app
+  # that registered it, which is the single most common Fastify surprise.
+  fastify: 5.12.0
+  '@fastify/cors': 11.3.0
+  '@fastify/rate-limit': 11.2.0
+  fastify-plugin: 6.0.0
+  # Token verification. `jose` rather than `jsonwebtoken`: it verifies with the
+  # platform WebCrypto (no native build on Railway), it supports ES256 on P-256
+  # which is what Supabase's asymmetric signing keys use, and it refuses to
+  # verify with an algorithm the caller did not ask for — which is the defence
+  # against the `alg` confusion attack that has bitten every other library.
+  jose: 6.2.9
+  # Fastify bundles pino already; naming it here pins the version the API's
+  # logging configuration is written against (`^9.14.0 || ^10.1.0` is what
+  # Fastify 5.12 accepts) and gives the redaction config real types.
+  pino: 10.3.1
+
+  # Persistence (§12.6). Prisma 7 dropped the Rust query engine: the client is
+  # generated TypeScript and talks to Postgres through a driver adapter, which
+  # is why `@prisma/adapter-pg` is a runtime dependency and not an add-on. The
+  # three packages are released in lockstep and must stay on the same version.
+  prisma: 7.9.1
+  '@prisma/client': 7.9.1
+  '@prisma/adapter-pg': 7.9.1
+
+  # Public handles for circuits (§11: "slug generado por `nanoid` de
+  # suficiente entropía"). Zero dependencies, and its generator draws from
+  # `crypto.getRandomValues` with a bitmask rather than a modulo, so a
+  # 64-symbol alphabet is sampled without bias — which is the whole reason to
+  # take a library for eleven lines of code. `packages/db` owns the only
+  # import; a slug is minted where the row is written and nowhere else.
+  nanoid: 6.0.1
+
   # Circuit sharing (D4: JSON → deflate → base64url in `?c=`).
   #
   # fflate rather than the platform's `CompressionStream`, and the reason is
@@ -56,6 +108,24 @@ catalog:
   # Editor state (§9: Zustand for circuit state, history middleware for undo/redo)
   zustand: 5.0.15
   zundo: 2.3.0
+
+  # Server state (§9: "Zustand for circuit state … React Query for everything
+  # that comes from the server. Do not mix the two.")
+  #
+  # The two halves of that sentence are not the same problem, which is the
+  # whole argument for a second library rather than a slice of the store. The
+  # circuit being edited is owned by this tab: it is synchronous, it has an
+  # undo stack, and it is nobody else's. Anything from the API is a *cache* of
+  # state that lives elsewhere — it can be stale, it can be refetched, two
+  # components can want it at once, and the request can fail or be superseded.
+  # Modelling the second as if it were the first is how a codebase grows a
+  # hand-written `isLoading` flag per screen and an invalidation bug per
+  # feature.
+  #
+  # Deliberately without `@tanstack/react-query-devtools`: it is a second
+  # bundle to keep pinned, and the same information is one `queryClient
+  # .getQueryCache()` away in a console.
+  '@tanstack/react-query': 5.101.4
 
   # Editor interaction (§9: dnd-kit for drag and drop, chosen over the
   # alternatives for its keyboard sensor — the editor has to be usable with
@@ -98,6 +168,10 @@ catalog:
   prettier: 3.9.6
 
   # Tooling
+  # esbuild builds `apps/api` into a single runnable file. It is not a
+  # bundler-by-preference: the workspace packages are published as TypeScript
+  # source, and Node cannot load them (see apps/api/build.js).
+  esbuild: 0.28.2
   turbo: 2.10.10
   dependency-cruiser: 18.2.0
   '@types/node': 26.2.0
@@ -110,3 +184,4 @@ minimumReleaseAgeExclude:
   - '@turbo/windows-64@2.10.10'
   - '@turbo/windows-arm64@2.10.10'
   - turbo@2.10.10
+  - jose@6.2.9

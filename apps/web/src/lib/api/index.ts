@@ -1,0 +1,94 @@
+/**
+ * The transport layer — everything `apps/web` knows about the API (§8, §9).
+ *
+ * Nothing outside this directory constructs a URL, sets an `Authorization`
+ * header or parses a response. That is not tidiness: it is what makes "the
+ * client and the server agree" a property one directory can be read to
+ * verify, and what stops a second, subtly different fetch wrapper from
+ * appearing next to the first screen that needs one.
+ *
+ * The boundary that must never move: `apps/web` does not import `@qsim/db`
+ * (§12.3, rule 3, enforced in CI). Every shape crossing the wire comes from
+ * `@qsim/contract`, which the API imports too.
+ */
+
+export { createApiClient } from './client.js'
+export type {
+  ApiClient,
+  ApiClientOptions,
+  FetchLike,
+  HttpMethod,
+  QueryParams,
+  RequestSpec,
+  ResponseSchema,
+} from './client.js'
+
+export { DEV_API_BASE_URL, resolveApiBaseUrl } from './config.js'
+export type { ApiEnvSource } from './config.js'
+
+export {
+  anonymousAccessToken,
+  currentAccessTokenProvider,
+  setAccessTokenProvider,
+} from './session.js'
+export type { AccessTokenProvider } from './session.js'
+
+export {
+  ApiRequestError,
+  CLIENT_ERROR_CODES,
+  ERROR_CODES,
+  UNKNOWN_ERROR_KEY,
+  errorCodeForStatus,
+  errorMessageKey,
+  isApiRequestError,
+  isForbidden,
+  isNotFound,
+  isRetryable,
+  requiresAuthentication,
+} from './errors.js'
+export type { ClientErrorCode, ErrorCode } from './errors.js'
+
+export {
+  createCircuit,
+  createVersion,
+  deleteCircuit,
+  forkCircuit,
+  getCircuit,
+  getVersion,
+  listCircuits,
+  listVersions,
+  updateCircuit,
+} from './circuits.js'
+export type { RequestContext } from './circuits.js'
+
+export { circuitKeys } from './queryKeys.js'
+export {
+  DEFAULT_STALE_TIME_MS,
+  MAX_QUERY_RETRIES,
+  createQueryClient,
+  shouldRetryQuery,
+} from './queryClient.js'
+
+export { ApiContext, useApiClient } from './ApiContext.js'
+export { ApiProvider } from './ApiProvider.js'
+export type { ApiProviderProps } from './ApiProvider.js'
+
+export {
+  useCircuit,
+  useCircuitVersion,
+  useCircuitVersions,
+  useCircuits,
+  useCreateCircuit,
+  useDeleteCircuit,
+  useForkCircuit,
+  useSaveVersion,
+  useUpdateCircuit,
+} from './useCircuits.js'
+export type {
+  ForkCircuitVariables,
+  SaveVersionVariables,
+  UpdateCircuitVariables,
+} from './useCircuits.js'
+
+export { useApiErrorMessage } from './useApiErrorMessage.js'
+export type { ApiErrorMessage } from './useApiErrorMessage.js'

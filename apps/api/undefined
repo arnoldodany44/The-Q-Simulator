@@ -1,0 +1,29 @@
+{
+  "SUPABASE_JWKS_URL": {
+    "https": "BOOTS (jwksUrl scheme accepted, issuer=https://project-ref.supabase.co/auth/v1)",
+    "http": "BOOTS (jwksUrl scheme accepted, issuer=https://project-ref.supabase.co/auth/v1)",
+    "http-attacker-host": "BOOTS (jwksUrl scheme accepted, issuer=https://project-ref.supabase.co/auth/v1)",
+    "file": "BOOTS (jwksUrl scheme accepted, issuer=https://project-ref.supabase.co/auth/v1)",
+    "ftp": "BOOTS (jwksUrl scheme accepted, issuer=https://project-ref.supabase.co/auth/v1)",
+    "data-uri": "BOOTS (jwksUrl scheme accepted, issuer=https://project-ref.supabase.co/auth/v1)",
+    "javascript": "BOOTS (jwksUrl scheme accepted, issuer=https://project-ref.supabase.co/auth/v1)"
+  },
+  "SUPABASE_URL": {
+    "https": "BOOTS",
+    "http": "BOOTS",
+    "http-attacker-host": "BOOTS",
+    "file": "BOOTS",
+    "ftp": "BOOTS",
+    "data-uri": "BOOTS",
+    "javascript": "BOOTS"
+  },
+  "SUPABASE_JWT_ISSUER": {
+    "https": "BOOTS (issuer=https://project-ref.supabase.co/auth/v1/.well-known/jwks.json)",
+    "http": "BOOTS (issuer=http://project-ref.supabase.co/auth/v1/.well-known/jwks.json)",
+    "http-attacker-host": "BOOTS (issuer=http://attacker.example/jwks.json)",
+    "file": "BOOTS (issuer=file:///etc/jwks.json)",
+    "ftp": "BOOTS (issuer=ftp://example.com/jwks.json)",
+    "data-uri": "BOOTS (issuer=data:application/json,{\"keys\":[]})",
+    "javascript": "BOOTS (issuer=javascript:alert(1))"
+  }
+}

@@ -11,6 +11,7 @@
  *   - `gates.ts`    the gate catalog: arity, parameters, category, symbol
  *   - `validate.ts` the rules a shape cannot express, and the parse entry points
  *   - `helpers.ts`  pure functions over a circuit
+ *   - `text.ts`     what a string must not contain to be storable at all
  *
  * Start at `parseCircuit` for untrusted input, `validateCircuit` for a
  * circuit you already hold in memory.
@@ -63,6 +64,14 @@ export type {
   ValidationCode,
   ValidationIssue,
 } from './validate.js'
+
+export {
+  isStorableText,
+  storableProse,
+  storableText,
+  TEXT_ISSUE_CONTROL_CHARACTER,
+  TEXT_ISSUE_LONE_SURROGATE,
+} from './text.js'
 
 export {
   controlsOf,

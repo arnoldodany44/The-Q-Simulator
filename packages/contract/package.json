@@ -1,0 +1,32 @@
+{
+  "name": "@qsim/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The REST wire contract — request and response shapes shared by apps/api and apps/web",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@qsim/schema": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
