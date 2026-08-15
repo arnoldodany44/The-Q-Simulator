@@ -1,0 +1,81 @@
+{
+  "histogram": {
+    "heading": "Probability by basis state",
+    "caption": {
+      "complete_one": "{{occupied}} of {{total}} basis states has a non-zero probability, and it is drawn.",
+      "complete_other": "{{occupied}} of {{total}} basis states have a non-zero probability, and every one of them is drawn.",
+      "capped_one": "{{occupied}} of {{total}} basis states have a non-zero probability. The {{shown}} most probable are drawn one by one; the other one holds {{share}} and shares the last bar.",
+      "capped_other": "{{occupied}} of {{total}} basis states have a non-zero probability. The {{shown}} most probable are drawn one by one; the other {{hidden}} hold {{share}} between them and share the last bar."
+    },
+    "empty": "No basis state carries any probability.",
+    "phasorNote": "Each arrow points along the phase of its amplitude, and its colour is that same angle. Two arrows pointing opposite ways are two paths cancelling.",
+    "table": {
+      "caption": "The same bars as text: basis state, probability and phase.",
+      "state": "Basis state",
+      "probability": "Probability",
+      "phase": "Phase",
+      "remainder_one": "The other basis state, on its own",
+      "remainder_other": "The other {{hidden}} basis states, together",
+      "mixedPhase": "Several phases"
+    }
+  },
+  "amplitudes": {
+    "heading": "Amplitudes",
+    "caption": {
+      "complete_one": "{{occupied}} of {{total}} basis states has a non-zero probability, and it is listed.",
+      "complete_other": "{{occupied}} of {{total}} basis states have a non-zero probability, and every one of them is listed.",
+      "capped_one": "{{occupied}} of {{total}} basis states have a non-zero probability. The {{shown}} most probable are listed one by one; the other one holds {{share}}.",
+      "capped_other": "{{occupied}} of {{total}} basis states have a non-zero probability. The {{shown}} most probable are listed one by one; the other {{hidden}} hold {{share}} between them."
+    },
+    "empty": "No basis state carries any amplitude.",
+    "columns": {
+      "state": "Basis state",
+      "amplitude": "Amplitude",
+      "magnitude": "Magnitude",
+      "probability": "Probability",
+      "radians": "Phase (rad)",
+      "degrees": "Phase (°)"
+    },
+    "table": {
+      "caption": "One row per basis state: amplitude, magnitude, probability and phase. The basis state and probability columns can be sorted.",
+      "remainder_one": "The other basis state, on its own",
+      "remainder_other": "The other {{hidden}} basis states, together",
+      "noAmplitude": "No single amplitude",
+      "mixedPhase": "Several phases"
+    }
+  },
+  "counts": {
+    "heading": "Measured counts",
+    "intro_one": "This circuit measures before it ends, so it has no single final state. It was run {{shots}} times, and the classical register read the same value every time.",
+    "intro_other": "This circuit measures before it ends, so it has no single final state. It was run {{shots}} times, and the classical register read {{readings}} different values.",
+    "empty": "No run produced a reading.",
+    "table": {
+      "caption": "One row per classical register reading: how many runs produced it, and what share of the runs that is.",
+      "reading": "Register",
+      "runs": "Runs",
+      "share": "Share",
+      "remainder_one": "The other reading, on its own",
+      "remainder_other": "The other {{hidden}} readings, together"
+    }
+  },
+  "sampling": {
+    "heading": "Shot sampling",
+    "intro": "A simulator knows every probability exactly. A real machine is run a number of times and counts what it reads. Draw shots from this state to see the difference.",
+    "enable": "Compare a sample with the exact distribution",
+    "shots": "Shots",
+    "resample": "Draw again",
+    "waiting": "Drawing the sample…",
+    "summary_one": "{{shots}} shot. The largest gap between the sample and the exact distribution is {{gap}}; at this many shots a gap of about {{typical}} is what to expect. Multiply the shots by a hundred and the gap falls by ten.",
+    "summary_other": "{{shots}} shots. The largest gap between the sample and the exact distribution is {{gap}}; at this many shots a gap of about {{typical}} is what to expect. Multiply the shots by a hundred and the gap falls by ten.",
+    "table": {
+      "caption": "One row per basis state: the exact probability, how many shots landed there, the share that is, and the difference between the two.",
+      "state": "Basis state",
+      "exact": "Exact",
+      "count": "Shots",
+      "observed": "Sampled",
+      "difference": "Difference",
+      "remainder_one": "The other basis state, on its own",
+      "remainder_other": "The other {{hidden}} basis states, together"
+    }
+  }
+}

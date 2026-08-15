@@ -1,6 +1,68 @@
 {
   "tagline": "A quantum circuit laboratory in your browser",
-  "intro": "Drag gates onto a canvas, watch the state evolve as you build, and run the same circuit on real quantum hardware.",
-  "scaffoldNotice": "Scaffolding is in place. The circuit editor arrives in M0.5.",
-  "openEditor": "Open the circuit editor"
+  "lead": "Two qubits and two gates are enough to show the two ideas everything else rests on. The circuit below is not a picture of one: it runs in this tab, a stage at a time.",
+  "cta": {
+    "editor": "Open the editor",
+    "examples": "Start from an example",
+    "note": "The editor opens with six worked circuits beside it, ready to run and to take apart."
+  },
+  "demo": {
+    "heading": "Two gates: superposition and entanglement",
+    "intro": "Each stage is a circuit that runs when it is shown. The chart lists every outcome the pair can give, and how often.",
+    "chart": {
+      "heading": "Outcomes, and how often",
+      "caption": "Every reading the two wires can give. A bar with no length is an outcome that never happens."
+    },
+    "play": "Play",
+    "pause": "Pause",
+    "steps": "Stages of the demonstration",
+    "stages": {
+      "zero": {
+        "name": "Nothing yet",
+        "circuit": "Two qubits, {{q0}} and {{q1}}, with no gate on either.",
+        "story": "Measure them now and both give 0, every time. One outcome, one bar, nothing else on the chart. An ordinary pair of bits would stay here."
+      },
+      "superposed": {
+        "name": "One gate",
+        "circuit": "{{h}} on {{q0}} — the gate that puts a qubit into superposition.",
+        "story": "One bar became two. {{q0}} gives 0 half the time and 1 half the time, and this is not a coin whose value you simply do not know yet: both outcomes are really there, and the next gate acts on both at once. That is superposition."
+      },
+      "independent": {
+        "name": "Two coins",
+        "circuit": "The same {{h}}, on {{q1}} as well.",
+        "story": "Four bars, a quarter each. Both qubits are in superposition and neither says anything about the other: learning that {{q0}} gave 1 leaves {{q1}} exactly as undecided as before. Two independent coins."
+      },
+      "entangled": {
+        "name": "One pair",
+        "circuit": "{{h}} on {{q0}}, then {{cnot}}: it flips {{q1}} whenever {{q0}} reads 1.",
+        "story": "Each qubit still reads 1 half the time — the two figures below have not moved. But two of the four outcomes are gone, and the pair now always agrees. Neither qubit has an answer of its own any more; only the pair does. That is entanglement."
+      }
+    },
+    "reading": {
+      "outcomes": "Outcomes with any chance",
+      "marginal": "{{wire}} reads 1",
+      "agreement": "The two agree",
+      "before": "was {{value}}"
+    },
+    "notation": {
+      "before": "Each bar is one reading of the two wires, written",
+      "after": "— the lower wire on the left, the top wire on the right."
+    }
+  },
+  "notes": {
+    "heading": "How this works",
+    "local": {
+      "title": "In this tab",
+      "body": "The simulation runs in your browser, on a background thread. There is no account, and nothing you build is uploaded anywhere."
+    },
+    "link": {
+      "title": "A link is the save file",
+      "body": "The whole circuit travels inside the address. Copy it, send it, and whoever opens it sees exactly what you drew."
+    },
+    "state": {
+      "title": "The state, not only the answer",
+      "body": "Amplitude, phase and probability for every basis state, recomputed while you edit, with a timeline that walks the circuit one column at a time."
+    }
+  },
+  "closing": "Everything above is a few dragged gates away in the editor."
 }

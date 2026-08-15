@@ -64,6 +64,35 @@ module.exports = {
       to: { dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer'] },
     },
     {
+      name: 'landing-carries-no-editor',
+      severity: 'error',
+      comment:
+        'The landing page is the entry chunk (M0.9b): App.tsx keeps it out of ' +
+        'the lazy editor split precisely so that it paints on the first round ' +
+        'trip. One import is all it takes to undo that — reaching into the ' +
+        'document store pulls Zustand and Zundo, into the canvas pulls ' +
+        'dnd-kit, into @qsim/schema pulls Zod, into circuit-url pulls fflate ' +
+        '— and the damage is invisible in every test, showing up only as a ' +
+        'slower page. So the landing may reach exactly one module of the ' +
+        'editor, `geometry.ts`, which is pure arithmetic and is what keeps ' +
+        'the demo diagram and the editor canvas drawing the same wires. ' +
+        'Type-only imports are exempt: they are erased before a byte is ' +
+        'bundled, which is why the demo circuits are typed as `Circuit` ' +
+        'while their schema version is a local constant.',
+      from: {
+        path: '^apps/web/src/(routes/landing\\.tsx$|features/landing/)',
+        pathNot: '\\.test\\.tsx?$',
+      },
+      to: {
+        path: [
+          '^packages/schema/',
+          '^apps/web/src/lib/circuit-url\\.ts$',
+          '^apps/web/src/features/circuit-editor/(?!geometry\\.ts$)',
+        ],
+        dependencyTypesNot: ['type-only'],
+      },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       comment:

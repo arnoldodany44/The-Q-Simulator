@@ -11,7 +11,10 @@
  * ────────────────────────────────────────────────────────────────────────
  * 1. DEBOUNCE (150 ms, §5.6.4). Dragging a slider emits an edit per frame.
  * Each one restarts the timer, so a continuous drag costs exactly one
- * simulation — the one after the user stops.
+ * simulation — the one after the user stops. With one exception, added in
+ * M0.8: a request whose *only* difference is where the timeline scrubber is
+ * parked goes out immediately, because a scrub step is a single deliberate
+ * command rather than one frame of a gesture. See `onlyScrubMoved`.
  *
  * 2. STALENESS. Ids only go up, and exactly one request is in flight at a
  * time. `receive` compares against that id and drops anything else on the
@@ -45,6 +48,7 @@ import { MAX_COLUMNS, type Circuit } from '@qsim/schema'
 import { earliestChangedColumn } from './invalidation'
 import {
   MAX_CLIENT_QUBITS,
+  clampShots,
   decodeResult,
   type RequestId,
   type SimulateRequest,
@@ -101,8 +105,32 @@ export interface SimulationSnapshot {
 
 export interface RunOptions {
   readonly mode?: ExecutionMode
+  /**
+   * Draw shots from the final state of an analytic run as well (§3.2).
+   *
+   * Off by default, and the default is the physics: an analytic run already
+   * knows every probability exactly, so shot noise is something a reader asks
+   * for in order to see what a device would have measured — never something a
+   * simulator adds on its own (§5.3).
+   *
+   * Ignored in trajectories mode, where sampling is the run rather than a
+   * reading taken afterwards.
+   */
+  readonly sample?: boolean
   readonly shots?: number
   readonly seed?: number
+  /**
+   * Where the timeline scrubber is parked (M0.8): stop after this column, with
+   * `-1` meaning "before column 0", or `null`/absent for the whole circuit.
+   *
+   * Honoured in both modes, differently. Analytically it names the state to
+   * answer with; in trajectories mode there is no single state at a column, so
+   * it truncates the run instead and the tally describes the classical register
+   * at that instant (`job.ts`, `protocol.ts`). What it must never mean is
+   * nothing at all: a bar that announces a position the panel ignores is the
+   * same silent falsehood as a stale intermediate state.
+   */
+  readonly throughColumn?: number | null
 }
 
 export interface SchedulerOptions {
@@ -278,6 +306,7 @@ export function createSimulationScheduler(
 
     schedule(circuit, run = {}) {
       const resolved = resolveRun(run)
+      const previousRun = lastRun
       const changedColumn = earliestChangedColumn(lastScheduled, circuit)
       const changedRun = lastRun === undefined || !sameRun(lastRun, resolved)
       lastScheduled = circuit
@@ -312,6 +341,11 @@ export function createSimulationScheduler(
 
       pending = { circuit, run: resolved }
       clearTimer()
+      if (changedColumn === null && onlyScrubMoved(previousRun, resolved)) {
+        // `dispatch` publishes on its way out.
+        dispatch()
+        return
+      }
       timer = setTimeout(dispatch, debounceMs)
       publish()
     },
@@ -413,24 +447,73 @@ export function createSimulationScheduler(
 
 interface ResolvedRun {
   readonly mode: ExecutionMode
+  readonly sample: boolean
   readonly shots: number
   readonly seed: number
+  readonly throughColumn: number | null
 }
 
 function resolveRun(run: RunOptions): ResolvedRun {
   return {
     mode: run.mode ?? 'analytic',
-    shots: run.shots ?? DEFAULT_SHOTS,
+    sample: run.sample ?? false,
+    // Clamped here as well as in the worker: this is the value `sameRun`
+    // compares, and an unclamped 200 000 and an unclamped 300 000 would look
+    // like two different runs while producing the same 100 000 shots.
+    shots: clampShots(run.shots ?? DEFAULT_SHOTS),
     seed: run.seed ?? DEFAULT_SEED,
+    throughColumn: run.throughColumn ?? null,
   }
 }
 
 function sameRun(left: ResolvedRun, right: ResolvedRun): boolean {
   if (left.mode !== right.mode) return false
-  // Shots and seed are only questions in trajectories mode; changing them
-  // while analytic must not cost a re-run.
-  if (left.mode === 'analytic') return true
+  // A scrub step asks a different question of the same circuit, so it is a
+  // different run — this comparison is what makes moving the timeline schedule
+  // anything at all when nothing about the document changed. It is compared in
+  // *both* modes: a trajectories run stops after the same column (`job.ts`),
+  // and leaving it out of this comparison is what left the bar on a measuring
+  // circuit moving, announcing a position, and dispatching nothing.
+  if (left.throughColumn !== right.throughColumn) return false
+  if (left.mode === 'analytic') {
+    // Analytically, shots and seed are questions only when someone asked for a
+    // sample. Comparing them unconditionally would re-run the whole circuit
+    // every time a shots slider moved with sampling switched off.
+    if (left.sample !== right.sample) return false
+    if (!left.sample) return true
+  }
   return left.shots === right.shots && left.seed === right.seed
+}
+
+/**
+ * Whether the only thing that moved is the scrubber — and therefore whether
+ * this request should skip the debounce.
+ *
+ * The 150 ms wait exists to coalesce an *edit storm*: a slider drag emits a
+ * value per frame and only the last one is a question worth asking. A scrub
+ * step is the opposite kind of event. It is one deliberate command, its whole
+ * purpose is to put the state at that column on screen, and making the reader
+ * wait 150 ms for each one turns stepping into something that feels broken —
+ * while automatic playback faster than the debounce would show no intermediate
+ * state at all, every tick being swallowed by the next.
+ *
+ * Holding an arrow key down is not a counter-example: dispatching cancels the
+ * request in flight, and the worker keeps only the newest entry in its inbox
+ * and drops the rest unrun (`simulation.worker.ts`). A burst of steps therefore
+ * costs one run in flight plus one queued, whatever the key repeat rate is.
+ *
+ * In both modes. A step in trajectories mode re-runs the shots as far as the
+ * bar rather than resuming a state (`job.ts`), which is more work — but it is
+ * the same one deliberate command, and a reader stepping through the
+ * teleportation preset is the reader §3.1 wrote the feature for.
+ */
+function onlyScrubMoved(
+  previous: ResolvedRun | undefined,
+  next: ResolvedRun
+): boolean {
+  if (previous === undefined) return false
+  if (previous.throughColumn === next.throughColumn) return false
+  return sameRun({ ...previous, throughColumn: next.throughColumn }, next)
 }
 
 function buildRequest(
@@ -448,9 +531,20 @@ function buildRequest(
     sharedMemory,
   } as const
   if (run.mode === 'trajectories') {
-    return { ...base, mode: 'trajectories', shots: run.shots, seed: run.seed }
+    return {
+      ...base,
+      mode: 'trajectories',
+      shots: run.shots,
+      seed: run.seed,
+      throughColumn: run.throughColumn,
+    }
   }
-  return { ...base, mode: 'analytic' }
+  return {
+    ...base,
+    mode: 'analytic',
+    throughColumn: run.throughColumn,
+    sample: run.sample ? { shots: run.shots, seed: run.seed } : null,
+  }
 }
 
 function lowest(

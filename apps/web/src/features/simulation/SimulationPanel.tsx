@@ -1,22 +1,58 @@
 /**
- * What M0.6 has to show for itself — the smallest honest window on the live
- * simulation, and the only thing in the app that mounts `useSimulation`.
+ * The analysis panel: the live answer to the circuit on screen.
  *
- * The orchestration of M0.6 (worker, debounce, cancellation, checkpoint
- * invalidation) was complete and tested before anything rendered it, which
- * meant a user could build a circuit and the app would never spawn a worker
- * at all: no simulation, and no way for the >20 qubit refusal §3.1 requires
- * to reach anybody. This panel closes that gap without pre-empting M0.7.
+ * This is the only component in the app that mounts `useSimulation`, so it
+ * is the reason a worker is ever spawned. M0.6 stood it up as a placeholder
+ * that could do no more than count basis states; M0.7b replaced its contents
+ * with the real thing — the probability histogram and its phasors (§3.2,
+ * §10) — and M0.7c added the exact reading beneath it, the amplitude table,
+ * and the shots control that compares a sample against it. The pipeline
+ * wiring has not moved through any of it.
  *
- * WHAT IT DELIBERATELY IS NOT. It is not the analysis panel. No histogram, no
- * amplitude table, no phasors — those are M0.7's, they need the design system
- * and three.js, and building a sketch of them here would only have to be
- * deleted. What it shows instead is the pipeline's own state (idle, waiting,
- * running, ready, or a translated failure), the size of the register, and one
- * fact computed from the returned statevector — how many basis states carry
- * any probability at all. That last number is the point: it can only be right
- * if the circuit really crossed into a worker, ran on the engine, and came
- * back. A Bell pair says two; an empty register says one.
+ * WHAT IS STILL MISSING, and deliberately: the Bloch spheres, the Q-sphere
+ * and the entanglement metrics. They are separate slices of §3.2 and they
+ * hang off the same `outcome`; nothing here has to move to admit them.
+ *
+ * THE MODE IS READ OFF THE CIRCUIT (M0.9). A circuit that measures before it
+ * ends has no single final state, so analytic mode refuses it (§5.3) — and
+ * until the presets arrived, that refusal was all the reader got: an error
+ * message where the answer belongs. `executionModeFor` asks the document the
+ * same question the engine asks it, and a measuring circuit is run in
+ * trajectories mode and reported as a tally of the classical register.
+ * Neither the scheduler nor the worker needed a line for this; both modes
+ * have been in the protocol since M0.6 and nothing in the app had ever asked
+ * for the second one.
+ *
+ * THE TIMELINE ARRIVES AS ONE NUMBER (M0.8). `throughColumn` says which cut of
+ * the circuit to describe, and every chart below simply describes whatever
+ * came back — none of them knows or needs to know that it is looking at
+ * column 3 rather than at the end. The one thing the panel adds is a caption
+ * saying so, because an intermediate state presented as the answer is a lie
+ * told in a chart.
+ *
+ * THE BAR APPLIES IN BOTH MODES (M0.9c). It used to be honoured analytically
+ * and silently ignored in trajectories mode, which is the same lie wearing the
+ * opposite mask: on the teleportation preset the bar moved, announced a
+ * position and painted a playhead on the canvas while the panel below went on
+ * tallying the whole circuit. A measuring circuit has no single state at a
+ * column, so what a scrub position asks of it is the *register* at that
+ * instant — `job.ts` truncates the run and the tally answers for the cut. The
+ * mode itself is still chosen from the whole document rather than from the cut:
+ * flipping between a statevector and a tally halfway through a scrub would
+ * replace the picture the reader is stepping through.
+ *
+ * THE SHOTS SETTINGS LIVE HERE because the sampling happens on the worker.
+ * The control chooses a shot count and a seed, but nothing can act on them
+ * until they reach a request — so the panel that owns the simulation owns
+ * them, and `ShotSampler` is left as a component that reads state and reports
+ * intent. Sampling is off until asked for: an analytic run knows every
+ * probability exactly, and shot noise nobody requested is noise (§5.3).
+ *
+ * THE FACTS ABOVE THE CHART are the pipeline describing itself: the size of
+ * the register, how many basis states carry any probability, and how long
+ * the last run took. They are what tells a reader whether the picture below
+ * is fresh, and the last two cannot be produced unless the circuit really
+ * crossed into a worker, ran on the engine and came back.
  *
  * LIVE REGION DISCIPLINE. Only the failure line is a live region. The state
  * line changes on every keystroke — scheduled, running, ready — and a screen
@@ -24,20 +60,39 @@
  * feedback. A refusal is news; a debounce is not. The failure paragraph is
  * always in the DOM, empty when there is nothing to say, because a live
  * region that appears at the same moment as its text is a live region some
- * readers never see.
+ * readers never see. The histogram is not a live region either, for the same
+ * reason and more strongly: it changes on every slider tick.
  */
 
-import type { Statevector } from '@qsim/core'
 import type { Circuit } from '@qsim/schema'
-import { useId, useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { SimulationOutcome } from './protocol'
-import type { SimulationStatus } from './scheduler'
+import { AmplitudeTable } from '../analysis/AmplitudeTable'
+import { MeasurementCounts } from '../analysis/MeasurementCounts'
+import { ProbabilityHistogram } from '../analysis/ProbabilityHistogram'
+import { ShotSampler, type SamplingSettings } from '../analysis/ShotSampler'
+import { occupiedStates } from '../analysis/histogram'
+import { DEFAULT_SAMPLE_SHOTS } from '../analysis/sampling'
+import { executionModeFor } from './mode'
+import { DEFAULT_SEED, type SimulationStatus } from './scheduler'
 import { useSimulation, type SimulationWorkerLike } from './useSimulation'
+
+/** Off, at Qiskit's default shot count, with a seed that repeats. */
+const INITIAL_SAMPLING: SamplingSettings = {
+  enabled: false,
+  shots: DEFAULT_SAMPLE_SHOTS,
+  seed: DEFAULT_SEED,
+}
 
 export interface SimulationPanelProps {
   readonly circuit: Circuit
+  /**
+   * Where the timeline scrubber is parked (M0.8): show the state after this
+   * column instead of the final one, `-1` for the state before column 0, or
+   * `null` for the whole circuit.
+   */
+  readonly throughColumn?: number | null
   /**
    * How to obtain the worker, for the same reason `useSimulation` takes one:
    * jsdom has no `Worker`, so a component test drives a stand-in. Production
@@ -46,21 +101,25 @@ export interface SimulationPanelProps {
   readonly createWorker?: () => SimulationWorkerLike
 }
 
-/**
- * Below this a probability is Float64 noise rather than a state the circuit
- * can reach — D6's tolerance, applied to |amplitude|².
- */
-const PROBABILITY_FLOOR = 1e-12
-
 export function SimulationPanel({
   circuit,
+  throughColumn = null,
   createWorker,
 }: SimulationPanelProps) {
   const { t, i18n } = useTranslation('simulation')
-  const simulation = useSimulation(
-    circuit,
-    createWorker === undefined ? {} : { createWorker }
-  )
+  const [sampling, setSampling] = useState<SamplingSettings>(INITIAL_SAMPLING)
+  // Asked of the document, not of the last failure: a circuit that measures is
+  // known to need trajectories before it is ever sent, so the reader never
+  // sees the round trip that would have refused it.
+  const mode = executionModeFor(circuit)
+  const simulation = useSimulation(circuit, {
+    mode,
+    sample: sampling.enabled,
+    shots: sampling.shots,
+    seed: sampling.seed,
+    throughColumn,
+    ...(createWorker === undefined ? {} : { createWorker }),
+  })
   const headingId = useId()
 
   // Per-locale digits (D2/§1.1): French writes 1 048 576, English 1,048,576.
@@ -79,7 +138,39 @@ export function SimulationPanel({
   )
 
   const { outcome, status, durationMs, error } = simulation
-  const support = useMemo(() => supportOf(outcome), [outcome])
+  // Narrowed once: the state, its counts and the fact that there is anything
+  // to draw are three readings of one outcome, and taking them separately is
+  // how a panel ends up drawing a chart of one run beside counts of another.
+  const analytic =
+    outcome !== null && outcome.mode === 'analytic' ? outcome : null
+  /*
+   * The other branch, narrowed the same way and for the same reason. Both are
+   * kept rather than one being derived from `mode`: the mode is what was
+   * *asked for* and the outcome is what came *back*, and for the frame between
+   * an edit that adds a measurement and the answer to it those two disagree.
+   * Rendering from the request would draw an empty counts table over a
+   * statevector that is still perfectly good.
+   */
+  const trajectories =
+    outcome !== null && outcome.mode === 'trajectories' ? outcome : null
+  /**
+   * The cut the answer on screen belongs to, or `null` for the end of the
+   * circuit. Read off whichever outcome came back, never off the scrubber —
+   * see the caption below.
+   */
+  const moment = outcome === null ? null : outcome.throughColumn
+  const state = analytic?.state ?? null
+  /*
+   * One extra pass over the amplitudes, and the histogram makes another to
+   * choose its bars. Neither allocates, and the alternative — threading the
+   * chart's model back up here — would put a chart's internals in the
+   * panel's props so that a 20-qubit register could save three milliseconds
+   * it is not short of.
+   */
+  const support = useMemo(
+    () => (state === null ? null : occupiedStates(state)),
+    [state]
+  )
   const busy = status === 'scheduled' || status === 'running'
 
   return (
@@ -123,7 +214,57 @@ export function SimulationPanel({
         )}
       </dl>
 
-      <p className="simulation-panel__note">{t('panel.note')}</p>
+      {moment === null ? null : (
+        /*
+         * What is drawn below is not the circuit's answer but one of its
+         * intermediate instants, and a chart that did not say so would be read
+         * as the answer. The column comes from the *outcome* rather than from
+         * the scrubber's own state: the bar moves the instant a key is
+         * pressed and the worker answers a few milliseconds later, so a
+         * caption taken from the control would spend that gap naming a column
+         * the picture underneath it does not belong to.
+         *
+         * Both modes, because the bar applies to both (M0.9c). A measuring
+         * circuit has no single state at a column, so what it answers with is
+         * the tally of the classical register as it stood there — a different
+         * kind of answer to the same question, and one this caption names the
+         * same way.
+         *
+         * Not a live region. It changes on every step, exactly like the
+         * histogram it captions, and the position is already announced by the
+         * slider that moved it.
+         */
+        <p className="simulation-panel__moment">
+          {moment < 0
+            ? t('panel.moment.start')
+            : t('panel.moment.column', { column: numbers.format(moment) })}
+        </p>
+      )}
+
+      {analytic === null ? null : (
+        <>
+          <ProbabilityHistogram state={analytic.state} />
+          <AmplitudeTable state={analytic.state} />
+          <ShotSampler
+            state={analytic.state}
+            settings={sampling}
+            onChange={setSampling}
+            sampling={analytic.sampling}
+          />
+        </>
+      )}
+
+      {/*
+       * The shots control is deliberately absent here. On the analytic side it
+       * is a second, optional reading taken from a state that already exists;
+       * in trajectories mode the shots *are* the run, so a control that
+       * changed them would be re-running the circuit rather than resampling
+       * it — a different thing wearing the same label. The count is stated in
+       * the tally's own summary instead.
+       */}
+      {trajectories === null ? null : (
+        <MeasurementCounts counts={trajectories.counts} />
+      )}
     </section>
   )
 }
@@ -146,25 +287,4 @@ function stateKey(status: SimulationStatus): string {
     default:
       return 'panel.state.idle'
   }
-}
-
-/** Basis states carrying any probability, or `null` when there is no state. */
-function supportOf(outcome: SimulationOutcome | null): number | null {
-  if (outcome === null || outcome.mode !== 'analytic') return null
-  return countAbove(outcome.state, PROBABILITY_FLOOR)
-}
-
-/**
- * Counted in one pass rather than through the engine's `probabilities()`,
- * which allocates an array of 2ⁿ doubles — 8 MB at the 20-qubit ceiling, on
- * every result, to produce a single integer.
- */
-function countAbove(state: Statevector, floor: number): number {
-  let count = 0
-  for (let index = 0; index < state.size; index++) {
-    const re = state.re[index] ?? 0
-    const im = state.im[index] ?? 0
-    if (re * re + im * im > floor) count += 1
-  }
-  return count
 }

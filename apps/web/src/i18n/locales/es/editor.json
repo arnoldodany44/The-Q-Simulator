@@ -10,6 +10,7 @@
     "contents": "Contenido del circuito, línea por línea y momento por momento.",
     "summary": "Qubits: {{qubits}}. Columnas: {{columns}}. Operaciones: {{gates}}.",
     "readOnly": "Solo lectura en pantallas pequeñas. Desplázate para recorrer el circuito.",
+    "tooManyColumns": "Este circuito llega a la columna {{total}} y el lienzo dibuja las primeras {{drawn}}. Las {{hidden}} columnas siguientes están en el documento y en la simulación, pero no en el dibujo.",
     "wireHeader": "Línea",
     "column": "Columna {{index}}",
     "classicalRegister_one": "registro clásico, {{count}} bit",
@@ -36,6 +37,51 @@
   "register": {
     "addBit": "Añadir un bit clásico",
     "removeBit": "Eliminar el último bit clásico"
+  },
+  "presets": {
+    "heading": "Ejemplos",
+    "hint": "Cada uno reemplaza el circuito de abajo.",
+    "loaded": "Ejemplo cargado:",
+    "superposition": {
+      "name": "Superposición",
+      "summary": "Dos hilos en superposición: cuatro resultados, todos igual de probables."
+    },
+    "bell": {
+      "summary": "Dos qubits entrelazados. Ninguno de los dos tiene ya un estado propio: solo lo tiene el par."
+    },
+    "ghz": {
+      "summary": "El mismo entrelazamiento entre tres qubits: todos ceros o todos unos, nunca nada intermedio."
+    },
+    "interference": {
+      "name": "Interferencia",
+      "summary": "Un qubit, dos caminos. La fase decide si se suman o se cancelan."
+    },
+    "deutschJozsa": {
+      "summary": "Una sola ejecución responde lo que a un procedimiento clásico le costaría dos consultas."
+    },
+    "teleportation": {
+      "name": "Teleportación",
+      "summary": "Un estado pasa a otro qubit, llevado por el entrelazamiento y dos bits clásicos."
+    }
+  },
+  "share": {
+    "heading": "Compartir",
+    "hint": "El circuito entero viaja dentro del enlace. No se guarda nada en ningún servidor.",
+    "field": "Enlace a este circuito",
+    "copy": "Copiar enlace",
+    "copied": "Enlace copiado.",
+    "failed": "No se pudo copiar el enlace. Selecciona el campo y cópialo tú.",
+    "tooLarge": "Este circuito es demasiado grande para caber en un enlace.",
+    "dismiss": "Descartar",
+    "rejected": {
+      "empty": "Ese enlace no lleva ningún circuito.",
+      "too-long": "El circuito de ese enlace es más largo de lo que este editor va a leer.",
+      "not-base64": "Ese enlace se dañó por el camino: le falta una parte o alguien la reescribió.",
+      "not-deflate": "Ese enlace está dañado y no se pudo descomprimir.",
+      "too-large": "El circuito de ese enlace es mucho más grande de lo que este editor puede abrir.",
+      "not-json": "Ese enlace se descomprimió en algo que no es un circuito.",
+      "not-a-circuit": "El circuito de ese enlace no coincide con el formato que entiende este editor."
+    }
   },
   "toolbar": {
     "label": "Acciones del circuito",
@@ -87,6 +133,24 @@
     "field": "Ángulo en radianes",
     "symbolic": "Gobernado por el parámetro del circuito"
   },
+  "timeline": {
+    "heading": "Línea de tiempo",
+    "hint": "La barra detiene el circuito en un instante, y el panel de abajo describe el estado en ese punto. Las flechas avanzan una columna, Inicio y Fin saltan a los extremos, y Espacio reproduce.",
+    "position": "Instante",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "at": {
+      "start": "Antes de la primera columna",
+      "column": "Después de la columna {{column}}",
+      "end": "Final del circuito"
+    },
+    "speed": {
+      "label": "Velocidad",
+      "slow": "Lenta",
+      "normal": "Normal",
+      "fast": "Rápida"
+    }
+  },
   "dnd": {
     "instructions": "Pulsa Espacio para tomar la compuerta, las flechas para moverla celda a celda, Espacio otra vez para soltarla y Escape para cancelar.",
     "start": "Compuerta tomada.",
@@ -117,7 +181,9 @@
     "undo": "Deshacer",
     "redo": "Rehacer",
     "copy": "Copiar la selección",
-    "paste": "Pegar en el cursor"
+    "paste": "Pegar en el cursor",
+    "timelineStep": "Mover la barra de la línea de tiempo una columna, o a los extremos",
+    "timelinePlay": "Reproducir o pausar la línea de tiempo, con la barra enfocada"
   },
   "rejection": {
     "shape": "Ese archivo no corresponde al formato de circuito.",

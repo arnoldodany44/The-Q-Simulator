@@ -5,16 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>The Q Simulator</title>
     <!--
-      Both attributes below are pre-boot values, not the shipped copy. `lang`
-      and this description are rewritten from the active catalog in
-      `src/i18n/index.ts` before the first render, and again on every language
-      switch — D2 applies to the description because a bookmark and a link
-      preview are what it is for. English is the right thing to serve here: it
-      is `FALLBACK_LANGUAGE`, and the string is the `common:meta.description`
-      of the `en` catalog, kept in step with it.
+      Everything below is a pre-boot value, not the shipped copy. `lang`, the
+      description, `og:locale` and both social descriptions are rewritten from
+      the active catalog in `src/i18n/index.ts` before the first render, and
+      again on every language switch — D2 applies to all of them, because a
+      bookmark, a search result and a link preview are what they are for.
+      English is the right thing to serve here: it is `FALLBACK_LANGUAGE`, and
+      the strings are the `en` catalog's, kept in step with it.
+
+      A crawler that does not run JavaScript therefore reads the English
+      values. That is the honest limit of a client-rendered page and it is the
+      same limit the `description` has had since M0.0; per-language previews
+      need the server rendering Phase 1 brings.
+
+      `og:url` and `og:image` are deliberately absent. Both have to be absolute
+      URLs on the deployed origin, and this build does not know what that
+      origin is — M0.10 is where the domain is decided, and a stale or invented
+      URL in a card is worse than no URL at all. Without an image the card
+      degrades to `summary`, which is what `twitter:card` already declares.
     -->
     <meta
       name="description"
+      content="Build quantum circuits in your browser, watch the state evolve, and run them on real hardware."
+    />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="The Q Simulator" />
+    <meta property="og:title" content="The Q Simulator" />
+    <meta
+      property="og:description"
+      content="Build quantum circuits in your browser, watch the state evolve, and run them on real hardware."
+    />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="The Q Simulator" />
+    <meta
+      name="twitter:description"
       content="Build quantum circuits in your browser, watch the state evolve, and run them on real hardware."
     />
   </head>

@@ -87,6 +87,8 @@ function resultFor(id: number): SimulationResponse {
     mode: 'analytic',
     state: payload,
     resumedFromColumn: 0,
+    throughColumn: null,
+    sampling: null,
     durationMs: 2,
   }
 }

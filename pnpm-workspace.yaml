@@ -17,6 +17,21 @@ catalog:
   '@types/react': 19.2.18
   '@types/react-dom': 19.2.4
 
+  # Typography (§10: Space Grotesk / Inter / IBM Plex Mono). Self-hosted with
+  # @fontsource rather than a Google Fonts <link>, for two reasons that are
+  # both requirements rather than preferences: `pnpm dev` has to work on a
+  # plane, and a deployed page must not hand a third-party origin a request
+  # per visitor. Self-hosting also means the font files are subject to the
+  # same immutable-hash caching as the rest of the bundle.
+  #
+  # Inter and Space Grotesk ship as variable fonts, so one file covers every
+  # weight the design uses. IBM Plex Mono has no variable build on fontsource,
+  # so it is pulled in as static weights — deliberately only the two the data
+  # tables need.
+  '@fontsource-variable/inter': 5.3.0
+  '@fontsource-variable/space-grotesk': 5.3.0
+  '@fontsource/ibm-plex-mono': 5.3.0
+
   # i18n (D2 — es/en/fr from day one)
   i18next: 26.3.6
   react-i18next: 17.0.11
@@ -24,6 +39,19 @@ catalog:
 
   # Validation
   zod: 4.4.3
+
+  # Circuit sharing (D4: JSON → deflate → base64url in `?c=`).
+  #
+  # fflate rather than the platform's `CompressionStream`, and the reason is
+  # not availability — it is that `CompressionStream` is a stream, so every
+  # `encode`/`decode` would be async. A URL is read once, synchronously,
+  # before the first render; an async decode means the editor mounts on a
+  # blank document and then swaps it, which is a visible flash and an extra
+  # history entry. fflate is synchronous, has zero dependencies of its own,
+  # and produces byte-identical output in a browser and in Node — so the
+  # share links a Phase 1 server would mint are the same strings the client
+  # mints today. See `apps/web/src/lib/circuit-url.ts` for the full argument.
+  fflate: 0.8.3
 
   # Editor state (§9: Zustand for circuit state, history middleware for undo/redo)
   zustand: 5.0.15

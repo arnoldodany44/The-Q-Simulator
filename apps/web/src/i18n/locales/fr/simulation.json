@@ -12,7 +12,10 @@
     "support": "États de base de probabilité non nulle",
     "duration": "Dernière exécution",
     "milliseconds": "{{milliseconds}} ms",
-    "note": "L'analyse complète — histogramme, amplitudes et phases — arrive avec le jalon suivant."
+    "moment": {
+      "start": "L'état avant l'exécution de la colonne 0 — le point de départ du circuit.",
+      "column": "L'état après la colonne {{column}}, et non à la fin du circuit."
+    }
   },
   "errors": {
     "too-many-qubits": "Ce circuit compte {{qubits}} qubits. Le navigateur en simule jusqu'à {{limit}} ; au-delà, l'état ne tient plus dans un onglet.",

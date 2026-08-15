@@ -21,12 +21,14 @@ import { initReactI18next } from 'react-i18next'
  * with every textbook the user might read alongside this app.
  *
  * The document's own `lang` attribute tracks the active language from here
- * too (`syncDocumentLanguage`), and so does the `description` meta tag. The
- * first is not decoration: that attribute is what selects a screen reader's
- * speech synthesiser, so a French interface left declared as English is read
- * aloud with English phonetics — unintelligible rather than merely untidy
- * (WCAG 3.1.1). The second is D2 applied to the last user-facing string in
- * the shipped HTML: a description is what a bookmark and a link preview show.
+ * too (`syncDocumentLanguage`), and so does every piece of metadata that
+ * carries a sentence: the `description`, its Open Graph and Twitter copies,
+ * and `og:locale`. The first is not decoration: that attribute is what selects
+ * a screen reader's speech synthesiser, so a French interface left declared as
+ * English is read aloud with English phonetics — unintelligible rather than
+ * merely untidy (WCAG 3.1.1). The rest is D2 applied to the user-facing
+ * strings in the shipped HTML: they are what a bookmark, a search result and a
+ * shared link show.
  *
  * A catalog that fails to load must not blank the page. Catalogs are one
  * chunk per language, so a stale deploy or a dropped request is a real
@@ -48,6 +50,7 @@ export const FALLBACK_LANGUAGE: SupportedLanguage = 'en'
  * into something nobody can review.
  */
 export const NAMESPACES = [
+  'analysis',
   'common',
   'editor',
   'gates',
@@ -73,7 +76,45 @@ export function resolveLanguage(tag: string | undefined): SupportedLanguage {
 }
 
 /**
- * Points `<html lang>` at the language actually on screen.
+ * The meta tags whose content is the page description, by the attribute that
+ * identifies each one.
+ *
+ * Three tags carry the same sentence to three different readers — a search
+ * result, an Open Graph card, a Twitter card — and Open Graph is addressed by
+ * `property` while the other two use `name`, which is the only reason this is
+ * a list of selectors rather than one.
+ */
+const DESCRIPTION_SELECTORS = [
+  'meta[name="description"]',
+  'meta[property="og:description"]',
+  'meta[name="twitter:description"]',
+]
+
+/**
+ * `og:locale`, which is a different specification from `<html lang>` and takes
+ * a different value.
+ *
+ * ogp.me defines it as "of the format language_TERRITORY. Default is en_US", so
+ * a bare `fr` is not a value the protocol knows — and a consumer that does not
+ * recognise one falls back to that default, which announces a French card as
+ * English. `<html lang>` is BCP 47, where the bare subtag is exactly right;
+ * writing the same string into both conflated the two, and the one place it
+ * shows is the link preview the work plan calls the product's most visible
+ * text.
+ *
+ * The territories are the neutral choices for a UI that is not regionalised:
+ * the catalogs are written in international French, Spanish and English, and
+ * these say which language rather than which country.
+ */
+const OPEN_GRAPH_LOCALES: Record<SupportedLanguage, string> = {
+  en: 'en_US',
+  es: 'es_ES',
+  fr: 'fr_FR',
+}
+
+/**
+ * Points `<html lang>` — and the shipped metadata — at the language actually
+ * on screen.
  *
  * The *narrowed* tag is written, never the raw detected one: a browser
  * reporting `es-MX` is served the `es` catalog, so `es` is what the page
@@ -86,19 +127,72 @@ export function resolveLanguage(tag: string | undefined): SupportedLanguage {
  */
 function syncDocumentLanguage(tag: string | undefined): void {
   if (typeof document === 'undefined') return
-  document.documentElement.lang = resolveLanguage(tag)
-  // The `description` is the one user-facing string in `index.html`, and D2
-  // does not stop at the strings inside the app. Rewritten here rather than
-  // in a component: it belongs to the document, not to a route, and this is
-  // already the one place that knows the language changed.
-  const description = document.querySelector('meta[name="description"]')
-  if (description !== null) {
-    description.setAttribute('content', i18n.t('common:meta.description'))
+  const language = resolveLanguage(tag)
+  document.documentElement.lang = language
+
+  // The description is the one user-facing sentence in `index.html`, and D2
+  // does not stop at the strings inside the app: a bookmark, a search result
+  // and a shared link all show it. Rewritten here rather than in a component
+  // because it belongs to the document rather than to a route, and this is
+  // already the one place that knows the language changed. M0.9b added the two
+  // social copies, which are the same sentence and must not drift from it.
+  const description = i18n.t('common:meta.description')
+  for (const selector of DESCRIPTION_SELECTORS) {
+    document.querySelector(selector)?.setAttribute('content', description)
   }
+
+  // The card's own declaration of what language it is in. `og:title` is the
+  // product's name and is identical in all three (D2), so it is left alone.
+  document
+    .querySelector('meta[property="og:locale"]')
+    ?.setAttribute('content', OPEN_GRAPH_LOCALES[language])
 }
 
 /**
- * Adds one language's catalogs, reporting rather than rejecting.
+ * The namespaces every route needs before it can paint a word.
+ *
+ * `common` is the shell — the product name, the language picker, the loading
+ * line — and `landing` is the entry route, which stays in the entry chunk
+ * because it is the door (M0.9b).
+ *
+ * `analysis` is here for a reason that is easy to undo by accident: the landing
+ * EMBEDS `ProbabilityHistogram`. That component is the page's whole argument —
+ * it is what turns one bar into two and then into a correlated pair — and it
+ * reads its table caption, its column headers and its remainder line from the
+ * `analysis` catalog. The landing passes its own `heading` and `summary` as
+ * props, which is what made this easy to miss: most of the visible copy is
+ * overridden, so only the accessible table and the caption fell through, and
+ * they fell through as the literal strings `histogram.table.caption`,
+ * `histogram.table.state` and `histogram.table.probability` rendered on the
+ * most visible page in the product.
+ *
+ * Nothing catches that automatically. `i18next/no-literal-string` sees a `t()`
+ * call and is satisfied; locale parity compares the catalogs against each
+ * other and they agreed perfectly — the key existed in all three, it simply
+ * was not loaded. The component tests import the catalogs directly and so
+ * never exercise the loading path at all. Only opening the page finds it,
+ * which is why `e2e/no-raw-keys.spec.ts` now does exactly that on every route.
+ *
+ * The cost is ~5 kB of JSON per language on first paint. The optimisation this
+ * slightly walks back was mostly about `editor`, which is twice that and is
+ * still deferred along with `gates` and `simulation`.
+ */
+export const SHELL_NAMESPACES = ['common', 'landing', 'analysis'] as const
+
+/**
+ * What the editor route needs, fetched alongside its own chunk (`App.tsx`).
+ *
+ * M0.9b's boundary is that the landing does not pay for the editor, and the
+ * catalogs were the half of that nobody checked: the bootstrap awaited all six
+ * namespaces before the first paint, of which `editor` alone was more than half
+ * the bytes — for a route the reader may never open. In Spanish and French it
+ * was twice over, because the active language and the English fallback were
+ * awaited one after the other rather than together.
+ */
+export const EDITOR_NAMESPACES = ['editor', 'gates', 'simulation'] as const
+
+/**
+ * Adds catalogs for one language, reporting rather than rejecting.
  *
  * Each language is its own chunk (see the header), so a single missing chunk
  * would otherwise reject the whole bootstrap and leave `#root` empty forever
@@ -107,9 +201,12 @@ function syncDocumentLanguage(tag: string | undefined): void {
  * i18next's own `fallbackLng`, which is a readable interface in the wrong
  * language rather than no interface at all.
  */
-async function loadCatalogs(language: SupportedLanguage): Promise<void> {
+async function loadCatalogs(
+  language: SupportedLanguage,
+  namespaces: readonly string[] = NAMESPACES
+): Promise<void> {
   await Promise.all(
-    NAMESPACES.map(async (namespace) => {
+    namespaces.map(async (namespace) => {
       const loader = catalogs[`./locales/${language}/${namespace}.json`]
       if (!loader) return
       try {
@@ -120,6 +217,27 @@ async function loadCatalogs(language: SupportedLanguage): Promise<void> {
       }
     })
   )
+}
+
+/**
+ * Loads a set of namespaces in the active language and in the fallback, and
+ * answers when both are in.
+ *
+ * The two waves go out together. Awaiting one and then the other cost a second
+ * full round trip — measured at some 520 ms on a 300 ms link — for two of the
+ * three languages D2 mandates, and they have no dependency on each other: the
+ * fallback is consulted per key, after everything has arrived.
+ */
+export async function loadNamespaces(
+  namespaces: readonly string[]
+): Promise<void> {
+  const active = resolveLanguage(i18n.language)
+  await Promise.all([
+    loadCatalogs(active, namespaces),
+    active === FALLBACK_LANGUAGE
+      ? Promise.resolve()
+      : loadCatalogs(FALLBACK_LANGUAGE, namespaces),
+  ])
 }
 
 export async function initI18n(): Promise<typeof i18n> {
@@ -155,8 +273,9 @@ export async function initI18n(): Promise<typeof i18n> {
     })
 
   const active = resolveLanguage(i18n.language)
-  await loadCatalogs(active)
-  if (active !== FALLBACK_LANGUAGE) await loadCatalogs(FALLBACK_LANGUAGE)
+  // Only what the shell and the entry route render. The editor's four
+  // namespaces travel with the editor's own chunk — see `EDITOR_NAMESPACES`.
+  await loadNamespaces(SHELL_NAMESPACES)
 
   // After the catalogs, not before: the attribute must never describe a
   // frame that has not been rendered yet. `main.tsx` awaits this call before
@@ -174,7 +293,13 @@ export async function initI18n(): Promise<typeof i18n> {
   return i18n
 }
 
-/** Loads the target catalogs before switching, so no frame renders raw keys. */
+/**
+ * Loads the target catalogs before switching, so no frame renders raw keys.
+ *
+ * Every namespace, not only the shell's: the picker is reachable from the
+ * editor, where the four editor namespaces are already on screen and would
+ * otherwise be left in the language the reader just left.
+ */
 export async function changeLanguage(
   language: SupportedLanguage
 ): Promise<void> {

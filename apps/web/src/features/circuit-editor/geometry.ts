@@ -62,6 +62,43 @@ export const DEFAULT_METRICS: GridMetrics = {
  */
 export const MIN_COLUMNS = 8
 
+/**
+ * Columns the canvas will draw, at most.
+ *
+ * THE DEFECT THIS EXISTS FOR. The grid overlay is one DOM element per
+ * (qubit, column) — a droppable, a drag handle and the keyboard cursor's
+ * target, all of which have to be real elements — so its size is the product
+ * of two registers. One of them is bounded and enforced: `MAX_CLIENT_QUBITS`
+ * is 20, and `scheduler.ts` refuses anything wider before the worker is
+ * troubled. The other was not bounded at all. `column` is capped by the
+ * *format* at `MAX_COLUMNS - 1` = 4095 (a deliberately generous limit, so a
+ * circuit built elsewhere still parses here), and `columnCount` reports one
+ * past the highest column an operation names — whether or not anything stands
+ * in the 4 094 columns before it.
+ *
+ * So a forty-two-character `?c=` link declaring a single Hadamard at column
+ * 4095 on a twenty-wire register asked for 81 920 droppables in one synchronous
+ * render, and the tab never painted again. Unreachable through the editor's own
+ * gestures, which grow the grid one column per placed gate, and reachable by
+ * anyone who can send a link.
+ *
+ * WHY A CAP AND NOT A REFUSAL. `circuit.ts` states the intent: a circuit larger
+ * than the client can handle "must still parse in the editor, if only to be
+ * shown as too large to run here", which is exactly what `job.ts` does for a
+ * 21-qubit register. Refusing to draw the document would throw away the part of
+ * it that fits, and the engine has no trouble with it at all — one gate is one
+ * gate however high its column index.
+ *
+ * WHY 96. It is twelve times `MIN_COLUMNS` and roughly two desktop screenfuls
+ * at the 56 px column width, so no circuit anyone builds by hand meets it; and
+ * it bounds the grid at 96 × 21 = 2 016 cells even on the widest register the
+ * browser will simulate, which renders in about a second rather than never.
+ * Past it the canvas draws what it can and says so, out loud, in the same
+ * breath as the histogram's bar cap says it (§3.2): a drawing that silently
+ * omits part of its subject is a drawing that lies.
+ */
+export const MAX_DRAWN_COLUMNS = 96
+
 /** A cell of the editable grid: one qubit at one moment in time. */
 export interface Cell {
   readonly qubit: number
@@ -117,7 +154,26 @@ export function columnCount(circuit: Circuit): number {
   return last + 1
 }
 
-/** The grid a circuit is drawn on, padded to `minColumns`. */
+/**
+ * Columns the editor lets a cursor stand in and a gate be dropped on: one
+ * free column past the end of the circuit, never fewer than `MIN_COLUMNS` and
+ * never more than `MAX_DRAWN_COLUMNS`.
+ *
+ * The free column is what the grid grows into — without it the editor quietly
+ * stops accepting gates the moment the circuit fills the visible width.
+ */
+export function editableColumns(circuit: Circuit): number {
+  return Math.min(
+    MAX_DRAWN_COLUMNS,
+    Math.max(MIN_COLUMNS, columnCount(circuit) + 1)
+  )
+}
+
+/**
+ * The grid a circuit is drawn on, padded to `minColumns` and capped at
+ * `MAX_DRAWN_COLUMNS` — see that constant for the link that made the cap
+ * necessary.
+ */
 export function gridSizeOf(
   circuit: Circuit,
   minColumns: number = MIN_COLUMNS
@@ -125,8 +181,16 @@ export function gridSizeOf(
   return {
     qubits: circuit.qubits,
     clbits: circuit.clbits,
-    columns: Math.max(minColumns, columnCount(circuit)),
+    columns: Math.min(
+      MAX_DRAWN_COLUMNS,
+      Math.max(minColumns, columnCount(circuit))
+    ),
   }
+}
+
+/** How many of a circuit's columns the canvas cannot draw. Zero, normally. */
+export function undrawnColumns(circuit: Circuit): number {
+  return Math.max(0, columnCount(circuit) - MAX_DRAWN_COLUMNS)
 }
 
 /** Centre of a column, in user units. */
@@ -135,6 +199,22 @@ export function columnX(
   metrics: GridMetrics = DEFAULT_METRICS
 ): number {
   return metrics.padX + column * metrics.columnWidth + metrics.columnWidth / 2
+}
+
+/**
+ * The right edge of a column — where the instant *after* it begins.
+ *
+ * This is the timeline scrubber's coordinate (M0.8): a scrub position is a cut
+ * between two columns rather than a column, so `columnEdgeX(-1)` is the line
+ * before column 0 and is a perfectly ordinary value here rather than a special
+ * case. Column boundaries are the same lines `cellBounds` tiles the grid with,
+ * which is why this belongs beside them instead of inside the canvas.
+ */
+export function columnEdgeX(
+  column: number,
+  metrics: GridMetrics = DEFAULT_METRICS
+): number {
+  return metrics.padX + (column + 1) * metrics.columnWidth
 }
 
 /** Centre of a qubit wire, in user units. */

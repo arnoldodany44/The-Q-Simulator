@@ -1,6 +1,68 @@
 {
   "tagline": "Un laboratorio de circuitos cuánticos en tu navegador",
-  "intro": "Arrastra compuertas sobre un lienzo, observa cómo evoluciona el estado mientras construyes, y ejecuta el mismo circuito en hardware cuántico real.",
-  "scaffoldNotice": "El andamiaje está listo. El editor de circuitos llega en M0.5.",
-  "openEditor": "Abrir el editor de circuitos"
+  "lead": "Dos qubits y dos compuertas bastan para mostrar las dos ideas sobre las que se apoya todo lo demás. El circuito de abajo no es una imagen de uno: se ejecuta en esta pestaña, etapa por etapa.",
+  "cta": {
+    "editor": "Abrir el editor",
+    "examples": "Empezar con un ejemplo",
+    "note": "El editor se abre con seis circuitos de ejemplo al lado, listos para ejecutarlos y para desarmarlos."
+  },
+  "demo": {
+    "heading": "Dos compuertas: superposición y entrelazamiento",
+    "intro": "Cada etapa es un circuito que se ejecuta al mostrarse. El gráfico enumera todos los resultados que puede dar el par, y con qué frecuencia.",
+    "chart": {
+      "heading": "Resultados, y con qué frecuencia",
+      "caption": "Todas las lecturas que pueden dar las dos líneas. Una barra sin longitud es un resultado que nunca ocurre."
+    },
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "steps": "Etapas de la demostración",
+    "stages": {
+      "zero": {
+        "name": "Todavía nada",
+        "circuit": "Dos qubits, {{q0}} y {{q1}}, sin ninguna compuerta encima.",
+        "story": "Mídelos ahora y los dos dan 0, siempre. Un resultado, una barra, nada más en el gráfico. Un par de bits corrientes se quedaría aquí."
+      },
+      "superposed": {
+        "name": "Una compuerta",
+        "circuit": "{{h}} en {{q0}}: la compuerta que pone un qubit en superposición.",
+        "story": "Una barra se convirtió en dos. {{q0}} da 0 la mitad de las veces y 1 la otra mitad, y no se trata de una moneda cuyo valor simplemente todavía no conoces: los dos resultados están ahí de verdad, y la siguiente compuerta actúa sobre ambos a la vez. Eso es la superposición."
+      },
+      "independent": {
+        "name": "Dos monedas",
+        "circuit": "La misma {{h}}, también en {{q1}}.",
+        "story": "Cuatro barras, un cuarto cada una. Los dos qubits están en superposición y ninguno dice nada del otro: saber que {{q0}} dio 1 deja a {{q1}} tan indeciso como estaba. Dos monedas independientes."
+      },
+      "entangled": {
+        "name": "Un par",
+        "circuit": "{{h}} en {{q0}} y después {{cnot}}: invierte {{q1}} siempre que {{q0}} vale 1.",
+        "story": "Cada qubit sigue dando 1 la mitad de las veces: las dos cifras de abajo no se han movido. Pero dos de los cuatro resultados han desaparecido, y el par siempre coincide. Ninguno de los dos qubits tiene ya una respuesta propia; solo la tiene el par. Eso es el entrelazamiento."
+      }
+    },
+    "reading": {
+      "outcomes": "Resultados con alguna probabilidad",
+      "marginal": "{{wire}} da 1",
+      "agreement": "Los dos coinciden",
+      "before": "antes: {{value}}"
+    },
+    "notation": {
+      "before": "Cada barra es una lectura de los dos hilos, escrita",
+      "after": "— el hilo de abajo a la izquierda y el de arriba a la derecha."
+    }
+  },
+  "notes": {
+    "heading": "Cómo funciona esto",
+    "local": {
+      "title": "En esta pestaña",
+      "body": "La simulación corre en tu navegador, en un hilo aparte. No hay cuentas y nada de lo que construyes se envía a ningún servidor."
+    },
+    "link": {
+      "title": "El enlace es el archivo",
+      "body": "El circuito entero viaja dentro de la dirección. Cópiala, mándala, y quien la abra verá exactamente lo que dibujaste."
+    },
+    "state": {
+      "title": "El estado, no solo el resultado",
+      "body": "Amplitud, fase y probabilidad de cada estado base, recalculadas mientras editas, con una línea de tiempo que recorre el circuito columna por columna."
+    }
+  },
+  "closing": "Todo lo anterior se arma con unas pocas compuertas arrastradas en el editor."
 }

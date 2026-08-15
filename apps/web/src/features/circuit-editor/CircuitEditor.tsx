@@ -30,6 +30,15 @@
  * it because a circuit and its answer are one thing, and because M0.7 grows
  * the analysis panel out of that same slot.
  *
+ * ## The timeline is owned here (M0.8)
+ *
+ * `useTimeline` holds one number — where the scrubber is parked — and three
+ * siblings read it: the bar renders it, the canvas draws a playhead at it, and
+ * the analysis panel simulates up to it instead of to the end. That is why it
+ * is here rather than inside `TimelineScrubber`, and why it is not in the
+ * store: it is a way of looking at the document, not part of it, and undo has
+ * no business restoring where somebody was looking.
+ *
  * ## Why the shared store is a default and not a hard-coded import
  *
  * The editor takes its store as a prop. Tests build an isolated one, and a
@@ -61,12 +70,8 @@ import { CircuitCanvas } from './CircuitCanvas'
 import { GatePalette } from './GatePalette'
 import { ParameterEditor } from './ParameterEditor'
 import { ShortcutsPanel } from './ShortcutsPanel'
-import {
-  DEFAULT_METRICS,
-  MIN_COLUMNS,
-  columnCount,
-  type Cell,
-} from './geometry'
+import { TimelineScrubber } from './TimelineScrubber'
+import { DEFAULT_METRICS, editableColumns, type Cell } from './geometry'
 import {
   formatWireList,
   gateSymbol,
@@ -85,6 +90,7 @@ import {
   useCircuitStore,
   type CircuitStore,
 } from './useCircuitStore'
+import { useTimeline } from './useTimeline'
 import {
   useKeyboardGrid,
   type EditReport,
@@ -99,14 +105,29 @@ export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
   const { t } = useTranslation(['editor', 'gates'])
   const circuit = useStore(store, (state) => state.circuit)
   const selection = useStore(store, (state) => state.selection)
+  /*
+   * Which document is open, not what is in it. An edit and a preset chip both
+   * hand out a new `circuit`; only this tells them apart, and the timeline
+   * needs the difference — see `useTimeline`.
+   */
+  const documentId = useStore(store, (state) => state.documentId)
   const readOnly = useCompactViewport()
 
-  // One free column past the end of the circuit, always: without it the
-  // grid has nowhere to grow into and the editor quietly stops accepting
-  // gates the moment the circuit fills the visible width.
-  const columns = Math.max(MIN_COLUMNS, columnCount(circuit) + 1)
+  // One free column past the end of the circuit, and never more than the
+  // canvas can draw: without the free column the grid has nowhere to grow
+  // into, and without the ceiling a `?c=` link naming column 4095 asks for
+  // eighty thousand droppables in one render. `geometry.ts` holds both rules.
+  const columns = editableColumns(circuit)
   const grid = useKeyboardGrid({ store, columns, readOnly })
   const [dragging, setDragging] = useState<DragPayload | null>(null)
+  /*
+   * The timeline is owned here rather than by the scrubber, because it is
+   * read in three places that are siblings: the bar renders it, the canvas
+   * draws a playhead at it, and the analysis panel simulates *to* it. It is
+   * deliberately not in the store — the position is a way of looking at the
+   * document, not part of it, and undo has no business restoring it.
+   */
+  const timeline = useTimeline({ circuit, documentId })
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -225,6 +246,9 @@ export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
               {...(grid.pending === null
                 ? {}
                 : { awaitingColumn: grid.pending.column })}
+              {...(timeline.position === null
+                ? {}
+                : { playhead: timeline.position })}
               onFocusCell={grid.moveCursorTo}
               onActivateCell={grid.activate}
               // Through the hook rather than straight to the store: both of
@@ -242,6 +266,20 @@ export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
               onAddClbit={grid.addClbit}
               onRemoveClbit={grid.removeClbit}
             />
+
+            {/*
+             * Directly under the drawing, because it is the drawing's time
+             * axis. It is not disabled with the rest of the editor on a small
+             * screen: read-only means "you cannot edit this", and scrubbing
+             * edits nothing.
+             *
+             * A circuit with no columns has no timeline to walk, and a bar
+             * with one stop would be a control that cannot do anything —
+             * so the whole section waits until there is a gate on the canvas.
+             */}
+            {timeline.columns > 0 ? (
+              <TimelineScrubber timeline={timeline} />
+            ) : null}
 
             <p className="circuit-editor__status" role="status">
               {/*
@@ -289,7 +327,10 @@ export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
              * circuit answers back. M0.7 replaces it in place with the
              * histogram, the amplitude table and the phasors.
              */}
-            <SimulationPanel circuit={circuit} />
+            <SimulationPanel
+              circuit={circuit}
+              throughColumn={timeline.position}
+            />
           </div>
         </div>
 

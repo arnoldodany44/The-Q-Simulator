@@ -65,7 +65,54 @@ export type RequestId = number
  */
 export const MAX_CLIENT_QUBITS = Math.min(20, MAX_QUBITS)
 
+/**
+ * The shot range §3.2 asks for: 1 to 100 000.
+ *
+ * The ceiling is a real one rather than a round number. Sampling is O(2ⁿ) to
+ * build the cumulative distribution and O(shots · n) to draw from it, so at the
+ * 20-qubit ceiling 100 000 shots is two million comparisons on top of an
+ * eight-megabyte sweep — tens of milliseconds on the worker, and nothing at all
+ * on the main thread. Ten times that would still answer, and it would answer
+ * with a distribution indistinguishable from the exact one printed beside it,
+ * which is the opposite of what the control is for.
+ */
+export const MIN_SHOTS = 1
+export const MAX_SHOTS = 100_000
+
+/**
+ * A shot count the engine will accept, whatever it was handed.
+ *
+ * Applied on both sides on purpose. The control cannot produce an out-of-range
+ * value, but a request can also arrive from a restored URL or a future API, and
+ * `sampleShots` answers a fractional or negative count with a `RangeError` —
+ * which would reach the user as `worker-failed`, a bug report about a broken
+ * simulator for what is really a number out of range.
+ */
+export function clampShots(shots: number): number {
+  if (!Number.isFinite(shots)) return MIN_SHOTS
+  return Math.min(MAX_SHOTS, Math.max(MIN_SHOTS, Math.round(shots)))
+}
+
 /* ─────────────────────────────── requests ───────────────────────────── */
+
+/**
+ * Sample the final state of an analytic run — §3.2's shots control.
+ *
+ * This is deliberately *not* the trajectories mode below. Trajectories re-run
+ * the whole circuit once per shot because a mid-circuit measurement makes each
+ * run a different vector (§5.3); sampling draws from one state that already
+ * exists and leaves it untouched. So the two answer different questions: this
+ * one asks "what would a real device have read, given exactly this state", and
+ * it can therefore be shown *beside* the exact distribution rather than instead
+ * of it. That comparison is the whole teaching point, and it is only honest
+ * because both halves come out of the same run — see `AnalyticResponse`.
+ */
+export interface SampleSpec {
+  /** Within `[MIN_SHOTS, MAX_SHOTS]`. `clampShots` is what guarantees it. */
+  readonly shots: number
+  /** Seeded, so the same circuit and the same seed give the same counts. */
+  readonly seed: number
+}
 
 interface SimulateBase {
   readonly kind: 'simulate'
@@ -101,6 +148,40 @@ interface SimulateBase {
 /** One run, one final statevector. Refused if the circuit measures (§5.3). */
 export interface AnalyticRequest extends SimulateBase {
   readonly mode: 'analytic'
+  /**
+   * Stop after this column and answer with the state as it stood there — the
+   * timeline scrubber of M0.8 — or `null` for the whole circuit.
+   *
+   * `-1` is a position too, and a meaningful one: it is the state before
+   * column 0 has run, which is where playback starts and which is the only
+   * way to *see* the ground state a circuit departs from. Nothing here clamps
+   * it up to 0.
+   *
+   * WHY THIS IS NOT "SEND A SHORTER CIRCUIT". Truncating the circuit on the
+   * main thread would be one line here and would wreck the thing that makes
+   * scrubbing affordable: the worker's checkpoint cache is keyed to a circuit,
+   * and every step would arrive looking like an edit that deleted the tail,
+   * invalidating the checkpoints the next step needs. Asking the *same*
+   * circuit for an earlier column instead leaves the cache intact and lets
+   * `stateAfterColumn` resume from it — which is what the engine grew that
+   * function for.
+   *
+   * Required rather than optional, for the same reason `sample` is: a field
+   * that can be forgotten is a field that will be, and a request built
+   * somewhere new would silently answer a different question.
+   */
+  readonly throughColumn: number | null
+  /**
+   * Draw shots from the final state as well, or `null` for the exact
+   * distribution alone.
+   *
+   * Required rather than optional so that every construction site answers the
+   * question. A simulator has no reason to add shot noise nobody asked for
+   * (§5.3), so the default is `null` — but the default has to be *chosen*,
+   * because the alternative is a field that silently disappears from a request
+   * built somewhere new and takes the comparison with it.
+   */
+  readonly sample: SampleSpec | null
 }
 
 /** `shots` independent runs, tallied into counts. Seeded, so it repeats. */
@@ -108,6 +189,29 @@ export interface TrajectoriesRequest extends SimulateBase {
   readonly mode: 'trajectories'
   readonly shots: number
   readonly seed: number
+  /**
+   * Stop after this column, `-1` for "before column 0", or `null` for the whole
+   * circuit — the same scrub position the analytic branch takes, and required
+   * for the same reason.
+   *
+   * WHAT IT MEANS HERE, WHICH IS NOT WHAT IT MEANS ABOVE. A measuring circuit
+   * has no single state at a column: each of the shots collapses somewhere
+   * else, which is why this mode answers with a tally rather than a vector. But
+   * the *register* at a column is perfectly well defined — it is what those
+   * shots wrote into it by then — and that tally is exactly what the panel
+   * draws. So a scrub position truncates the run rather than the state: every
+   * shot executes columns 0…`throughColumn` and stops, and the counts describe
+   * that instant.
+   *
+   * Without this the timeline was a live control wired to nothing on every
+   * circuit that measures: the bar moved, announced a position and painted a
+   * playhead, and the panel below it went on describing the whole circuit
+   * while its status line said "this describes the circuit on screen".
+   *
+   * No checkpoint cache is involved either way (`job.ts`): a trajectory's
+   * collapses are random, so there is nothing to resume from.
+   */
+  readonly throughColumn: number | null
 }
 
 export type SimulateRequest = AnalyticRequest | TrajectoriesRequest
@@ -142,11 +246,37 @@ export interface StatePayload {
   readonly transport: TransportKind
 }
 
+/**
+ * Counts drawn from the state this response carries, echoing the request that
+ * asked for them.
+ *
+ * `shots` and `seed` travel back rather than being read off the control,
+ * because the control is on the main thread and moves while the worker runs.
+ * A panel that labelled these counts with the shot count currently in the
+ * slider would, for one frame after every drag, print "100 000 shots" over a
+ * histogram drawn from a thousand — and the reader would conclude that
+ * sampling error does not shrink after all.
+ */
+export interface SamplePayload extends SampleSpec {
+  readonly counts: ShotCounts
+}
+
 export interface AnalyticResponse {
   readonly kind: 'result'
   readonly id: RequestId
   readonly mode: 'analytic'
   readonly state: StatePayload
+  /**
+   * The scrub position this state answers for, echoed back from the request.
+   *
+   * Echoed for the same reason `SamplePayload` echoes its shot count: the
+   * scrubber is on the main thread and moves while the worker runs. A panel
+   * that captioned this state with the position currently under the bar would,
+   * for one frame after every step, print "up to column 4" over the state at
+   * column 3 — and a reader watching interference appear a column late has no
+   * way to tell that from the physics.
+   */
+  readonly throughColumn: number | null
   /**
    * The column the run resumed from, 0 for a run that started at |0…0⟩. The
    * incremental cache of §5.6.3 is invisible from the outside otherwise, and
@@ -154,6 +284,16 @@ export interface AnalyticResponse {
    * editor.
    */
   readonly resumedFromColumn: number
+  /**
+   * What the request's `sample` asked for, drawn from the very state above.
+   *
+   * One message carries both halves precisely so that they cannot disagree.
+   * Sampling in a second round trip would have let an edit land between the
+   * two, and the panel would have drawn an empirical histogram of one circuit
+   * against the exact distribution of another — a discrepancy that looks
+   * exactly like sampling error and is not.
+   */
+  readonly sampling: SamplePayload | null
   readonly durationMs: number
 }
 
@@ -163,6 +303,8 @@ export interface TrajectoriesResponse {
   readonly mode: 'trajectories'
   readonly shots: number
   readonly counts: ShotCounts
+  /** The scrub position these counts answer for, echoed back — see above. */
+  readonly throughColumn: number | null
   readonly durationMs: number
 }
 
@@ -300,11 +442,17 @@ export type SimulationOutcome =
       readonly mode: 'analytic'
       readonly state: Statevector
       readonly resumedFromColumn: number
+      /** The column this state stops after, or null for the whole circuit. */
+      readonly throughColumn: number | null
+      /** Counts drawn from `state`, or null when none were asked for. */
+      readonly sampling: SamplePayload | null
     }
   | {
       readonly mode: 'trajectories'
       readonly shots: number
       readonly counts: ShotCounts
+      /** The column this tally stops after, or null for the whole circuit. */
+      readonly throughColumn: number | null
     }
 
 /** Turns a successful response into the shape the analysis panel reads. */
@@ -316,12 +464,15 @@ export function decodeResult(
       mode: 'analytic',
       state: decodeState(response.state),
       resumedFromColumn: response.resumedFromColumn,
+      throughColumn: response.throughColumn,
+      sampling: response.sampling,
     }
   }
   return {
     mode: 'trajectories',
     shots: response.shots,
     counts: response.counts,
+    throughColumn: response.throughColumn,
   }
 }
 

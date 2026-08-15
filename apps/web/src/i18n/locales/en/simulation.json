@@ -12,7 +12,10 @@
     "support": "Basis states with a non-zero probability",
     "duration": "Last run",
     "milliseconds": "{{milliseconds}} ms",
-    "note": "The full analysis — histogram, amplitudes and phases — arrives with the next milestone."
+    "moment": {
+      "start": "The state before column 0 runs — where the circuit starts.",
+      "column": "The state after column {{column}}, not at the end of the circuit."
+    }
   },
   "errors": {
     "too-many-qubits": "This circuit has {{qubits}} qubits. The browser simulates up to {{limit}}; past that the state no longer fits in a tab.",

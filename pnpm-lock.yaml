@@ -15,6 +15,15 @@ catalogs:
     '@eslint/js':
       specifier: 10.0.1
       version: 10.0.1
+    '@fontsource-variable/inter':
+      specifier: 5.3.0
+      version: 5.3.0
+    '@fontsource-variable/space-grotesk':
+      specifier: 5.3.0
+      version: 5.3.0
+    '@fontsource/ibm-plex-mono':
+      specifier: 5.3.0
+      version: 5.3.0
     '@playwright/test':
       specifier: 1.62.1
       version: 1.62.1
@@ -57,6 +66,9 @@ catalogs:
     fast-check:
       specifier: 4.9.0
       version: 4.9.0
+    fflate:
+      specifier: 0.8.3
+      version: 0.8.3
     globals:
       specifier: 17.11.0
       version: 17.11.0
@@ -137,12 +149,24 @@ importers:
       '@dnd-kit/utilities':
         specifier: 'catalog:'
         version: 3.2.2(react@19.2.8)
+      '@fontsource-variable/inter':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource-variable/space-grotesk':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource/ibm-plex-mono':
+        specifier: 'catalog:'
+        version: 5.3.0
       '@qsim/core':
         specifier: workspace:*
         version: link:../../packages/qsim
       '@qsim/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      fflate:
+        specifier: 'catalog:'
+        version: 0.8.3
       i18next:
         specifier: 'catalog:'
         version: 26.3.6(typescript@6.0.3)
@@ -195,6 +219,9 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.8.1(supports-color@7.2.0)
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.9.0
       jsdom:
         specifier: 'catalog:'
         version: 30.0.1
@@ -459,6 +486,15 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@fontsource-variable/inter@5.3.0':
+    resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
+
+  '@fontsource-variable/space-grotesk@5.3.0':
+    resolution: {integrity: sha512-2IxmvfB08i9vnGB3Ym/AXvhRE+8XOjWMXIyDum03c+tPwH0FUoMNQfGpU8NXPxjbws0Vvss3AH0Zqt4oJBBAdw==}
+
+  '@fontsource/ibm-plex-mono@5.3.0':
+    resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1034,6 +1070,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   file-entry-cache@8.0.0:
     resolution: {integrity: sha512-XXTUwCvisa5oacNGRP9SfNtYBNAMi+RPwBFmblZEF7N7swHYQS6/Zfk7SRwx4D5j3CH211YNRco1DEMNVfZCnQ==}
@@ -1981,6 +2020,12 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
+  '@fontsource-variable/inter@5.3.0': {}
+
+  '@fontsource-variable/space-grotesk@5.3.0': {}
+
+  '@fontsource/ibm-plex-mono@5.3.0': {}
+
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -2529,6 +2574,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.5):
     optionalDependencies:
       picomatch: 4.0.5
+
+  fflate@0.8.3: {}
 
   file-entry-cache@8.0.0:
     dependencies:

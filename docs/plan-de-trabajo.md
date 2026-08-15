@@ -329,12 +329,55 @@ La función educativa más potente del editor (§3.1). Se apoya directamente en 
 - Landing que cumple el objetivo de §2: **superposición y entrelazamiento entendidos en < 1 minuto**. Circuito en vivo embebido, no una captura.
 - Copy de la landing en los tres locales — es el texto más visible del producto, merece cuidado especial en `fr`
 
+**La teletransportación obligó a cablear el modo `trajectories` (M0.9a).** Es el único preset que mide a mitad del circuito y condiciona una compuerta sobre un bit clásico, así que el modo analítico lo rechaza por definición (§5.3). Hasta ahora la aplicación pedía siempre una corrida analítica y el lector recibía ese rechazo donde debería estar la respuesta, lo que hacía impublicable el preset. `apps/web/src/features/simulation/mode.ts` le hace al documento la misma pregunta que le hace el motor —¿hay un `measure`, hay una `condition`?— y el panel corre esos circuitos en `trajectories`, dibujando el conteo del registro clásico (`MeasurementCounts.tsx`). Ni el scheduler ni el worker necesitaron una línea: los dos modos están en el protocolo desde M0.6 y nada en la app había pedido nunca el segundo.
+
+**Lo que el editor todavía no puede construir.** El formato, el lienzo y el store expresan la condición clásica sin problemas: se puede abrir el preset de teletransportación, leerlo, correrlo y borrarle compuertas. Lo que no existe es el gesto para _crear_ una: `GateDraft` en `placement.ts` no tiene campo `condition` y la paleta no ofrece manera de ponerlo. Queda anotado aquí para que nadie lo redescubra intentándolo; cerrarlo no es de esta milestone.
+
 **Definición de terminado**
 
 - Copiar la URL → abrir en ventana privada → circuito idéntico
 - Un Bell serializa en menos de 120 caracteres
 - Prueba con una persona real que nunca vio un circuito cuántico
 - Landing legible y sin desbordes de layout en los tres idiomas (el alemán no aplica, pero el francés sí alarga: _"entrelazamiento"_ → _"intrication quantique"_)
+
+**Qué JSON se comprime, medido en M0.9a.** D4 dice «JSON minificado → deflate → base64url» y eso es exactamente lo que se implementa, pero el JSON que entra al deflate **no** es la forma del contrato §6: es una forma posicional, arrays anidados en vez de objetos con claves. La razón es el presupuesto de esta misma sección, medido sobre un par de Bell:
+
+| Forma                     | JSON | deflate | base64url |
+| ------------------------- | ---: | ------: | --------: |
+| Contrato §6, minificado   |  172 |     113 |       151 |
+| Forma empaquetada, minif. |   57 |      53 |    **58** |
+
+Deflate no puede rescatar la primera fila: a ese tamaño su ventana todavía no tiene nada que repetir, así que los 172 bytes son casi todos nombres de clave pagados íntegros (`"schemaVersion"`, `"operations"`, `"targets"`, `"column"`) y una URL no puede permitírselos. Empaquetar deja el Bell en 58 caracteres, dentro del «~80» que estima D4 y muy por debajo del tope de 120.
+
+La forma empaquetada es un formato **de transporte y nunca de almacenamiento**: se produce y se consume en `apps/web/src/lib/circuit-url.ts`, y lo único que sale de ese módulo es un `Circuit` que ya pasó por `parseCircuit`. Sus constantes `PACKED_CIRCUIT_KEYS` y `PACKED_OPERATION_KEYS` se comparan en test contra los esquemas Zod del contrato, de modo que un campo nuevo en `@qsim/schema` rompe un test aquí en vez de desaparecer en silencio de todos los enlaces compartidos.
+
+**La landing son cuatro etapas, no tres (M0.9b).** El criterio de §2 no es «se ve profesional», es que alguien que nunca vio un circuito entienda dos ideas concretas. La superposición necesita dos cuadros —una certeza y el mismo registro después de una compuerta— y el entrelazamiento necesita **tres**, que es la parte que casi toda introducción se salta: dos qubits entrelazados dan dos resultados, pero un solo qubit en superposición también, así que un lector al que solo se le muestra el par de Bell no tiene con qué ver qué tiene de notable. Lo notable aparece al comparar contra dos qubits en superposición e independientes:
+
+| Etapa | Circuito             |           Gráfico | Lo que dice                |
+| ----- | -------------------- | ----------------: | -------------------------- |
+| 1     | nada                 |         una barra | una certeza                |
+| 2     | `H` en q0            |        dos barras | **superposición**          |
+| 3     | `H` en los dos hilos | cuatro barras (¼) | dos monedas independientes |
+| 4     | `H` y luego `CNOT`   |    dos barras (½) | **entrelazamiento**        |
+
+Entre 3 y 4 las marginales no se mueven —cada qubit sigue dando 1 la mitad de las veces— y la distribución conjunta sí. Esa pareja de hechos es el entrelazamiento, y está en pantalla como dos números que el lector puede verificar contra las barras que tiene al lado: `marginalProbability` del motor para cada hilo, y la suma de las probabilidades donde los dos bits coinciden. Las etapas 3 y 4 **son** los presets `superposition` y `bell`, y un test lo afirma, para que el botón «Partir d'un exemple» lleve exactamente al circuito que el lector acaba de ver.
+
+Las cuatro etapas se simulan de verdad, con `run()` de `@qsim/core`, y —única excepción de la app— en el hilo principal: son circuitos constantes de dos qubits, cuatro amplitudes de aritmética, y un worker solo agregaría un viaje de ida y vuelta a la página cuyo trabajo entero es entenderse en menos de un minuto. La secuencia avanza sola y se detiene en la etapa 4; bajo `prefers-reduced-motion` no arranca nunca, y el botón de pausa está siempre visible (WCAG 2.2.2).
+
+**La landing no carga el bundle del editor (M0.9b).** `App.tsx` deja la landing en el chunk de entrada —es la puerta y no puede esperar un segundo viaje— y mete el editor en un `lazy()`. Medido con `pnpm build`:
+
+| Chunk               |     Antes |   Después |          gzip |
+| ------------------- | --------: | --------: | ------------: |
+| entrada (`index-*`) | 503.09 kB | 312.73 kB | 155.1 → 100.2 |
+| editor (`editor-*`) |         — | 207.91 kB |         61.98 |
+
+Zod, dnd-kit, Zustand, Zundo y fflate quedan del lado del editor; el chunk de entrada lleva React, el router, i18next, el motor y el histograma. Un solo import puede deshacerlo sin que ningún test se ponga rojo, así que la frontera se vigila en `.dependency-cruiser.cjs` (`landing-carries-no-editor`): la landing solo puede alcanzar `geometry.ts` del editor, y los imports de tipo están exentos porque se borran antes de empaquetar. Por eso los circuitos de la demo declaran su `schemaVersion` como constante local, comparada en test contra `CIRCUIT_SCHEMA_VERSION`.
+
+**`?example=<id>` (M0.9b).** La landing ofrece dos caminos y tienen que ser distintos: `/new` es un editor en blanco y `/new?example=bell` es el mismo editor con el circuito ya cargado. `useExample` lo lee una sola vez al montar, cede siempre ante un `?c=` —eso es trabajo de alguien, esto es un punto de partida—, ignora en silencio un nombre que no conoce, y se borra de la barra de direcciones al usarse, de modo que el `?c=` que escribe `useCircuitUrl` a continuación deja una URL canónica y compartible.
+
+**Open Graph y Twitter (M0.9b).** `index.html` declara `og:*` y `twitter:*`, y `syncDocumentLanguage` reescribe las tres descripciones y `og:locale` junto con `<html lang>`: D2 no se detiene en los strings de la app, y una vista previa compartida es lo más visible que tiene el producto. `og:url` y `og:image` quedan fuera a propósito: ambos exigen URL absoluta del origen desplegado, que es una decisión de M0.10. Un crawler que no ejecuta JavaScript lee los valores en inglés — límite honesto de una página renderizada en cliente, y el mismo que la `description` tiene desde M0.0.
+
+**Compresión con `fflate`, no con `CompressionStream`** (M0.9a). La plataforma sabe hacer deflate, pero `CompressionStream` es un stream y por lo tanto asíncrono: la URL se lee una sola vez, de forma síncrona, antes del primer pintado. Un decode asíncrono monta el editor sobre el documento en blanco y lo reemplaza un tick después — un parpadeo visible y una simulación de más. Además `fflate` produce bytes idénticos en Node y en el navegador, lo que importa cuando la Fase 1 empiece a generar enlaces desde el servidor. Un navegador sin `CompressionStream` (Safari anterior a 16.4 y los webviews construidos sobre él) necesitaría igualmente un inflador incluido en el bundle, así que usarlo siempre deja un solo camino de código en vez de dos. Costo: ~8 kB, menos que uno de los tres archivos de tipografía.
 
 **Tamaño:** M
 

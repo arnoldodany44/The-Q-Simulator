@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { runJob, type Job } from './job'
 import {
   decodeState,
+  type AnalyticRequest,
   type AnalyticResponse,
   type SimulateRequest,
   type SimulationFailure,
@@ -51,7 +52,7 @@ function simulate(
   circuit: Circuit,
   fromColumn = 0,
   sharedMemory = false
-): SimulateRequest {
+): AnalyticRequest {
   return {
     kind: 'simulate',
     id: 1,
@@ -59,13 +60,34 @@ function simulate(
     fromColumn,
     sharedMemory,
     mode: 'analytic',
+    throughColumn: null,
+    sample: null,
   }
+}
+
+/** The same run, stopped after `column` — one step of the M0.8 scrubber. */
+function scrubbed(
+  circuit: Circuit,
+  column: number,
+  fromColumn = 0
+): AnalyticRequest {
+  return { ...simulate(circuit, fromColumn), throughColumn: column }
+}
+
+/** An analytic run that also draws shots from the state it produces. */
+function withSample(
+  circuit: Circuit,
+  shots: number,
+  seed: number
+): AnalyticRequest {
+  return { ...simulate(circuit), sample: { shots, seed } }
 }
 
 function sampled(
   circuit: Circuit,
   shots: number,
-  seed: number
+  seed: number,
+  throughColumn: number | null = null
 ): SimulateRequest {
   return {
     kind: 'simulate',
@@ -76,6 +98,7 @@ function sampled(
     mode: 'trajectories',
     shots,
     seed,
+    throughColumn,
   }
 }
 
@@ -200,6 +223,115 @@ describe('an analytic run', () => {
   )
 })
 
+describe('shots drawn from an analytic run', () => {
+  /** The counts of `response`, or a failure loud enough to read. */
+  function sampleOf(job: Job): Record<string, number> {
+    const { sampling } = analytic(job)
+    if (sampling === null) throw new Error('expected the response to sample')
+    return { ...sampling.counts }
+  }
+
+  it('answers with the state and the counts in one message', () => {
+    const response = analytic(
+      runJob(createCheckpoints(), withSample(BELL, 1000, 7), false)
+    )
+
+    // The exact distribution and the sample of it travel together, which is
+    // what makes them comparable: an edit cannot land between the two.
+    expectProbabilities(decodeState(response.state), [0.5, 0, 0, 0.5])
+    expect(response.sampling?.shots).toBe(1000)
+    expect(response.sampling?.seed).toBe(7)
+  })
+
+  it('says so explicitly when nothing was sampled', () => {
+    // Not `undefined`: an absent field is indistinguishable from a field the
+    // sender forgot, and the panel would draw an empty comparison for it.
+    expect(
+      analytic(runJob(createCheckpoints(), simulate(BELL), false)).sampling
+    ).toBeNull()
+  })
+
+  it('repeats exactly for the same seed', () => {
+    const first = sampleOf(
+      runJob(createCheckpoints(), withSample(BELL, 500, 3), false)
+    )
+    const second = sampleOf(
+      runJob(createCheckpoints(), withSample(BELL, 500, 3), false)
+    )
+
+    expect(second).toEqual(first)
+  })
+
+  it('draws a different sample from a different seed', () => {
+    // What the "draw again" control does. Same circuit, same state, same shot
+    // count: only the seed moves, and the counts have to move with it or the
+    // control is a lie about what sampling is.
+    const first = sampleOf(
+      runJob(createCheckpoints(), withSample(BELL, 500, 3), false)
+    )
+    const second = sampleOf(
+      runJob(createCheckpoints(), withSample(BELL, 500, 4), false)
+    )
+
+    expect(second).not.toEqual(first)
+  })
+
+  it('converges on the theoretical distribution as the shots grow', () => {
+    /*
+     * The teaching claim of §3.2's control, asserted rather than assumed. The
+     * error of an observed frequency has standard deviation √(p(1−p)/N),
+     * which at p = ½ is 1/(2√N) — so the bound below is four standard
+     * deviations, tight enough to fail a sampler that ignored the amplitudes
+     * and loose enough that no seed can make it flaky.
+     *
+     * The *shrinking* is averaged over seeds rather than read off one, because
+     * a single sample is not evidence about a distribution in either
+     * direction: a hundred shots that happen to split exactly fifty-fifty
+     * would make the larger sample look worse.
+     */
+    const gapAt = (shots: number, seed: number): number => {
+      const counts = sampleOf(
+        runJob(createCheckpoints(), withSample(BELL, shots, seed), false)
+      )
+      return Math.abs((counts['00'] ?? 0) / shots - 0.5)
+    }
+    const meanGap = (shots: number): number =>
+      [1, 2, 3, 4, 5, 6, 7, 8].reduce(
+        (sum, seed) => sum + gapAt(shots, seed) / 8,
+        0
+      )
+
+    for (const shots of [100, 10_000]) {
+      expect(gapAt(shots, 11)).toBeLessThan(4 / (2 * Math.sqrt(shots)))
+    }
+    expect(meanGap(10_000)).toBeLessThan(meanGap(100))
+  })
+
+  it('never lands on a basis state the circuit cannot reach', () => {
+    // |01⟩ and |10⟩ have amplitude zero in a Bell pair. A sampler that could
+    // reach them would be sampling a distribution that is not this state's.
+    const counts = sampleOf(
+      runJob(createCheckpoints(), withSample(BELL, 5000, 2), false)
+    )
+
+    expect(Object.keys(counts).sort()).toEqual(['00', '11'])
+  })
+
+  it('clamps a shot count outside the range the control can express', () => {
+    // §3.2 stops at 100 000. A request from a URL or a future API is not the
+    // control, and `sampleShots` answers a fractional count with a RangeError
+    // — which would reach the user as "the simulator stopped unexpectedly".
+    const response = analytic(
+      runJob(createCheckpoints(), withSample(BELL, 10.5, 1), false)
+    )
+
+    expect(response.sampling?.shots).toBe(11)
+    expect(
+      Object.values(response.sampling?.counts ?? {}).reduce((a, b) => a + b, 0)
+    ).toBe(11)
+  })
+})
+
 describe('the checkpoint cache', () => {
   it('resumes an edit at the last column instead of restarting', () => {
     const cache: CheckpointCache = createCheckpoints()
@@ -284,6 +416,142 @@ describe('the checkpoint cache', () => {
   })
 })
 
+/**
+ * The seam M0.8 adds: one field on the request turns a run into a step of the
+ * timeline. Everything else about the job — the cache, the invalidation, the
+ * encoding — is unchanged, and these tests exist to prove exactly that, because
+ * the failure mode of getting it wrong is a perfectly normalised state under a
+ * caption naming a column it does not belong to.
+ */
+describe('the timeline scrubber', () => {
+  /** The same circuit with everything past `column` removed. */
+  function truncated(circuit: Circuit, column: number): Circuit {
+    return parseCircuit({
+      ...circuit,
+      operations: circuit.operations.filter(
+        (operation) => operation.column <= column
+      ),
+    })
+  }
+
+  function stateOf(job: Job) {
+    return decodeState(analytic(job).state)
+  }
+
+  it('answers the last column with the state a full run reaches, exactly', () => {
+    const circuit = longCircuit('t')
+
+    const end = stateOf(
+      runJob(createCheckpoints(), scrubbed(circuit, 19), false)
+    )
+    const whole = stateOf(runJob(createCheckpoints(), simulate(circuit), false))
+
+    // Not `toBeCloseTo`: from a cold cache both walk the same plan from
+    // |0…0⟩ in the same order, so this is the same arithmetic and the answer
+    // is the same bits. The claim the milestone makes about its last stop is
+    // that it *is* the circuit's answer, not that it rounds to it.
+    expect(largestGap(end, whole)).toBe(0)
+  })
+
+  it('agrees with a full run when the cache is already warm', () => {
+    // The path a reader actually takes: the panel has run this circuit, and
+    // only then does the bar get dragged to the end. The run now resumes from
+    // a checkpoint rather than from |0…0⟩, so the renormalisation points
+    // differ by a few gates and the agreement is D6's, not bit-for-bit.
+    const cache: CheckpointCache = createCheckpoints()
+    const circuit = longCircuit('t')
+    runJob(cache, simulate(circuit), false)
+
+    const end = stateOf(runJob(cache, scrubbed(circuit, 19), false))
+    const whole = stateOf(runJob(createCheckpoints(), simulate(circuit), false))
+
+    expect(largestGap(end, whole)).toBeLessThan(1e-12)
+  })
+
+  it('answers every column with the run of a circuit cut there', () => {
+    const cache: CheckpointCache = createCheckpoints()
+    const circuit = longCircuit('t')
+    runJob(cache, simulate(circuit), false)
+
+    for (let column = 0; column < 20; column++) {
+      const step = stateOf(runJob(cache, scrubbed(circuit, column), false))
+      const cut = stateOf(
+        runJob(createCheckpoints(), simulate(truncated(circuit, column)), false)
+      )
+      expect(largestGap(step, cut), `after column ${column}`).toBeLessThan(
+        1e-12
+      )
+    }
+  })
+
+  it('answers the position before column 0 with the ground state', () => {
+    // −1 is a real position and the one playback starts from: the state the
+    // circuit departs from, which is the only way to *see* what the first
+    // gate did. Nothing on the way in may clamp it up to 0.
+    const state = stateOf(
+      runJob(createCheckpoints(), scrubbed(longCircuit('t'), -1), false)
+    )
+
+    expect(state.re[0]).toBe(1)
+    expect([...state.re.slice(1)].every((value) => value === 0)).toBe(true)
+    expect([...state.im].every((value) => value === 0)).toBe(true)
+  })
+
+  it('leaves the cache fit for the ordinary run that follows', () => {
+    // The scrubber writes checkpoints as it walks, into the very cache the
+    // live panel resumes from. A step that recorded a state under the wrong
+    // column would not fail here — it would make the *next* full run answer
+    // with a state belonging to no circuit at all.
+    const cache: CheckpointCache = createCheckpoints()
+    const circuit = longCircuit('t')
+    runJob(cache, simulate(circuit), false)
+    for (const column of [4, 11, 2, 17, 9]) {
+      runJob(cache, scrubbed(circuit, column), false)
+    }
+
+    const after = stateOf(runJob(cache, simulate(circuit, MAX_COLUMNS), false))
+    const scratch = stateOf(
+      runJob(createCheckpoints(), simulate(circuit), false)
+    )
+
+    expect(largestGap(after, scratch)).toBeLessThan(1e-12)
+  })
+
+  it('honours an edit made while the timeline is parked mid-circuit', () => {
+    // The case the whole feature exists for: park on a column, change a gate
+    // before it, and the state at that column has to change with it. The
+    // request carries both numbers — the edit's column to invalidate from,
+    // and the position to stop at — and they are not the same number.
+    const cache: CheckpointCache = createCheckpoints()
+    const before = editableCircuit('t')
+    const after = editableCircuit('x')
+    runJob(cache, simulate(before), false)
+
+    const parked = 10
+    const step = stateOf(
+      runJob(cache, scrubbed(after, parked, EDITED_COLUMN), false)
+    )
+    const cut = stateOf(
+      runJob(createCheckpoints(), simulate(truncated(after, parked)), false)
+    )
+
+    expect(largestGap(step, cut)).toBeLessThan(1e-12)
+  })
+
+  it('echoes the position it answered for', () => {
+    // Echoed rather than assumed by the panel: the bar moves on the main
+    // thread while the worker runs, so a caption read off the control would
+    // name one column over a picture of another.
+    const cache: CheckpointCache = createCheckpoints()
+    expect(
+      analytic(runJob(cache, scrubbed(BELL, 0), false)).throughColumn
+    ).toBe(0)
+    expect(
+      analytic(runJob(cache, simulate(BELL), false)).throughColumn
+    ).toBeNull()
+  })
+})
+
 describe('sampled runs', () => {
   const measured = parseCircuit({
     schemaVersion: 1,
@@ -324,6 +592,86 @@ describe('sampled runs', () => {
     expect(
       failure(runJob(createCheckpoints(), sampled(BELL, 10, 7), false))
     ).toMatchObject({ code: 'no-classical-bits' })
+  })
+
+  /*
+   * The scrubber on a measuring circuit. It used to be ignored here entirely:
+   * the bar moved, the canvas painted a playhead, and the tally went on
+   * describing the whole circuit while the panel said it described what was on
+   * screen.
+   */
+  describe('the scrubber', () => {
+    it('answers for the register as it stood at that column', () => {
+      // Before the measurement in column 1, nothing has been written: every
+      // shot reads 0, whatever the qubit is doing.
+      const early = counts(
+        runJob(createCheckpoints(), sampled(measured, 200, 7, 0), false)
+      )
+      expect(early.counts).toEqual({ '0': 200 })
+      expect(early.throughColumn).toBe(0)
+
+      // After it, the register is the coin the H prepared.
+      const late = counts(
+        runJob(createCheckpoints(), sampled(measured, 200, 7, 1), false)
+      )
+      expect(Object.keys(late.counts).sort()).toEqual(['0', '1'])
+      expect(late.throughColumn).toBe(1)
+    })
+
+    it('answers the position before column 0 with an untouched register', () => {
+      const response = counts(
+        runJob(createCheckpoints(), sampled(measured, 200, 7, -1), false)
+      )
+
+      expect(response.counts).toEqual({ '0': 200 })
+      expect(response.throughColumn).toBe(-1)
+    })
+
+    it('gives the last column exactly what the whole circuit gives', () => {
+      // The same guarantee the analytic side makes: "the state at the last
+      // column" and "the final state" must be one answer written two ways.
+      const whole = counts(
+        runJob(createCheckpoints(), sampled(measured, 200, 7), false)
+      )
+      const last = counts(
+        runJob(createCheckpoints(), sampled(measured, 200, 7, 1), false)
+      )
+
+      expect(last.counts).toEqual(whole.counts)
+      expect(whole.throughColumn).toBeNull()
+    })
+
+    it('keeps the register width, so the table does not change shape', () => {
+      // Truncating drops operations, never classical bits: a two-bit register
+      // reads `00` before anything is written, not `0`.
+      const teleport = parseCircuit({
+        schemaVersion: 1,
+        qubits: 2,
+        clbits: 2,
+        operations: [
+          { id: 'a', gate: 'h', targets: [0], column: 0 },
+          {
+            id: 'b',
+            gate: 'measure',
+            targets: [0],
+            clbitTargets: [0],
+            column: 1,
+          },
+          {
+            id: 'c',
+            gate: 'measure',
+            targets: [1],
+            clbitTargets: [1],
+            column: 2,
+          },
+        ],
+      })
+
+      const response = counts(
+        runJob(createCheckpoints(), sampled(teleport, 50, 3, 0), false)
+      )
+      expect(response.counts).toEqual({ '00': 50 })
+    })
   })
 })
 

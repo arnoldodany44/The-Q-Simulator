@@ -63,6 +63,8 @@ function resultFor(id: number) {
     mode: 'analytic',
     state: payload,
     resumedFromColumn: 0,
+    throughColumn: null,
+    sampling: null,
     durationMs: 3,
   } as const
 }
@@ -75,6 +77,7 @@ function trajectoriesResultFor(id: number) {
     mode: 'trajectories',
     shots: 8,
     counts: { '0': 8 },
+    throughColumn: null,
     durationMs: 2,
   } as const
 }
@@ -149,6 +152,165 @@ describe('debounce', () => {
 
     expect(posts).toHaveLength(0)
     expect(scheduler.getSnapshot().status).toBe('ready')
+  })
+})
+
+/**
+ * The timeline (M0.8) is a run option, so it reaches the worker through the
+ * same accounting as everything else — with one deliberate exception to the
+ * debounce, which is what these tests are about. A scrub step is one command,
+ * not one frame of a gesture, and a reader stepping through a circuit has to
+ * see each column rather than only the one they stopped on.
+ */
+describe('the timeline scrubber', () => {
+  /** The scrub position of the last request that went out, in either mode. */
+  function scrubbedTo(): number | null | undefined {
+    return simulates(posts).at(-1)?.throughColumn
+  }
+
+  /*
+   * The bar was honoured analytically and silently dropped in trajectories
+   * mode, so on every circuit that measures it was a live control wired to
+   * nothing: `sameRun` ignored the position, `schedule` returned early, and no
+   * message ever reached the worker while the bar announced a column and the
+   * canvas painted a playhead at it.
+   */
+  it('dispatches a step on a circuit that measures, too', () => {
+    const circuit = withGates([0, 1, 2])
+    settle(circuit)
+    scheduler.schedule(circuit, { mode: 'trajectories' })
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    scheduler.receive(trajectoriesResultFor(simulates(posts).at(-1)!.id))
+    posts.length = 0
+
+    scheduler.schedule(circuit, { mode: 'trajectories', throughColumn: 1 })
+
+    expect(posts).toHaveLength(1)
+    expect(scrubbedTo()).toBe(1)
+  })
+
+  it('skips the debounce for a step in trajectories mode as well', () => {
+    const circuit = withGates([0, 1, 2])
+    settle(circuit)
+    scheduler.schedule(circuit, { mode: 'trajectories', throughColumn: 0 })
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    scheduler.receive(trajectoriesResultFor(simulates(posts).at(-1)!.id))
+    posts.length = 0
+
+    scheduler.schedule(circuit, { mode: 'trajectories', throughColumn: 1 })
+
+    // No timer advanced: stepping is one command, in both modes.
+    expect(posts).toHaveLength(1)
+    expect(scrubbedTo()).toBe(1)
+  })
+
+  it('asks for the whole circuit when the bar is at the end', () => {
+    settle(withGates([0, 1]))
+    scheduler.schedule(withGates([0, 1, 2]), { throughColumn: null })
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+
+    // The resting state of the editor asks the worker exactly what it asked
+    // before this feature existed.
+    expect(scrubbedTo()).toBeNull()
+  })
+
+  it('simulates again when only the bar moved', () => {
+    const circuit = withGates([0, 1, 2])
+    settle(circuit)
+
+    scheduler.schedule(circuit, { throughColumn: 1 })
+
+    // Nothing about the document changed, so without the position being part
+    // of what a run *is*, this request would never be built at all.
+    expect(scrubbedTo()).toBe(1)
+  })
+
+  it('does not make the reader wait out the debounce for a step', () => {
+    const circuit = withGates([0, 1, 2])
+    settle(circuit)
+
+    scheduler.schedule(circuit, { throughColumn: 0 })
+
+    // Immediately, with no timer advanced. At the fast playback rate the
+    // debounce is longer than the interval between columns, so a debounced
+    // step would show the reader no intermediate state at all.
+    expect(posts).toHaveLength(1)
+    expect(scheduler.getSnapshot().status).toBe('running')
+  })
+
+  it('still waits out the debounce when the circuit itself changed', () => {
+    // Editing while parked mid-circuit is one of the two things the timeline
+    // is for, and an edit is still an edit: it arrives one keystroke at a
+    // time and must still be coalesced.
+    settle(withGates([0, 1, 2]))
+
+    scheduler.schedule(withGates([0, 1, 2, 3]), { throughColumn: 1 })
+
+    expect(posts).toHaveLength(0)
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    expect(posts).toHaveLength(1)
+    expect(scrubbedTo()).toBe(1)
+  })
+
+  it('invalidates nothing when only the bar moved', () => {
+    const circuit = withGates([0, 1, 2])
+    settle(circuit)
+
+    scheduler.schedule(circuit, { throughColumn: 1 })
+
+    // A step is not an edit: every checkpoint the worker holds still
+    // describes this circuit, and throwing them away would make the timeline
+    // pay for a re-simulation at every stop.
+    expect(simulates(posts).at(-1)?.fromColumn).toBe(MAX_COLUMNS)
+  })
+
+  it('carries an unanswered edit into the step that follows it', () => {
+    // The rule the whole file exists for, applied to the new path: an edit at
+    // column 1 whose job never answered is still owed, and the step that
+    // supersedes it has to name that column or the worker resumes from a
+    // checkpoint the edit contradicted.
+    settle(withGates([0, 1, 20]))
+    const edited = withGates([0, 20])
+
+    scheduler.schedule(edited)
+    scheduler.schedule(edited, { throughColumn: 15 })
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+
+    const request = simulates(posts).at(-1)
+    expect(request?.fromColumn).toBe(1)
+    expect(scrubbedTo()).toBe(15)
+  })
+
+  it('lets a step clear the debt it was answered with', () => {
+    // A step *does* invalidate — `runJob` calls `invalidateFrom` before it
+    // chooses a branch — so unlike a sampling run its answer is evidence that
+    // the worker's cache caught up.
+    settle(withGates([0, 1, 20]))
+    const edited = withGates([0, 20])
+
+    scheduler.schedule(edited, { throughColumn: 15 })
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    const dispatched = simulates(posts).at(-1)
+    expect(dispatched?.fromColumn).toBe(1)
+    scheduler.receive(resultFor(dispatched!.id))
+
+    scheduler.schedule(edited, { throughColumn: 16 })
+    expect(simulates(posts).at(-1)?.fromColumn).toBe(MAX_COLUMNS)
+  })
+
+  it('drops the answer to the stop the reader has already left', () => {
+    const circuit = withGates([0, 1, 2])
+    settle(circuit)
+
+    scheduler.schedule(circuit, { throughColumn: 0 })
+    const first = simulates(posts).at(-1)!
+    scheduler.schedule(circuit, { throughColumn: 1 })
+
+    // Holding an arrow key down outruns the worker, and an answer for a stop
+    // the bar has left would repaint the panel with a column the reader is no
+    // longer on. The staleness guard covers it because a step is an ordinary
+    // request.
+    expect(scheduler.receive(resultFor(first.id))).toBe(false)
   })
 })
 

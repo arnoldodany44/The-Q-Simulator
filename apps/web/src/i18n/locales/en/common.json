@@ -17,5 +17,6 @@
   "nav": {
     "home": "Home",
     "editor": "Editor"
-  }
+  },
+  "loading": "Loading…"
 }

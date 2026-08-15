@@ -1,5 +1,6 @@
 import { emptyCircuit, type Circuit } from '@qsim/schema'
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -71,6 +72,19 @@ function i18nFor(language: Language): I18n {
     react: { useSuspense: false },
   })
   return instance
+}
+
+/** A whole other document: two wires, H then CNOT. */
+function bell(): Circuit {
+  return {
+    schemaVersion: 1,
+    qubits: 2,
+    clbits: 0,
+    operations: [
+      { id: 'op_1', gate: 'h', targets: [0], column: 0 },
+      { id: 'op_2', gate: 'cx', targets: [1], controls: [0], column: 1 },
+    ],
+  }
 }
 
 function open(circuit: Circuit, language: Language = 'en') {
@@ -481,6 +495,130 @@ describe('the simulation is reachable from the editor', () => {
     expect(
       within(view.container).getByText(enSimulation.panel.state.error)
     ).toBeDefined()
+  })
+})
+
+/**
+ * The join M0.8 adds. The scrubber's own behaviour is tested against the hook
+ * in `TimelineScrubber.test.tsx`; what is asserted here is the wiring, because
+ * the position it holds is read by three components that are siblings and a
+ * timeline nobody was listening to would look exactly like a working one.
+ */
+describe('the timeline is wired to the canvas', () => {
+  function bar(): HTMLInputElement {
+    return screen.getByRole('slider', { name: enEditor.timeline.position })
+  }
+
+  it('appears once there is a column to walk', () => {
+    const { view } = open(emptyCircuit(2, 0))
+
+    // An empty circuit has no time in it, and a bar with one stop is a
+    // control that cannot do anything.
+    expect(
+      screen.queryByRole('slider', { name: enEditor.timeline.position })
+    ).toBeNull()
+
+    press('h')
+    press('Enter')
+
+    expect(bar().max).toBe('1')
+    expect(view.container.querySelector('.circuit-canvas__cut')).toBeNull()
+  })
+
+  /** H in every column from 0 to `columns - 1`, on the top wire. */
+  function fill(columns: number): void {
+    press('h')
+    for (let column = 0; column < columns; column++) {
+      if (column > 0) press('ArrowRight')
+      press('Enter')
+    }
+  }
+
+  it('moves the playhead on the canvas with the bar', () => {
+    const { view } = open(emptyCircuit(2, 0))
+    fill(2)
+
+    fireEvent.change(bar(), { target: { value: '1' } })
+
+    // Two columns, three stops, and the bar on the middle one: the state
+    // after column 0. The canvas has to agree, because the reader is looking
+    // at both at once.
+    expect(bar().max).toBe('2')
+    expect(bar().getAttribute('aria-valuetext')).toBe(
+      enEditor.timeline.at.column.replace('{{column}}', '0')
+    )
+    expect(
+      view.container.querySelector('.circuit-canvas__moment')
+    ).not.toBeNull()
+  })
+
+  it('is clamped, not reset, by an edit that shortens the circuit', () => {
+    const { view } = open(emptyCircuit(2, 0))
+    fill(3)
+    fireEvent.change(bar(), { target: { value: '1' } })
+
+    // Deleting the gate in the last column — the cursor is standing on it —
+    // leaves the parked position reachable, so it stays exactly where the
+    // reader left it. That is the whole point of parking there: to watch one
+    // column's state change as the circuit around it is edited. A reset would
+    // throw the reader back to the end after every keystroke.
+    press('Delete')
+
+    expect(bar().max).toBe('2')
+    expect(bar().getAttribute('aria-valuetext')).toBe(
+      enEditor.timeline.at.column.replace('{{column}}', '0')
+    )
+    expect(
+      view.container.querySelector('.circuit-canvas__moment')
+    ).not.toBeNull()
+  })
+
+  it('goes back to the end when a whole new document is opened', () => {
+    /*
+     * The other half of the rule above, and the one that was missing. An
+     * *edit* keeps the position because undo brings the circuit and the
+     * position back together. Opening a document — a preset chip, and later
+     * `/c/:slug` — has no such pairing: `loadCircuit` clears the history on
+     * purpose. A retained position meant clicking "Bell" while parked after
+     * column 0 drew |00⟩ and |01⟩ at half each, the un-entangled picture that
+     * example exists to be contrasted with, beside a live region announcing
+     * that the two qubits are entangled.
+     */
+    const { store, view } = open(emptyCircuit(2, 0))
+    fill(3)
+    fireEvent.change(bar(), { target: { value: '1' } })
+    expect(
+      view.container.querySelector('.circuit-canvas__moment')
+    ).not.toBeNull()
+
+    act(() => {
+      store.getState().loadCircuit(bell())
+    })
+
+    // At the end of the new circuit: nothing held back, no playhead drawn.
+    expect(bar().value).toBe(bar().max)
+    expect(bar().getAttribute('aria-valuetext')).toBe(enEditor.timeline.at.end)
+    expect(view.container.querySelector('.circuit-canvas__moment')).toBeNull()
+    expect(view.container.querySelector('.circuit-canvas__cut')).toBeNull()
+  })
+
+  it('keeps the position when the same document is merely edited', () => {
+    // The guard on the fix above: a document counter that ticked on every
+    // edit would undo §3.1's frozen decision 2 entirely.
+    const { view } = open(emptyCircuit(2, 0))
+    fill(3)
+    fireEvent.change(bar(), { target: { value: '1' } })
+
+    press('ArrowDown')
+    press('h')
+    press('Enter')
+
+    expect(bar().getAttribute('aria-valuetext')).toBe(
+      enEditor.timeline.at.column.replace('{{column}}', '0')
+    )
+    expect(
+      view.container.querySelector('.circuit-canvas__moment')
+    ).not.toBeNull()
   })
 })
 

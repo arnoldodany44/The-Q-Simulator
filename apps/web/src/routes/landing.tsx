@@ -1,74 +1,114 @@
 /**
- * The scaffold landing page, unchanged in substance since M0.0: its job is
- * to prove the wiring works — both shared workspace packages resolve from
- * the app, and the three catalogs load and switch. The real landing arrives
- * with M0.9, which is why nothing here is worth polishing.
+ * `/` — the landing page (specification §2, work plan M0.9).
  *
- * M0.5c moved it behind the `/` route and gave it the one thing it was
- * missing: a way into the editor.
+ * §2 does not describe this page, it sets it a test: *someone who has never
+ * seen a quantum circuit should understand, in under a minute, what
+ * superposition is and what entanglement is.* Not "looks professional", not
+ * "lists what the product does". Two specific ideas, one stranger, one minute.
+ *
+ * So the page is built around one thing — `LiveDemo`, four real circuits
+ * simulated by `@qsim/core` as the reader watches — and everything else here
+ * is the frame around it: a sentence saying what they are about to see, two
+ * ways onwards, and three short notes for the reader who is still here
+ * afterwards. There is no feature list, because a feature list answers a
+ * question a first-time reader has not asked yet.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * WHAT THIS ROUTE MAY IMPORT.
+ *
+ * Nothing from the editor's document model, and no *value* from
+ * `@qsim/schema`. Both rules exist for the same reason: `App.tsx` splits the
+ * editor into its own chunk, and an import reaching into `useCircuitStore` or
+ * into a Zod schema would pull the store, Zundo, dnd-kit or Zod straight back
+ * across the split and into the one route that has to arrive before a stranger
+ * loses interest. `features/landing/` holds what is left after that rule, and
+ * each file there says which import it is avoiding and why.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * TWO WAYS ONWARDS, AND THEY ARE DIFFERENT PLACES.
+ *
+ * `/new` is a blank editor. `/new?example=bell` is the same editor already
+ * holding the circuit the demo just finished on — the fastest route from
+ * "I understood that" to "let me move something and see what breaks", which is
+ * what the examples strip exists for (`presets.ts`). Both are ordinary links,
+ * so they open in a new tab, they can be bookmarked, and they work before any
+ * JavaScript has decided anything.
  */
 
-import { formatKet } from '@qsim/core'
-import { CIRCUIT_SCHEMA_VERSION } from '@qsim/schema'
+import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 
 import { LanguagePicker } from '../components/LanguagePicker'
-import { Notation } from '../components/Notation'
-import { CircuitCanvas } from '../features/circuit-editor/CircuitCanvas'
-import { useCircuitStore } from '../features/circuit-editor/useCircuitStore'
+import { LiveDemo } from '../features/landing/LiveDemo'
+
+/** The example the demo ends on, so "start from an example" starts from it. */
+const EXAMPLE_ROUTE = '/new?example=bell'
 
 export function LandingRoute() {
-  const { t } = useTranslation(['landing', 'common', 'editor'])
-
-  // Only the data is subscribed to. Actions are reached through `getState()`
-  // at the moment they run: they never change identity, so subscribing to
-  // them would add a re-render path that can only ever fire spuriously.
-  const circuit = useCircuitStore((state) => state.circuit)
-  const selection = useCircuitStore((state) => state.selection)
+  const { t } = useTranslation(['landing', 'common'])
+  const notesId = useId()
 
   return (
-    <main className="page">
+    <main className="page landing">
       <header className="page__header">
         <h1>{t('common:appName')}</h1>
         <LanguagePicker />
       </header>
 
       <p className="tagline">{t('landing:tagline')}</p>
-      <p>{t('landing:intro')}</p>
+      <p className="landing__lead">{t('landing:lead')}</p>
 
-      <p className="notice">{t('landing:scaffoldNotice')}</p>
+      <Actions />
+      <p className="landing__note">{t('landing:cta.note')}</p>
 
-      <p>
-        <Link className="page__cta" to="/new">
-          {t('landing:openEditor')}
-        </Link>
-      </p>
+      <LiveDemo />
 
-      <h2 className="section-heading">{t('editor:title')}</h2>
-      <CircuitCanvas
-        circuit={circuit}
-        selection={selection}
-        onRemoveQubit={(index) => {
-          useCircuitStore.getState().removeQubit(index)
-        }}
-        onInsertQubitBelow={(index) => {
-          useCircuitStore.getState().addQubit(index + 1)
-        }}
-      />
+      <section className="landing__notes" aria-labelledby={notesId}>
+        <h2 id={notesId} className="section-heading">
+          {t('landing:notes.heading')}
+        </h2>
 
-      <dl className="wiring-check">
-        <dt>
-          <Notation value="@qsim/schema" />
-        </dt>
-        <dd>{CIRCUIT_SCHEMA_VERSION}</dd>
-        <dt>
-          <Notation value="@qsim/core" />
-        </dt>
-        <dd>
-          <Notation value={`|${formatKet(5, 3)}⟩`} />
-        </dd>
-      </dl>
+        {/*
+         * A description list rather than three headings: each note is a short
+         * label and the sentence that qualifies it, which is what a `dl` is
+         * for — and it keeps the page's heading outline to one level per
+         * section, so the document reads as three sections rather than as
+         * three sections and six subsections.
+         */}
+        <dl className="landing__note-list">
+          {(['local', 'link', 'state'] as const).map((note) => (
+            <div className="landing__note-item" key={note}>
+              <dt>{t(`landing:notes.${note}.title`)}</dt>
+              <dd>{t(`landing:notes.${note}.body`)}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <p className="landing__closing">{t('landing:closing')}</p>
+      <Actions />
     </main>
+  )
+}
+
+/**
+ * The two ways into the editor, rendered twice: once above the demonstration
+ * for the reader who arrived knowing what they want, and once below it for the
+ * reader the demonstration has just convinced. Same two destinations and the
+ * same two labels both times — a second pair of buttons with different wording
+ * would read as two different offers.
+ */
+function Actions() {
+  const { t } = useTranslation('landing')
+  return (
+    <p className="landing__actions">
+      <Link className="page__cta" to="/new">
+        {t('cta.editor')}
+      </Link>
+      <Link className="page__cta page__cta--quiet" to={EXAMPLE_ROUTE}>
+        {t('cta.examples')}
+      </Link>
+    </p>
   )
 }

@@ -109,8 +109,10 @@ export function useSimulation(
   const {
     enabled = true,
     mode,
+    sample,
     shots,
     seed,
+    throughColumn,
     debounceMs,
     createWorker,
   } = options
@@ -186,8 +188,8 @@ export function useSimulation(
   }, [scheduler, spawn])
 
   const runOptions = useMemo<RunOptions>(
-    () => ({ mode, shots, seed }),
-    [mode, shots, seed]
+    () => ({ mode, sample, shots, seed, throughColumn }),
+    [mode, sample, shots, seed, throughColumn]
   )
 
   useEffect(() => {

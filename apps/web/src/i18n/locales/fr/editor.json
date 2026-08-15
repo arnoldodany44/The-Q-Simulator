@@ -10,6 +10,7 @@
     "contents": "Contenu du circuit, fil par fil et instant par instant.",
     "summary": "Qubits : {{qubits}}. Colonnes : {{columns}}. Opérations : {{gates}}.",
     "readOnly": "Lecture seule sur petit écran. Faites défiler pour parcourir le circuit.",
+    "tooManyColumns": "Ce circuit va jusqu'à la colonne {{total}}, et le schéma en dessine les {{drawn}} premières. Les {{hidden}} colonnes suivantes sont dans le document et dans la simulation, mais pas dans le dessin.",
     "wireHeader": "Fil",
     "column": "Colonne {{index}}",
     "classicalRegister_one": "registre classique, {{count}} bit",
@@ -36,6 +37,51 @@
   "register": {
     "addBit": "Ajouter un bit classique",
     "removeBit": "Supprimer le dernier bit classique"
+  },
+  "presets": {
+    "heading": "Exemples",
+    "hint": "Chacun remplace le circuit ci-dessous.",
+    "loaded": "Exemple chargé :",
+    "superposition": {
+      "name": "Superposition",
+      "summary": "Deux fils en superposition : quatre résultats, tous aussi probables."
+    },
+    "bell": {
+      "summary": "Deux qubits intriqués. Aucun des deux n'a plus d'état propre : seule la paire en a un."
+    },
+    "ghz": {
+      "summary": "La même intrication à trois qubits : que des zéros ou que des uns, jamais rien entre les deux."
+    },
+    "interference": {
+      "name": "Interférence",
+      "summary": "Un qubit, deux chemins. La phase décide s'ils s'additionnent ou s'annulent."
+    },
+    "deutschJozsa": {
+      "summary": "Une seule exécution tranche une question qu'une procédure classique ne résout qu'en deux évaluations."
+    },
+    "teleportation": {
+      "name": "Téléportation",
+      "summary": "Un état passe sur un autre qubit, porté par l'intrication et deux bits classiques."
+    }
+  },
+  "share": {
+    "heading": "Partager",
+    "hint": "Le circuit entier voyage dans le lien. Rien n'est stocké sur un serveur.",
+    "field": "Lien vers ce circuit",
+    "copy": "Copier le lien",
+    "copied": "Lien copié.",
+    "failed": "Le lien n'a pas pu être copié. Sélectionnez le champ et copiez-le vous-même.",
+    "tooLarge": "Ce circuit est trop grand pour tenir dans un lien.",
+    "dismiss": "Ignorer",
+    "rejected": {
+      "empty": "Ce lien ne contient aucun circuit.",
+      "too-long": "Le circuit de ce lien est plus long que ce que cet éditeur accepte de lire.",
+      "not-base64": "Ce lien a été abîmé en chemin : il en manque une partie, ou elle a été réécrite.",
+      "not-deflate": "Ce lien est abîmé et n'a pas pu être décompressé.",
+      "too-large": "Le circuit de ce lien est bien plus grand que ce que cet éditeur peut ouvrir.",
+      "not-json": "Ce lien s'est décompressé en quelque chose qui n'est pas un circuit.",
+      "not-a-circuit": "Le circuit de ce lien ne correspond pas au format que cet éditeur comprend."
+    }
   },
   "toolbar": {
     "label": "Actions sur le circuit",
@@ -87,6 +133,24 @@
     "field": "Angle en radians",
     "symbolic": "Piloté par le paramètre du circuit"
   },
+  "timeline": {
+    "heading": "Chronologie",
+    "hint": "La barre fige le circuit à un instant donné, et le panneau ci-dessous décrit l'état à cet endroit. Les flèches avancent d'une colonne, Origine et Fin sautent aux extrémités, et Espace lance la lecture.",
+    "position": "Instant",
+    "play": "Lire",
+    "pause": "Pause",
+    "at": {
+      "start": "Avant la première colonne",
+      "column": "Après la colonne {{column}}",
+      "end": "Fin du circuit"
+    },
+    "speed": {
+      "label": "Vitesse",
+      "slow": "Lente",
+      "normal": "Normale",
+      "fast": "Rapide"
+    }
+  },
   "dnd": {
     "instructions": "Appuyez sur Espace pour saisir la porte, sur les flèches pour la déplacer case par case, de nouveau sur Espace pour la déposer, et sur Échap pour annuler.",
     "start": "Porte saisie.",
@@ -117,7 +181,9 @@
     "undo": "Annuler",
     "redo": "Rétablir",
     "copy": "Copier la sélection",
-    "paste": "Coller au curseur"
+    "paste": "Coller au curseur",
+    "timelineStep": "Déplacer la barre de la chronologie d'une colonne, ou jusqu'à une extrémité",
+    "timelinePlay": "Lancer ou suspendre la lecture de la chronologie, la barre ayant le focus"
   },
   "rejection": {
     "shape": "Ce fichier ne correspond pas au format de circuit.",

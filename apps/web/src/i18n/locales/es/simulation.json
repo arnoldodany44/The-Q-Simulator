@@ -12,7 +12,10 @@
     "support": "Estados de la base con probabilidad distinta de cero",
     "duration": "Última ejecución",
     "milliseconds": "{{milliseconds}} ms",
-    "note": "El análisis completo —histograma, amplitudes y fases— llega con el siguiente hito."
+    "moment": {
+      "start": "El estado antes de que corra la columna 0 — de donde parte el circuito.",
+      "column": "El estado después de la columna {{column}}, no al final del circuito."
+    }
   },
   "errors": {
     "too-many-qubits": "Este circuito tiene {{qubits}} qubits. El navegador simula hasta {{limit}}; más allá, el estado ya no cabe en una pestaña.",

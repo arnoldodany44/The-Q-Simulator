@@ -90,7 +90,16 @@ const depth = (store: CircuitStore): number =>
 const angle = (store: CircuitStore): number =>
   Number(store.getState().circuit.operations[0]?.params?.[0] ?? Number.NaN)
 
-const slider = (): HTMLElement => screen.getByRole('slider')
+/*
+ * By name, not by role alone: the editor grew a second slider in M0.8 — the
+ * timeline scrubber's bar, which is rendered above the parameter rows — and a
+ * bare `getByRole('slider')` would find it first and silently drag the wrong
+ * control. The field below was already queried this way.
+ */
+const ANGLE_SLIDER = 'Angle slider'
+
+const slider = (): HTMLElement =>
+  screen.getByRole('slider', { name: ANGLE_SLIDER })
 
 const field = (): HTMLElement =>
   screen.getByRole('textbox', { name: 'Angle in radians' })
@@ -301,7 +310,7 @@ describe('a gesture that starts while another is still closing', () => {
     const { store } = open(THREE_ROWS)
     const before = depth(store)
     const fields = screen.getAllByRole('textbox', { name: 'Angle in radians' })
-    const sliders = screen.getAllByRole('slider')
+    const sliders = screen.getAllByRole('slider', { name: ANGLE_SLIDER })
     expect(fields).toHaveLength(3)
 
     fireEvent.change(fields[0]!, { target: { value: '1' } })

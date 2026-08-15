@@ -64,6 +64,18 @@ export function ShortcutsPanel() {
       combos: [[name('ctrl'), legend('V')]],
       description: t('shortcuts.paste'),
     },
+    /*
+     * The timeline's keys (M0.8). They are listed with the rest because this
+     * panel is where a keyboard user looks, and they name the bar explicitly
+     * because they are the only entries here that are *not* live on the grid:
+     * Space on a cell picks a gate up, and Space on the timeline plays it. Two
+     * meanings for one key is safe only while each says where it applies.
+     */
+    {
+      combos: [[name('arrows')], [name('home')], [name('end')]],
+      description: t('shortcuts.timelineStep'),
+    },
+    { combos: [[name('space')]], description: t('shortcuts.timelinePlay') },
   ]
 
   return (

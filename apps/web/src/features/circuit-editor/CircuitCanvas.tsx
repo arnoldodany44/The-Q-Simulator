@@ -88,10 +88,12 @@ import {
   cellBounds,
   classicalY,
   columnCount,
+  columnEdgeX,
   gridSizeOf,
   plotHeight,
   plotWidth,
   qubitY,
+  undrawnColumns,
   type Cell,
   type GridMetrics,
   type GridSize,
@@ -138,6 +140,13 @@ export interface CircuitCanvasProps {
   readonly claimedQubits?: readonly number[]
   /** The column such a placement is waiting in, if one is in progress. */
   readonly awaitingColumn?: number
+  /**
+   * Where the timeline scrubber is parked (M0.8): the column whose operations
+   * have just run, or `-1` for the state before column 0. Absent means the
+   * timeline is at the end of the circuit — nothing is being held back, so
+   * nothing is drawn and an editor nobody has scrubbed looks as it always did.
+   */
+  readonly playhead?: number
   readonly onFocusCell?: (cell: Cell) => void
   readonly onActivateCell?: (cell: Cell) => void
 }
@@ -157,10 +166,11 @@ export function CircuitCanvas({
   focusCursor = false,
   claimedQubits = NO_QUBITS,
   awaitingColumn,
+  playhead,
   onFocusCell,
   onActivateCell,
 }: CircuitCanvasProps) {
-  const { t } = useTranslation('editor')
+  const { t, i18n } = useTranslation('editor')
   const compact = useCompactViewport()
   const locked = readOnly ?? compact
 
@@ -199,11 +209,30 @@ export function CircuitCanvas({
   const width = plotWidth(size, metrics)
   const height = plotHeight(size, metrics)
   const selected = new Set(selection)
+  /*
+   * A document can name a column far past anything the canvas can draw — the
+   * format allows 4 096 of them and a link is free to use the last one. The
+   * cap is in `geometry.ts` with the reasoning; what belongs here is saying so.
+   * A drawing that quietly stopped at column 96 would read as a circuit that
+   * ends there, and the reader would have no way to tell that from the truth.
+   */
+  const undrawn = undrawnColumns(circuit)
+  const numbers = new Intl.NumberFormat(i18n.language)
 
   return (
     <section className="circuit-canvas" aria-label={t('canvas.label')}>
       {locked ? (
         <p className="circuit-canvas__notice">{t('canvas.readOnly')}</p>
+      ) : null}
+
+      {undrawn > 0 ? (
+        <p className="circuit-canvas__notice circuit-canvas__notice--capped">
+          {t('canvas.tooManyColumns', {
+            drawn: numbers.format(size.columns),
+            total: numbers.format(columnCount(circuit)),
+            hidden: numbers.format(undrawn),
+          })}
+        </p>
       ) : null}
 
       <div className="circuit-canvas__viewport">
@@ -291,6 +320,38 @@ export function CircuitCanvas({
             aria-hidden="true"
             focusable="false"
           >
+            {/*
+             * Behind the wires and the gates: the playhead says *when*, and
+             * covering up the *what* to say it would be a poor trade. It is
+             * drawn as two marks rather than one — a band over the column that
+             * has just run, and a line at the cut the state was read at — so
+             * the position survives a monochrome screen and a reader who
+             * cannot separate the tint from the panel (§10: colour is never
+             * the only carrier). The reading in words lives on the scrubber
+             * itself, which is the accessible half of this pair; the plot is
+             * `aria-hidden` and states nothing.
+             */}
+            {playhead === undefined ? null : (
+              <g className="circuit-canvas__playhead">
+                {playhead < 0 ? null : (
+                  <rect
+                    className="circuit-canvas__moment"
+                    x={cellBounds({ qubit: 0, column: playhead }, metrics).x}
+                    y={0}
+                    width={metrics.columnWidth}
+                    height={height}
+                  />
+                )}
+                <line
+                  className="circuit-canvas__cut"
+                  x1={columnEdgeX(playhead, metrics)}
+                  y1={0}
+                  x2={columnEdgeX(playhead, metrics)}
+                  y2={height}
+                />
+              </g>
+            )}
+
             <g className="qsim-wires">
               {range(circuit.qubits).map((qubit) => (
                 <QubitWire

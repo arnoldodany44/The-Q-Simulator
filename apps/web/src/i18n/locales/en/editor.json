@@ -10,6 +10,7 @@
     "contents": "Circuit contents, wire by wire and moment by moment.",
     "summary": "Qubits: {{qubits}}. Columns: {{columns}}. Operations: {{gates}}.",
     "readOnly": "Read-only on small screens. Scroll to explore the circuit.",
+    "tooManyColumns": "This circuit reaches column {{total}}, and the canvas draws the first {{drawn}}. The {{hidden}} columns past that are in the document and in the simulation, but not in the drawing.",
     "wireHeader": "Wire",
     "column": "Column {{index}}",
     "classicalRegister_one": "classical register, {{count}} bit",
@@ -36,6 +37,51 @@
   "register": {
     "addBit": "Add a classical bit",
     "removeBit": "Remove the last classical bit"
+  },
+  "presets": {
+    "heading": "Examples",
+    "hint": "Each one replaces the circuit below.",
+    "loaded": "Example loaded:",
+    "superposition": {
+      "name": "Superposition",
+      "summary": "Two wires in superposition: four outcomes, all equally likely."
+    },
+    "bell": {
+      "summary": "Two qubits entangled. Neither has a state of its own any more — only the pair does."
+    },
+    "ghz": {
+      "summary": "The same entanglement across three qubits: all zeros or all ones, never anything in between."
+    },
+    "interference": {
+      "name": "Interference",
+      "summary": "One qubit, two paths. The phase decides whether they add up or cancel out."
+    },
+    "deutschJozsa": {
+      "summary": "One run answers a question a classical procedure needs two evaluations for."
+    },
+    "teleportation": {
+      "name": "Teleportation",
+      "summary": "A state moves to another qubit, carried by entanglement and two classical bits."
+    }
+  },
+  "share": {
+    "heading": "Share",
+    "hint": "The whole circuit travels inside the link. Nothing is stored on a server.",
+    "field": "Link to this circuit",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "failed": "The link could not be copied. Select the field and copy it yourself.",
+    "tooLarge": "This circuit is too large to fit in a link.",
+    "dismiss": "Dismiss",
+    "rejected": {
+      "empty": "That link carries no circuit.",
+      "too-long": "The circuit in that link is longer than this editor will read.",
+      "not-base64": "That link was damaged on the way here: part of it is missing or was rewritten.",
+      "not-deflate": "That link is damaged and could not be unpacked.",
+      "too-large": "The circuit in that link is far larger than this editor can open.",
+      "not-json": "That link unpacked to something that is not a circuit.",
+      "not-a-circuit": "The circuit in that link does not match the format this editor understands."
+    }
   },
   "toolbar": {
     "label": "Circuit actions",
@@ -87,6 +133,24 @@
     "field": "Angle in radians",
     "symbolic": "Driven by the circuit parameter"
   },
+  "timeline": {
+    "heading": "Timeline",
+    "hint": "The bar holds the circuit at one instant, and the panel below describes the state there. The arrow keys step one column, Home and End jump to either end, and Space plays.",
+    "position": "Instant",
+    "play": "Play",
+    "pause": "Pause",
+    "at": {
+      "start": "Before the first column",
+      "column": "After column {{column}}",
+      "end": "End of the circuit"
+    },
+    "speed": {
+      "label": "Speed",
+      "slow": "Slow",
+      "normal": "Normal",
+      "fast": "Fast"
+    }
+  },
   "dnd": {
     "instructions": "Press Space to pick the gate up, the arrow keys to move it one cell at a time, Space again to drop it, and Escape to cancel.",
     "start": "Gate picked up.",
@@ -117,7 +181,9 @@
     "undo": "Undo",
     "redo": "Redo",
     "copy": "Copy the selection",
-    "paste": "Paste at the cursor"
+    "paste": "Paste at the cursor",
+    "timelineStep": "Move the timeline bar one column, or to either end",
+    "timelinePlay": "Play or pause the timeline, with the bar focused"
   },
   "rejection": {
     "shape": "That file does not match the circuit format.",

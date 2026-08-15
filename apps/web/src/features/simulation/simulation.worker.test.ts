@@ -45,6 +45,8 @@ function malformed(id: number): SimulationRequest {
     circuit: bell(),
     fromColumn: 0,
     sharedMemory: false,
+    throughColumn: null,
+    sample: null,
   })
 }
 

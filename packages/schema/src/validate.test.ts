@@ -438,6 +438,54 @@ describe('custom gates', () => {
     const cycle = issues.find((issue) => issue.code === 'custom-gate-cycle')
     expect(cycle?.message).toContain('a → b → a')
   })
+
+  /*
+   * The two hazards a plain object brings to a lookup keyed by untrusted text.
+   * Both were reachable from a `?c=` link.
+   */
+  it.each([
+    'toString',
+    'constructor',
+    'valueOf',
+    'hasOwnProperty',
+    'isPrototypeOf',
+    '__defineGetter__',
+    '__proto__',
+  ])('reports "%s" as an unknown gate, not as an inherited one', (name) => {
+    const issue = onlyProblem(
+      circuit({
+        operations: [{ id: 'op_1', gate: name, targets: [0], column: 0 }],
+      })
+    )
+    expect(issue.code).toBe('unknown-gate')
+    expect(issue.message).toContain('neither in the gate catalog')
+    // The shape of the defect this pins: an inherited member resolved as a
+    // gate and its arity was compared against `undefined`.
+    expect(issue.message).not.toContain('undefined')
+  })
+
+  it('refuses a definition the record parser cannot carry', () => {
+    // `__proto__` matches `IdentifierSchema`, and `z.record` writes onto an
+    // object literal — so this entry used to disappear and the circuit was
+    // accepted with `customGates: {}`, silently discarding part of an
+    // untrusted document.
+    const declared = Object.create(null) as Record<string, unknown>
+    declared['__proto__'] = { polluted: true }
+    const issue = onlyProblem(circuit({ customGates: declared }))
+    expect(issue.code).toBe('shape')
+    expect(issue.message).toContain('__proto__')
+    // And nothing was written to the prototype on the way through.
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined()
+  })
+
+  it('refuses it even when the definition itself is well formed', () => {
+    const declared = Object.create(null) as Record<string, unknown>
+    declared['__proto__'] = bellPair
+    declared['fine'] = bellPair
+    const issue = onlyProblem(circuit({ customGates: declared }))
+    expect(issue.code).toBe('shape')
+    expect(issue.message).toContain('__proto__')
+  })
 })
 
 describe('reporting', () => {

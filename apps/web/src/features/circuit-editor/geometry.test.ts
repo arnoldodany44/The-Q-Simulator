@@ -3,12 +3,15 @@ import { describe, expect, it } from 'vitest'
 
 import {
   DEFAULT_METRICS,
+  MAX_DRAWN_COLUMNS,
   MIN_COLUMNS,
   cellBounds,
   cellCenter,
   classicalY,
   columnCount,
+  columnEdgeX,
   columnX,
+  editableColumns,
   gateBounds,
   gridSizeOf,
   nearestCell,
@@ -16,6 +19,7 @@ import {
   plotWidth,
   pointToCell,
   qubitY,
+  undrawnColumns,
   type GridMetrics,
   type GridSize,
 } from './geometry'
@@ -233,6 +237,30 @@ describe('gateBounds', () => {
   })
 })
 
+describe('column edges — the timeline playhead (M0.8)', () => {
+  it('lands exactly on the boundary between two cells', () => {
+    // A scrub position is a cut rather than a column, so the line has to fall
+    // on the seam the cells already tile the plot with. A pixel either side
+    // and the playhead sits inside a gate it has nothing to do with.
+    for (let column = 0; column < 8; column++) {
+      const bounds = cellBounds({ qubit: 0, column })
+      expect(columnEdgeX(column)).toBe(bounds.x + bounds.width)
+      expect(columnEdgeX(column - 1)).toBe(bounds.x)
+    }
+  })
+
+  it('places the cut before column 0 at the start of the plot', () => {
+    // The position playback starts from — the state before anything has run —
+    // and an ordinary value here rather than a special case.
+    expect(columnEdgeX(-1)).toBe(DEFAULT_METRICS.padX)
+  })
+
+  it('follows the metrics it is given', () => {
+    const metrics: GridMetrics = { ...DEFAULT_METRICS, columnWidth: 80 }
+    expect(columnEdgeX(2, metrics)).toBe(DEFAULT_METRICS.padX + 240)
+  })
+})
+
 describe('grid size from a circuit', () => {
   function circuitWithColumns(columns: readonly number[]): Circuit {
     return {
@@ -266,5 +294,46 @@ describe('grid size from a circuit', () => {
     const size = gridSizeOf(emptyCircuit(4, 2))
     expect(size.qubits).toBe(4)
     expect(size.clbits).toBe(2)
+  })
+
+  /*
+   * The grid overlay is one DOM element per (qubit, column), so its size is a
+   * product — and only one of the two factors was ever bounded. `MAX_COLUMNS`
+   * lets a document name column 4095, `columnCount` reports 4096 whether or
+   * not anything stands in the 4 095 columns before it, and a forty-two
+   * character `?c=` link therefore asked for eighty thousand droppables in one
+   * synchronous render. The tab never painted again.
+   */
+  describe('the drawn-column ceiling', () => {
+    it('refuses to lay out a column index a link can reach', () => {
+      const far = circuitWithColumns([4095])
+
+      expect(columnCount(far)).toBe(4096)
+      expect(gridSizeOf(far).columns).toBe(MAX_DRAWN_COLUMNS)
+      expect(editableColumns(far)).toBe(MAX_DRAWN_COLUMNS)
+    })
+
+    it('holds even when a caller asks for more', () => {
+      // `CircuitEditor` passes its own column count as `minColumns`, so the
+      // ceiling has to survive the padding as well as the circuit.
+      expect(gridSizeOf(emptyCircuit(3), 9000).columns).toBe(MAX_DRAWN_COLUMNS)
+    })
+
+    it('says how much of the circuit it could not draw', () => {
+      // Nothing may be dropped silently: the canvas prints this number.
+      expect(undrawnColumns(circuitWithColumns([4095]))).toBe(
+        4096 - MAX_DRAWN_COLUMNS
+      )
+      expect(undrawnColumns(circuitWithColumns([0, 30]))).toBe(0)
+    })
+
+    it('leaves every circuit anyone builds by hand untouched', () => {
+      // The cap must not be reachable through the editor's own gestures,
+      // which grow the grid one column per placed gate.
+      const wide = circuitWithColumns([0, 30])
+      expect(gridSizeOf(wide).columns).toBe(31)
+      expect(editableColumns(wide)).toBe(32)
+      expect(editableColumns(emptyCircuit(3))).toBe(MIN_COLUMNS)
+    })
   })
 })

@@ -83,9 +83,44 @@ export function safeParseCircuit(input: unknown): CircuitParseResult {
   if (!shape.success) {
     return { ok: false, issues: shapeIssues(input, shape.error.issues) }
   }
+  const dropped = droppedCustomGates(input, shape.data)
+  if (dropped.length > 0) return { ok: false, issues: dropped }
   const issues = validateCircuit(shape.data)
   if (issues.length > 0) return { ok: false, issues }
   return { ok: true, circuit: shape.data }
+}
+
+/**
+ * Custom gate names the shape parser accepted the document *without*.
+ *
+ * `z.record` builds its result on an ordinary object literal, so a key that
+ * JavaScript will not place there as an own property vanishes between the input
+ * and the parsed circuit — and `__proto__`, the one such key, matches
+ * `IdentifierSchema` perfectly well. The definition goes with it, however
+ * invalid it was, and the document then parses as though the gate had never
+ * been declared. That is a silent partial discard of untrusted input, which is
+ * the one thing this module exists to prevent: a payload arriving from a URL is
+ * either judged whole or refused, never quietly edited on the way in.
+ *
+ * Comparing the two key sets catches it without naming the key, so a future
+ * parser that swallowed a different one would be caught by the same check.
+ */
+function droppedCustomGates(
+  input: unknown,
+  parsed: Circuit
+): ValidationIssue[] {
+  const declared = readKey(input, 'customGates')
+  if (typeof declared !== 'object' || declared === null) return []
+  const kept = new Set(Object.getOwnPropertyNames(parsed.customGates ?? {}))
+  return Object.getOwnPropertyNames(declared)
+    .filter((name) => !kept.has(name))
+    .map((name) => ({
+      code: 'shape' as const,
+      message:
+        `customGates.${name}: "${name}" cannot be carried as a gate name — ` +
+        `the definition under it was dropped rather than read. Rename the ` +
+        `custom gate.`,
+    }))
 }
 
 /** As `safeParseCircuit`, but throws `CircuitValidationError` on failure. */
@@ -163,7 +198,16 @@ function gateResolver(
   return (gate) => {
     const builtin = lookupGate(gate)
     if (builtin !== undefined) return builtin
-    const custom = customGates[gate]
+    // `Object.hasOwn` rather than a bare read: `customGates` is an ordinary
+    // object and every name on `Object.prototype` is therefore a "gate" it
+    // appears to declare. A circuit using `toString` would resolve to an
+    // inherited function, and the reader would be told its arity did not match
+    // `undefined` instead of that the gate does not exist — a diagnostic
+    // nobody can act on, keyed to a `ValidationCode` the UI is documented to
+    // branch on.
+    const custom = Object.hasOwn(customGates, gate)
+      ? customGates[gate]
+      : undefined
     if (custom === undefined) return undefined
     // A custom gate is applied to exactly its own qubits, with no controls
     // and no parameters. Both are Fase 2 features; until then, rejecting

@@ -153,8 +153,67 @@ export function simulationFact(page: Page, term: string): Locator {
     .locator('dd')
 }
 
+/* ------------------------------------------------------------------ *
+ * The analysis panel (M0.7)
+ * ------------------------------------------------------------------ */
+
+/**
+ * The basis states the histogram is drawing, in the order it draws them.
+ *
+ * Read from the table rather than from the bars: the chart's SVG is
+ * `aria-hidden` and the table is the reading a screen reader gets, so
+ * asserting there proves both renderings at once — they are generated from
+ * one model (`histogram.ts`).
+ */
+export function drawnStates(page: Page): Locator {
+  return page.locator('.histogram__table th[scope="row"]')
+}
+
+/** The rows of the shot-sampling comparison, one per drawn basis state. */
+export function sampledRows(page: Page): Locator {
+  return page.locator('.shot-sampler__grid tbody tr')
+}
+
+/** One cell of a sampled row, by column index: exact, shots, share, gap. */
+export function sampledCell(page: Page, row: number, column: number): Locator {
+  return sampledRows(page).nth(row).locator('td').nth(column)
+}
+
+/* ------------------------------------------------------------------ *
+ * The timeline scrubber (M0.8)
+ * ------------------------------------------------------------------ */
+
+/**
+ * The bar itself. Named rather than found by role alone: the editor carries
+ * three sliders — this one, a gate's angle, and the shot count — and a test
+ * that took the first would drag whichever one happened to be rendered
+ * highest on the page.
+ */
+export function timelineBar(page: Page, name = 'Instant'): Locator {
+  return page.getByRole('slider', { name })
+}
+
+/** The play/pause button, whose accessible name says which one it is now. */
+export function timelinePlay(page: Page): Locator {
+  return page.locator('button.timeline__play')
+}
+
+/** The panel's caption saying the charts describe an intermediate state. */
+export function analysisMoment(page: Page): Locator {
+  return page.locator('p.simulation-panel__moment')
+}
+
+/**
+ * The language switch.
+ *
+ * Scoped by class rather than taken as "the combobox on the page": since M0.8
+ * there are two, the other being the timeline's speed menu, and that is
+ * correct rather than something to work around. Its accessible name is no help
+ * here either — it is the word *Language* in whichever language is on screen,
+ * and the tests that use this helper are the ones changing that.
+ */
 export function languagePicker(page: Page): Locator {
-  return page.getByRole('combobox')
+  return page.locator('.language-picker select')
 }
 
 /* ------------------------------------------------------------------ *

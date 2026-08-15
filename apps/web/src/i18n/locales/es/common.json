@@ -17,5 +17,6 @@
   "nav": {
     "home": "Inicio",
     "editor": "Editor"
-  }
+  },
+  "loading": "Cargando…"
 }

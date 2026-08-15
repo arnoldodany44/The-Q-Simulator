@@ -210,6 +210,23 @@ export interface CircuitState extends CircuitSnapshot {
    * of an operation the user undid would make the redo stack ambiguous.
    */
   readonly nextId: number
+  /**
+   * Which *document* is open, counted up every time a whole one replaces the
+   * one before it — `loadCircuit` and `reset`, never an edit.
+   *
+   * It exists because an edit and a document swap are indistinguishable from
+   * the outside: both hand out a new `circuit` object, and everything reading
+   * the store sees one changed reference either way. Views that are about the
+   * document rather than part of it need to tell them apart. The timeline is
+   * the case that forced it (§3.1's frozen decision 2 keeps the scrub position
+   * across an *edit*, and pairs that with undo restoring the circuit and the
+   * position together — a pairing a preset chip does not have, since it clears
+   * the history), and `/c/:slug` will be the next.
+   *
+   * Deliberately outside `partialize`: undo moves within one document and must
+   * not renumber it.
+   */
+  readonly documentId: number
 
   placeGate(
     gate: string,
@@ -426,6 +443,7 @@ export function createCircuitStore(
           selection: [],
           clipboard: null,
           nextId: 1,
+          documentId: 0,
 
           placeGate: (gate, targets, column, options = {}) => {
             const state = get()
@@ -929,7 +947,12 @@ export function createCircuitStore(
             // the circuit it was editing is gone, and the stacks it snapshot
             // are about to be cleared.
             abandonGesture()
-            set({ circuit: parsed.circuit, selection: [], nextId: 1 })
+            set((state) => ({
+              circuit: parsed.circuit,
+              selection: [],
+              nextId: 1,
+              documentId: state.documentId + 1,
+            }))
             history().clear()
             return accepted()
           },
@@ -937,7 +960,12 @@ export function createCircuitStore(
           /** Back to the document this store was created with. */
           reset: () => {
             abandonGesture()
-            set({ circuit: initialCircuit, selection: [], nextId: 1 })
+            set((state) => ({
+              circuit: initialCircuit,
+              selection: [],
+              nextId: 1,
+              documentId: state.documentId + 1,
+            }))
             history().clear()
           },
 

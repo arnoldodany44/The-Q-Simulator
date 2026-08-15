@@ -8,6 +8,7 @@ import enCommon from '../../i18n/locales/en/common.json'
 import enEditor from '../../i18n/locales/en/editor.json'
 import frEditor from '../../i18n/locales/fr/editor.json'
 import { CircuitCanvas } from './CircuitCanvas'
+import { MAX_DRAWN_COLUMNS, cellBounds, columnEdgeX } from './geometry'
 
 /**
  * These tests read the canvas the way a screen reader does, through the ARIA
@@ -372,6 +373,57 @@ describe('row controls', () => {
   })
 })
 
+describe('the timeline playhead (M0.8)', () => {
+  const cut = (view: ReturnType<typeof draw>): SVGLineElement | null =>
+    view.container.querySelector('.circuit-canvas__cut')
+
+  it('draws nothing at all until the timeline is engaged', () => {
+    // The resting state of the editor. A marker on every session — including
+    // the sessions of everyone who never touches the bar — would be a new
+    // thing on the canvas that means nothing to them.
+    const view = draw(SHOWCASE)
+
+    expect(view.container.querySelector('.circuit-canvas__playhead')).toBeNull()
+  })
+
+  it('marks the column that has just run and the cut it was read at', () => {
+    const view = draw(SHOWCASE, { playhead: 2 })
+    const bounds = cellBounds({ qubit: 0, column: 2 })
+
+    // Two marks, neither of them a hue: §10 forbids colour as the only
+    // carrier, and the SVG is `aria-hidden`, so a reader who cannot separate
+    // the tint from the panel has the line's position and nothing else.
+    const band = view.container.querySelector('.circuit-canvas__moment')
+    expect(band?.getAttribute('x')).toBe(String(bounds.x))
+    expect(band?.getAttribute('width')).toBe(String(bounds.width))
+    expect(cut(view)?.getAttribute('x1')).toBe(String(columnEdgeX(2)))
+  })
+
+  it('draws only the cut before the first column', () => {
+    // The state before anything ran has no column behind it to shade, and
+    // shading column 0 there would claim a gate had run that had not.
+    const view = draw(SHOWCASE, { playhead: -1 })
+
+    expect(view.container.querySelector('.circuit-canvas__moment')).toBeNull()
+    expect(cut(view)?.getAttribute('x1')).toBe(String(columnEdgeX(-1)))
+  })
+
+  it('stays behind the wires and the gates', () => {
+    // It says *when*; covering up the *what* to say it would be a poor trade.
+    const view = draw(SHOWCASE, { playhead: 1 })
+    const plot = view.container.querySelector('.circuit-canvas__plot')
+    const groups = [...(plot?.children ?? [])].map((node) =>
+      node.getAttribute('class')
+    )
+
+    expect(groups).toEqual([
+      'circuit-canvas__playhead',
+      'qsim-wires',
+      'qsim-operations',
+    ])
+  })
+})
+
 describe('scale', () => {
   it('still gives one row per wire at twenty qubits', () => {
     const wide = circuit({
@@ -387,5 +439,57 @@ describe('scale', () => {
     draw(wide)
     expect(screen.getAllByRole('rowheader')).toHaveLength(20)
     expect(screen.getAllByRole('gridcell', { name: 'H' })).toHaveLength(20)
+  })
+})
+
+/**
+ * The grid is one DOM element per (qubit, column), so a document that names a
+ * far column asks for their product. `MAX_COLUMNS` is 4096 and a `?c=` link is
+ * free to use the last one; before the ceiling in `geometry.ts` a forty-two
+ * character link hung the tab for good.
+ */
+describe('a circuit wider than the canvas can draw', () => {
+  const far = circuit({
+    schemaVersion: 1,
+    qubits: 3,
+    operations: [{ id: 'op_1', gate: 'h', targets: [0], column: 4095 }],
+  })
+
+  it('draws a bounded grid instead of one cell per declared column', () => {
+    draw(far)
+
+    // Three wires plus the header row, and the ceiling's worth of cells on
+    // each — not 4 096.
+    const cells = screen.getAllByRole('gridcell')
+    expect(cells).toHaveLength(3 * MAX_DRAWN_COLUMNS)
+  })
+
+  it('says out loud how much of the circuit is missing from the drawing', () => {
+    const { container } = draw(far)
+    const notice = container.querySelector(
+      '.circuit-canvas__notice--capped'
+    )?.textContent
+
+    expect(notice).toBe(
+      enEditor.canvas.tooManyColumns
+        .replace('{{total}}', '4,096')
+        .replace('{{drawn}}', String(MAX_DRAWN_COLUMNS))
+        // 4 096 − 96, grouped the way English groups it.
+        .replace('{{hidden}}', '4,000')
+    )
+  })
+
+  it('says nothing at all about an ordinary circuit', () => {
+    const { container } = draw(
+      circuit({
+        schemaVersion: 1,
+        qubits: 2,
+        operations: [{ id: 'op_1', gate: 'h', targets: [0], column: 3 }],
+      })
+    )
+
+    expect(
+      container.querySelector('.circuit-canvas__notice--capped')
+    ).toBeNull()
   })
 })
