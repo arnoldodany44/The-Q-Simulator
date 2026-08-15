@@ -1,0 +1,29 @@
+{
+  "panel": {
+    "heading": "Simulación",
+    "state": {
+      "idle": "Todavía no se ha simulado nada.",
+      "scheduled": "Esperando a que se detengan las ediciones.",
+      "running": "Simulando…",
+      "ready": "Esto describe el circuito que está en pantalla.",
+      "error": "La simulación no se ejecutó."
+    },
+    "qubits": "Qubits",
+    "support": "Estados de la base con probabilidad distinta de cero",
+    "duration": "Última ejecución",
+    "milliseconds": "{{milliseconds}} ms",
+    "moment": {
+      "start": "El estado antes de que corra la columna 0 — de donde parte el circuito.",
+      "column": "El estado después de la columna {{column}}, no al final del circuito."
+    }
+  },
+  "errors": {
+    "too-many-qubits": "Este circuito tiene {{qubits}} qubits. El navegador simula hasta {{limit}}; más allá, el estado ya no cabe en una pestaña.",
+    "invalid-circuit": "Este circuito no corresponde al formato que espera el simulador.",
+    "measurement-in-analytic-mode": "Este circuito mide antes de terminar, así que no tiene un único estado final. Ejecútalo en modo de muestreo para ver los conteos.",
+    "no-classical-bits": "El muestreo informa del registro clásico, y este circuito no declara ningún bit clásico. Añade primero una medición.",
+    "unsupported-operation": "El simulador todavía no puede ejecutar una de las compuertas de este circuito.",
+    "worker-unavailable": "Este navegador no pudo iniciar el simulador. La simulación corre en un hilo aparte y esta página no consiguió crearlo.",
+    "worker-failed": "El simulador se detuvo de forma inesperada. Edita el circuito para volver a intentarlo."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "panel": {
+    "heading": "Simulation",
+    "state": {
+      "idle": "Nothing has been simulated yet.",
+      "scheduled": "Waiting for your edits to settle.",
+      "running": "Simulating…",
+      "ready": "This describes the circuit on screen.",
+      "error": "The simulation did not run."
+    },
+    "qubits": "Qubits",
+    "support": "Basis states with a non-zero probability",
+    "duration": "Last run",
+    "milliseconds": "{{milliseconds}} ms",
+    "moment": {
+      "start": "The state before column 0 runs — where the circuit starts.",
+      "column": "The state after column {{column}}, not at the end of the circuit."
+    }
+  },
+  "errors": {
+    "too-many-qubits": "This circuit has {{qubits}} qubits. The browser simulates up to {{limit}}; past that the state no longer fits in a tab.",
+    "invalid-circuit": "This circuit does not match the format the simulator expects.",
+    "measurement-in-analytic-mode": "This circuit measures before it ends, so it has no single final state. Run it in sampling mode to see the counts.",
+    "no-classical-bits": "Sampling reports the classical register, and this circuit declares no classical bits. Add a measurement first.",
+    "unsupported-operation": "The simulator cannot run one of the gates in this circuit yet.",
+    "worker-unavailable": "This browser could not start the simulator. Simulation runs on a separate thread, and this page failed to create one.",
+    "worker-failed": "The simulator stopped unexpectedly. Edit the circuit to try again."
+  }
+}

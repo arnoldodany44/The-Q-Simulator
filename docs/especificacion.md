@@ -28,12 +28,12 @@ El diferenciador no es "otro simulador". Es la combinación de tres cosas que no
 
 ## 2. Audiencia y casos de uso
 
-| Persona | Qué busca | Qué le da The Q Simulator |
-|---|---|---|
-| **Estudiante de cuántica** | Entender qué hace realmente una compuerta | Simulación en vivo + visualizaciones + lecciones guiadas |
-| **Desarrollador curioso** | Probar sin instalar nada | Editor en el navegador, cero setup, exportar a Qiskit cuando quiera profundizar |
-| **Docente** | Material para clase | Circuitos públicos con URL, modo presentación, embeds |
-| **Practicante NISQ** | Comparar ideal vs. ruido vs. hardware | Modo ruido y ejecución en IBM Quantum |
+| Persona                    | Qué busca                                 | Qué le da The Q Simulator                                                       |
+| -------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------- |
+| **Estudiante de cuántica** | Entender qué hace realmente una compuerta | Simulación en vivo + visualizaciones + lecciones guiadas                        |
+| **Desarrollador curioso**  | Probar sin instalar nada                  | Editor en el navegador, cero setup, exportar a Qiskit cuando quiera profundizar |
+| **Docente**                | Material para clase                       | Circuitos públicos con URL, modo presentación, embeds                           |
+| **Practicante NISQ**       | Comparar ideal vs. ruido vs. hardware     | Modo ruido y ejecución en IBM Quantum                                           |
 
 El trabajo principal de la página de inicio: **que alguien que nunca ha visto un circuito cuántico entienda, en menos de un minuto, qué es la superposición y qué es el entrelazamiento.**
 
@@ -43,7 +43,7 @@ El trabajo principal de la página de inicio: **que alguien que nunca ha visto u
 
 ### 3.1 Editor de circuitos
 
-- Lienzo con N qubits (1–20 en cliente, hasta 28 en servidor) y columnas de tiempo (*moments*).
+- Lienzo con N qubits (1–20 en cliente, hasta 28 en servidor) y columnas de tiempo (_moments_).
 - Paleta de compuertas arrastrables:
   - **1 qubit**: I, X, Y, Z, H, S, S†, T, T†, √X
   - **Parametrizadas**: Rx(θ), Ry(θ), Rz(θ), P(φ), U(θ, φ, λ) — con slider y campo numérico, y soporte de parámetros simbólicos (`theta`) para barridos.
@@ -56,6 +56,16 @@ El trabajo principal de la página de inicio: **que alguien que nunca ha visto u
 - Undo/redo completo, copiar/pegar de fragmentos, atajos de teclado, drag para reordenar qubits.
 - **Scrubber temporal**: una barra que recorre el circuito columna por columna y muestra el estado intermedio en cada punto. Esta es la función educativa más potente del editor.
 
+**Cómo se comporta el scrubber (decidido en M0.8).** Cuatro decisiones, y las cuatro están escritas aquí porque las cuatro son visibles para quien lo usa (`apps/web/src/features/circuit-editor/timeline.ts` es la autoridad):
+
+1. **Una posición es un corte, no una columna.** El motor responde «el estado una vez que corrieron todas las columnas hasta la _c_» (`stateAfterColumn`), así que lo que la barra señala es el hueco _después_ de una columna. Eso vuelve a `-1` una posición legítima —el estado antes de que corra nada, |0…0⟩— y no un caso borde: es donde arranca la reproducción, y ver la primera H convertir una barra en dos es exactamente la lección. El final del circuito, en cambio, se escribe como ausencia: no hay nada retenido, el panel corre el circuito entero igual que antes de que esta función existiera, y «el estado en la última columna» y «el estado final» quedan siendo la misma cosa escrita de una sola manera, incapaces de discrepar.
+
+2. **Editar con el scrubber puesto no lo reinicia: lo acota.** Reiniciar al final destruiría el único bucle para el que sirve la función —pararse en la columna 3, cambiar la compuerta de la columna 3, ver cambiar el estado—, porque la propia edición que se está estudiando devolvería al lector al final. Conservar la posición sin acotarla falla cuando el circuito se acorta: en un circuito de cuatro columnas, una posición 9 nombra un corte que no existe, y el panel rotularía el estado final como «después de la columna 9». Acotar es conservar con la única corrección que el circuito más corto obliga, y se aplica **al leer**, no al escribir, así que deshacer devuelve el circuito _y_ la posición con él.
+
+3. **La reproducción termina en el final y no da la vuelta**, porque un ciclo es un temporizador corriendo mientras la pestaña esté abierta, y el final de un circuito es un resultado y no una vuelta de pista. Con `prefers-reduced-motion` nada arranca solo: el arranque automático (que las lecciones de la Fase 3 querrán) queda rechazado de plano, mientras que pulsar «reproducir» sigue funcionando — la preferencia habla de lo que se mueve sin permiso, no de lo que se mueve cuando se lo piden.
+
+4. **Espacio reproduce, y solo sobre la barra.** Dentro de la rejilla Espacio ya significa «levantar esta compuerta» (el arrastre por teclado de dnd-kit), y dos significados para una tecla en el mismo subárbol es como un editor termina haciendo dos cosas por pulsación. El aislamiento no es solo convención: el manejador de teclas del editor clasifica cada pulsación por su origen y deja pasar íntegro todo lo que nace dentro de un `input` (`originOf` en `useKeyboardGrid.ts`), que es también lo que mantiene las flechas de la barra fuera del cursor de la rejilla.
+
 ### 3.2 Panel de análisis (en vivo, mientras editas)
 
 - **Histograma de probabilidades** de los estados base, con las barras coloreadas por la fase de la amplitud.
@@ -65,6 +75,23 @@ El trabajo principal de la página de inicio: **que alguien que nunca ha visto u
 - **Métricas de entrelazamiento**: entropía de von Neumann de cada subsistema y concurrencia para pares de qubits.
 - **Matriz de densidad** (modo avanzado): mapa de calor de la parte real e imaginaria.
 - **Muestreo con shots**: histograma de conteos empíricos, configurable de 1 a 100,000 shots, con comparación contra la distribución teórica.
+
+**Cuántas barras dibuja el histograma (decidido en M0.7b).** Veinte qubits son 1 048 576 estados base y ninguna pantalla los muestra. La regla que se implementa —`apps/web/src/features/analysis/histogram.ts` es la autoridad— tiene tres partes, y ninguna esconde nada en silencio:
+
+1. Un estado sin probabilidad no es una barra. El piso es 1e-12 sobre |a|², que es residuo de Float64 y no física; es también lo que hace que un par de Bell sean exactamente dos barras y no dos barras y dos fantasmas.
+2. Se dibujan como máximo **32 estados**, elegidos por probabilidad de mayor a menor. Treinta y dos es una pantalla a la altura de fila del gráfico y es además el espectro completo de un registro de cinco qubits, así que todo circuito lo bastante chico para ser un ejemplo de clase se dibuja entero y el tope solo actúa donde dibujarlo entero nunca fue posible.
+3. **Lo que el tope deja fuera se dibuja igual, agregado**: una última barra con la masa de todo lo no mostrado, y una leyenda visible que dice cuántos estados son y qué fracción de la probabilidad tienen. Un histograma que se guarda la mitad de la distribución sin decirlo es una mentira dibujada.
+
+La selección es por probabilidad, pero **el orden de dibujo es por estado base**, y esa diferencia es deliberada: la interferencia destructiva se ve como una barra que se encoge hasta desaparecer, y si las barras se reordenaran en cada movimiento del slider, el lector vería movimiento en lugar de cancelación.
+
+**La tabla de amplitudes usa ese mismo tope, llamándolo (M0.7c).** `apps/web/src/features/analysis/amplitudes.ts` no reescribe las tres reglas: invoca `buildHistogram` y le agrega lo único que una barra no necesita, la amplitud misma. El gráfico y la tabla quedan uno debajo del otro y el lector los compara, así que una barra sin fila —o una fila sin barra— se leería como un defecto de la física en vez de como dos selecciones que no se pusieron de acuerdo. Compartir la selección las vuelve incapaces de discrepar. La tabla se ordena además por probabilidad a pedido (§3.2), y el orden por estado base sigue siendo el de entrada por la misma razón que en el histograma: una fila que conserva su dirección es una fila que se puede mirar cambiar.
+
+**El control de shots (decidido en M0.7c).** Cuatro decisiones, todas por el mismo motivo educativo:
+
+1. **El muestreo viaja con el estado, en un solo mensaje.** `sampleShots` corre en el worker sobre el estado que esa misma respuesta lleva (`apps/web/src/features/simulation/protocol.ts`). Pedirlo en un segundo viaje habría permitido que una edición cayera entre los dos, y el panel habría dibujado el histograma empírico de un circuito contra la distribución exacta de otro: una discrepancia idéntica al error de muestreo y que no lo es. Cien mil tiros sobre veinte qubits son un barrido de ocho megabytes y dos millones de comparaciones — en el hilo principal, una pestaña congelada.
+2. **Está apagado hasta que alguien lo pide.** Una corrida analítica conoce todas las probabilidades de forma exacta, y el ruido de muestreo que nadie pidió es ruido (§5.3).
+3. **El deslizador es logarítmico**: dieciséis paradas en progresión 1-2-5 por década, de 1 a 100 000. En una escala lineal todo el rango interesante —los primeros cientos de tiros, donde la muestra visiblemente discrepa— ocupa el primer medio por ciento de la barra, y la lección es justamente que el error cae como 1/√N.
+4. **Una pista, dos marcas.** La barra es lo medido y la marca es donde la teoría dice que va; lo que el lector mira es la _distancia_ entre las dos, y esa distancia cerrándose. Dos barras lado a lado convertirían eso en una comparación de largos. Junto a la tabla se imprime el error típico, 1/(2√N), que es la desviación estándar de una frecuencia observada en su valor máximo (p = ½): con eso el lector puede verificar la regla en el siguiente arrastre en vez de adivinarla.
 
 ### 3.3 Modo ruido
 
@@ -166,7 +193,7 @@ Esta es la pieza técnica central. Vale la pena implementarla con cuidado porque
 
 ### 5.1 Representación del estado
 
-Un sistema de *n* qubits vive en un espacio de 2ⁿ dimensiones. El estado es un vector de 2ⁿ amplitudes complejas:
+Un sistema de _n_ qubits vive en un espacio de 2ⁿ dimensiones. El estado es un vector de 2ⁿ amplitudes complejas:
 
 ```
 |ψ⟩ = Σ aᵢ |i⟩,   con Σ |aᵢ|² = 1
@@ -176,19 +203,19 @@ En memoria se guarda como **dos `Float64Array` paralelos** (parte real y parte i
 
 Consumo de memoria: `2ⁿ × 16 bytes`.
 
-| Qubits | Amplitudes | Memoria |
-|---|---|---|
-| 10 | 1,024 | 16 KB |
-| 16 | 65,536 | 1 MB |
-| 20 | 1,048,576 | 16 MB |
-| 24 | 16,777,216 | 256 MB |
-| 28 | 268,435,456 | 4 GB |
+| Qubits | Amplitudes  | Memoria |
+| ------ | ----------- | ------- |
+| 10     | 1,024       | 16 KB   |
+| 16     | 65,536      | 1 MB    |
+| 20     | 1,048,576   | 16 MB   |
+| 24     | 16,777,216  | 256 MB  |
+| 28     | 268,435,456 | 4 GB    |
 
 De ahí salen los límites: ~20 qubits es cómodo en navegador, ~28 es el techo razonable en servidor.
 
 ### 5.2 Aplicación de compuertas (lo importante)
 
-La forma ingenua de aplicar una compuerta a un qubit dentro de un sistema de *n* qubits es construir la matriz completa con productos de Kronecker:
+La forma ingenua de aplicar una compuerta a un qubit dentro de un sistema de _n_ qubits es construir la matriz completa con productos de Kronecker:
 
 ```
 I ⊗ I ⊗ H ⊗ I  →  matriz de 2ⁿ × 2ⁿ
@@ -196,14 +223,14 @@ I ⊗ I ⊗ H ⊗ I  →  matriz de 2ⁿ × 2ⁿ
 
 **No hagas eso.** Esa matriz tiene 4ⁿ entradas y es casi toda ceros. Aplicarla cuesta O(4ⁿ).
 
-El enfoque correcto es actualizar el statevector **en sitio, por pares de índices**. Aplicar una compuerta de 1 qubit al qubit *t* significa recorrer todos los índices donde el bit *t* vale 0, emparejarlos con el índice donde ese bit vale 1, y aplicar la matriz 2×2 a ese par:
+El enfoque correcto es actualizar el statevector **en sitio, por pares de índices**. Aplicar una compuerta de 1 qubit al qubit _t_ significa recorrer todos los índices donde el bit _t_ vale 0, emparejarlos con el índice donde ese bit vale 1, y aplicar la matriz 2×2 a ese par:
 
 ```ts
-const stride = 1 << target;
+const stride = 1 << target
 for (let base = 0; base < size; base += stride << 1) {
   for (let offset = 0; offset < stride; offset++) {
-    const i0 = base + offset;        // bit target = 0
-    const i1 = i0 + stride;          // bit target = 1
+    const i0 = base + offset // bit target = 0
+    const i1 = i0 + stride // bit target = 1
     // [a0', a1'] = M · [a0, a1]
   }
 }
@@ -217,7 +244,7 @@ Para compuertas controladas, la única diferencia es saltar los índices donde e
 
 **Probabilidades**: regla de Born, `P(i) = |aᵢ|²`. Para la probabilidad marginal de un qubit, se suman las probabilidades de todos los estados base donde ese bit vale 1.
 
-**Muestreo de shots**: se construye la distribución acumulada una vez y se muestrea con búsqueda binaria — O(2ⁿ + shots·n). Para volúmenes altos de shots conviene el método *alias* (O(1) por muestra).
+**Muestreo de shots**: se construye la distribución acumulada una vez y se muestrea con búsqueda binaria — O(2ⁿ + shots·n). Para volúmenes altos de shots conviene el método _alias_ (O(1) por muestra).
 
 **Medición a mitad de circuito**: colapsa el estado. Se elige un resultado según la probabilidad, se anulan las amplitudes incompatibles y se renormaliza el vector. Como el resultado es aleatorio, un circuito con medición intermedia **no tiene un único estado final**: para obtener estadísticas hay que correr trayectorias independientes (una por shot). El motor debe distinguir claramente el modo "estado final analítico" del modo "trayectorias muestreadas".
 
@@ -238,7 +265,7 @@ Alternativa más escalable para circuitos grandes: **trayectorias de Monte Carlo
 
 ### 5.5 Vector de Bloch desde la densidad reducida
 
-Para dibujar la esfera de Bloch del qubit *q* en un sistema entrelazado, se calcula la traza parcial sobre los demás qubits para obtener ρ_q (2×2), y de ahí:
+Para dibujar la esfera de Bloch del qubit _q_ en un sistema entrelazado, se calcula la traza parcial sobre los demás qubits para obtener ρ_q (2×2), y de ahí:
 
 ```
 rx = 2·Re(ρ₀₁),  ry = 2·Im(ρ₁₀),  rz = ρ₀₀ − ρ₁₁
@@ -265,40 +292,44 @@ Todo el sistema gira alrededor de un JSON. Debe ser estable, versionado y valida
   "qubits": 3,
   "clbits": 2,
   "qubitLabels": ["alice", "shared", "bob"],
-  "parameters": [
-    { "name": "theta", "value": 0.7853981634 }
-  ],
+  "parameters": [{ "name": "theta", "value": 0.7853981634 }],
   "operations": [
-    { "id": "op_1", "gate": "h",  "targets": [0], "column": 0 },
-    { "id": "op_2", "gate": "cx", "targets": [2], "controls": [1], "column": 1 },
+    { "id": "op_1", "gate": "h", "targets": [0], "column": 0 },
+    {
+      "id": "op_2",
+      "gate": "cx",
+      "targets": [2],
+      "controls": [1],
+      "column": 1,
+    },
     {
       "id": "op_3",
       "gate": "rz",
       "targets": [0],
       "params": ["theta"],
-      "column": 2
+      "column": 2,
     },
     {
       "id": "op_4",
       "gate": "measure",
       "targets": [0],
       "clbitTargets": [0],
-      "column": 3
+      "column": 3,
     },
     {
       "id": "op_5",
       "gate": "x",
       "targets": [2],
       "column": 4,
-      "condition": { "clbit": 0, "equals": 1 }
-    }
+      "condition": { "clbit": 0, "equals": 1 },
+    },
   ],
   "customGates": {
     "bellPair": {
       "qubits": 2,
-      "operations": [ /* ... */ ]
-    }
-  }
+      "operations": [/* ... */],
+    },
+  },
 }
 ```
 
@@ -702,17 +733,25 @@ La estética sale del tema, no de una plantilla. La idea rectora: **la fase es c
 En cuántica, cada amplitud tiene magnitud y fase. La fase es lo que la mayoría de los visualizadores tiran a la basura, y es justamente lo que produce la interferencia. Aquí la paleta funcional se deriva del círculo de fase: el color de una amplitud es su fase, mapeada a matiz.
 
 ```
-hue = fase · 180/π      color = hsl(hue, 85%, 62%)
+hue = fase · 180/π      color = hsl(hue, 85%, 66%)
 ```
 
-De esa fórmula salen los cuatro anclajes:
+Los cuatro anclajes de referencia:
 
-| Fase | Color |
-|---|---|
-| 0 | `#F5445E` |
-| π/2 | `#7BE04A` |
-| π | `#33D6D6` |
-| 3π/2 | `#A24AE0` |
+| Fase | Muestra de esta sección | Derivado de la fórmula |
+| ---- | ----------------------- | ---------------------- |
+| 0    | `#F5445E`               | `#F25F5F`              |
+| π/2  | `#7BE04A`               | `#A8F25F`              |
+| π    | `#33D6D6`               | `#5FF2F2`              |
+| 3π/2 | `#A24AE0`               | `#A85FF2`              |
+
+**Dos correcciones medidas en M0.7a**, ambas escritas aquí para que el documento y el código no se contradigan (`apps/web/src/lib/phase-colour.ts` es la autoridad, y `apps/web/src/verification/design/token-contrast.test.ts` vuelve a derivar cada número en cada corrida):
+
+1. **La luminosidad es 66%, no 62%.** Barriendo el círculo completo en pasos de un cuarto de grado, con 62% el matiz peor (240°, fase 4π/3) da 2.98:1 sobre `--bg-panel` y 2.66:1 sobre `--bg-elevated`, por debajo del 3:1 que la WCAG 2.2 SC 1.4.11 exige. Una barra del histograma califica dos veces: su matiz lleva la fase, y su borde contra el panel es lo que hace legible su altura, o sea la probabilidad. Con 66% el peor matiz mide 4.02:1 sobre `--bg-deep`, 3.65:1 sobre `--bg-panel` y 3.26:1 sobre `--bg-elevated`. Es la misma corrección que ya se hizo con `--wire`: se conservan el matiz y la saturación, se sube la luminosidad hasta que mide, y se escribe por qué. Nótese que la tabla de cuatro anclajes no podía detectar esto: la región que falla está cerca de 240° y ningún anclaje cae ahí.
+
+2. **Las cuatro muestras de arriba estaban ajustadas a mano, no derivadas.** Medidas, son `hsl(351.2, 90%, 61%)`, `hsl(100.4, 71%, 58%)`, `hsl(180.0, 67%, 52%)` y `hsl(275.2, 71%, 58%)`: la misma familia de color, dentro de 11° de matiz, pero con saturación y luminosidad propias. Lo que se implementa es la regla generativa, no la interpolación entre las cuatro: un estado de _n_ qubits tiene 2ⁿ amplitudes y por lo tanto un continuo de fases, no cuatro, y un mapeo que se pegara a las muestras en las fases cardinales haría que la saturación y la luminosidad saltaran alrededor del círculo — dos amplitudes separadas por una centésima de radián se verían con distinto peso visual sin razón física. Una sola saturación y una sola luminosidad para todo el círculo es lo que hace que diferencias iguales de fase se vean iguales.
+
+**El color nunca es el único portador de la fase.** Una rueda de matices es justamente lo que una persona con daltonismo no puede leer, y el círculo de fase pasa un tercio de su arco en esa confusión. El orden de codificación es: primero la **dirección** del fasor (legible sin visión de color, y es lo que hace visible la cancelación de dos fasores opuestos como geometría), después el **ángulo numérico** en radianes y grados, formateado con `Intl.NumberFormat` del idioma activo, y solo entonces el **matiz**, como refuerzo. De ahí se sigue el comportamiento bajo `prefers-reduced-motion`: los fasores dejan de girar pero siguen apuntando, porque la información está en hacia dónde apuntan y la rotación era solo la animación del cambio.
 
 **Paleta de interfaz** (fría, de laboratorio criogénico, para que los colores de fase resalten):
 
@@ -720,17 +759,32 @@ De esa fórmula salen los cuatro anclajes:
 --bg-deep     #0B0E1F
 --bg-panel    #141833
 --bg-elevated #1C2145
---wire        #3A4170
+--wire        #5A65AA
 --text        #E8EAF6
 --text-muted  #8B93C4
 --accent      #5AC8FA
 ```
+
+`--wire` se escribió originalmente como `#3A4170`, pero medido contra la superficie sobre la que siempre se dibuja —`--bg-panel` `#141833`— ese valor da un contraste de 1.80:1, y la WCAG 1.4.11 exige 3:1 para «las partes de los gráficos necesarias para comprender el contenido»: un hilo de qubit no es decoración, es lo que dice qué compuertas comparten un qubit y por dónde corre la línea de tiempo, y el SVG es `aria-hidden`, así que una persona con baja visión que no use lector de pantalla no tiene una segunda representación a la que recurrir. El valor que se envía conserva el mismo matiz (232°) y la misma saturación, aclarado hasta pasar la medición: 3.21:1 sobre `--bg-panel` y 3.53:1 sobre `--bg-deep`. El mismo token dibuja los bordes de las fichas de la paleta y de la barra de herramientas, que son interactivos y deben ese mismo 3:1.
 
 **Tipografía**
 
 - Display: **Space Grotesk** — geométrica con letras ligeramente extrañas, técnica sin ser fría.
 - Cuerpo: **Inter**.
 - Datos y código: **IBM Plex Mono** — un guiño deliberado al linaje de IBM Quantum, y necesaria para alinear tablas de amplitudes.
+
+Se **auto-hospedan** con `@fontsource` (M0.7a), no con un `<link>` a Google Fonts: `pnpm dev` tiene que funcionar sin red, y una página desplegada no debe entregarle a un tercero una petición —y una dirección IP— por cada visitante. Cada familia se declara a mano contra un archivo explícito del subconjunto `latin` en lugar de importar la hoja del paquete, que declara los siete subconjuntos y haría que Vite emitiera todos como assets. Costo enviado, subconjunto latin, woff2:
+
+| Familia                           |   Peso |
+| --------------------------------- | -----: |
+| Inter (variable, 100–900)         | 47.1 K |
+| Space Grotesk (variable, 300–700) | 21.8 K |
+| IBM Plex Mono (estático, 400)     | 14.4 K |
+| **Total** (tres archivos)         | 83.3 K |
+
+Las versiones variables son lo que abarata esto: un archivo cubre todos los pesos, así que un encabezado semibold no cuesta nada extra. IBM Plex Mono no tiene versión variable en fontsource, de modo que un segundo peso ahí serían otros 14.5 K.
+
+**Lo que el subconjunto latin no cubre — y ningún otro subconjunto tampoco:** la notación matemática. `√` (U+221A), `⟩` (U+27E9), `⋮` (U+22EE), `π` y `θ` aparecen en símbolos de compuerta y en la notación de kets, y están ausentes de todos los subconjuntos que Google Fonts publica para estas tres familias — IBM Plex Mono no publica subconjunto griego en absoluto. Esos caracteres vienen del fallback del sistema sin importar cómo subconjuntemos, que es precisamente por qué subconjuntear a latin no cuesta nada: `†` (U+2020, en latin-ext) es el único glifo que un subconjunto más ancho compraría, y comprarlo solo dejaría `S†` alineado mientras `√X` sigue sin estarlo. Relevante para la tabla de amplitudes: el `⟩` de `|01⟩` no será IBM Plex Mono, así que la columna monoespaciada no debe depender de su ancho.
 
 **Elemento firma: los fasores.** Las barras del histograma no son barras planas de un solo color: cada una lleva un pequeño vector rotante que apunta en la dirección de su fase. Cuando mueves el slider de una compuerta Rz, las flechas giran. Cuando dos caminos interfieren destructivamente, ves dos fasores opuestos cancelarse antes de que la barra desaparezca. Esa es la única animación importante de la app, y explica en dos segundos algo que normalmente toma un capítulo.
 
@@ -796,8 +850,8 @@ the-q-simulator/
 
 ```yaml
 packages:
-  - "apps/*"
-  - "packages/*"
+  - 'apps/*'
+  - 'packages/*'
 ```
 
 ### 12.3 Reglas de dependencia entre paquetes
@@ -826,16 +880,16 @@ Vale la pena hacer cumplir esto con `eslint-plugin-boundaries` o con las restric
 
 ### 12.4 Mapa de despliegue
 
-| Servicio | Plataforma | Root directory | Comando de build | Comando de arranque |
-|---|---|---|---|---|
-| Frontend | Vercel | `apps/web` | `pnpm turbo build --filter=web` | (estático) |
-| API | Railway | `apps/api` | `pnpm turbo build --filter=api` | `node dist/server.js` |
-| Worker | Railway | `apps/worker` | `pnpm turbo build --filter=worker` | `node dist/worker.js` |
-| PostgreSQL | Supabase | — | — | — |
-| Redis | Railway (o Upstash) | — | — | — |
-| Auth | Supabase Auth | — | — | — |
-| Almacenamiento (avatares, previews) | Supabase Storage | — | — | — |
-| Observabilidad | Sentry + pino | — | — | — |
+| Servicio                            | Plataforma          | Root directory | Comando de build                   | Comando de arranque   |
+| ----------------------------------- | ------------------- | -------------- | ---------------------------------- | --------------------- |
+| Frontend                            | Vercel              | `apps/web`     | `pnpm turbo build --filter=web`    | (estático)            |
+| API                                 | Railway             | `apps/api`     | `pnpm turbo build --filter=api`    | `node dist/server.js` |
+| Worker                              | Railway             | `apps/worker`  | `pnpm turbo build --filter=worker` | `node dist/worker.js` |
+| PostgreSQL                          | Supabase            | —              | —                                  | —                     |
+| Redis                               | Railway (o Upstash) | —              | —                                  | —                     |
+| Auth                                | Supabase Auth       | —              | —                                  | —                     |
+| Almacenamiento (avatares, previews) | Supabase Storage    | —              | —                                  | —                     |
+| Observabilidad                      | Sentry + pino       | —              | —                                  | —                     |
 
 **Watch paths.** Configura cada servicio para que solo se redespliegue cuando cambian sus rutas relevantes; si no, cada commit rebuildea las tres apps.
 
@@ -982,16 +1036,16 @@ Para el entregable de trabajo, **Fase 0 + Fase 1 ya constituyen una app completa
 
 ## 15. Qué necesitas saber en cada módulo
 
-| Módulo | Teoría requerida |
-|---|---|
-| Statevector y compuertas | Álgebra lineal compleja, producto tensorial, unitariedad, matrices de las compuertas estándar |
-| Kernel de aplicación | Indexación por bits, cómo el bit *t* del índice mapea al qubit *t*, orden endian (documéntalo explícitamente: es la fuente #1 de bugs) |
-| Medición | Regla de Born, colapso, probabilidades marginales, renormalización |
-| Esfera de Bloch | Parametrización (θ, φ), traza parcial, matriz de densidad reducida, fase global vs. relativa |
-| Entrelazamiento | Estados producto vs. entrelazados, entropía de von Neumann, concurrencia |
-| Ruido | Formalismo de operadores de Kraus, canales cuánticos, T1/T2, fidelidad |
-| QASM | Gramática de OpenQASM 3, mapeo a tu representación interna |
-| Hardware | Transpilación, conectividad de qubits, gate set nativo, mitigación de error básica |
+| Módulo                   | Teoría requerida                                                                                                                       |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Statevector y compuertas | Álgebra lineal compleja, producto tensorial, unitariedad, matrices de las compuertas estándar                                          |
+| Kernel de aplicación     | Indexación por bits, cómo el bit _t_ del índice mapea al qubit _t_, orden endian (documéntalo explícitamente: es la fuente #1 de bugs) |
+| Medición                 | Regla de Born, colapso, probabilidades marginales, renormalización                                                                     |
+| Esfera de Bloch          | Parametrización (θ, φ), traza parcial, matriz de densidad reducida, fase global vs. relativa                                           |
+| Entrelazamiento          | Estados producto vs. entrelazados, entropía de von Neumann, concurrencia                                                               |
+| Ruido                    | Formalismo de operadores de Kraus, canales cuánticos, T1/T2, fidelidad                                                                 |
+| QASM                     | Gramática de OpenQASM 3, mapeo a tu representación interna                                                                             |
+| Hardware                 | Transpilación, conectividad de qubits, gate set nativo, mitigación de error básica                                                     |
 
 El orden en que los necesitas coincide con el orden de las fases, así que el proyecto te va enseñando en secuencia.
 

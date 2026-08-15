@@ -1,0 +1,51 @@
+name: E2E
+
+# Deliberately not part of the pull-request gate. `ci.yml` is the fast one —
+# lint, typecheck, unit tests, build — and it has to stay fast enough that
+# nobody is tempted to merge past it. This job downloads a browser and drives
+# a real editor, which is minutes rather than seconds, so it runs on the
+# branch that matters and on demand.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Circuit editor (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `--with-deps` installs the system libraries the browser needs on a
+      # bare runner; without them Chromium is downloaded and then fails to
+      # start, which reads as a test failure and is not one.
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      # Vite is started by the config's `webServer`, so there is nothing to
+      # launch here and nothing left running afterwards.
+      - name: Run the end-to-end suite
+        run: pnpm --filter web test:e2e
+
+      - name: Upload the report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7

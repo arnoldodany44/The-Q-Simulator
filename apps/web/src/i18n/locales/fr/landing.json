@@ -1,0 +1,68 @@
+{
+  "tagline": "Un laboratoire de circuits quantiques dans votre navigateur",
+  "lead": "Deux qubits et deux portes suffisent à montrer les deux idées sur lesquelles repose tout le reste. Le circuit ci-dessous n'en est pas une image : il s'exécute dans cet onglet, étape par étape.",
+  "cta": {
+    "editor": "Ouvrir l'éditeur",
+    "examples": "Partir d'un exemple",
+    "note": "L'éditeur s'ouvre avec six circuits d'exemple à côté, prêts à être exécutés et démontés."
+  },
+  "demo": {
+    "heading": "Deux portes : superposition et intrication",
+    "intro": "Chaque étape est un circuit qui s'exécute au moment où il s'affiche. Le graphique énumère tous les résultats que la paire peut donner, et à quelle fréquence.",
+    "chart": {
+      "heading": "Les résultats, et à quelle fréquence",
+      "caption": "Toutes les lectures que les deux fils peuvent donner. Une barre sans longueur est un résultat qui n'arrive jamais."
+    },
+    "play": "Lire",
+    "pause": "Pause",
+    "steps": "Étapes de la démonstration",
+    "stages": {
+      "zero": {
+        "name": "Rien encore",
+        "circuit": "Deux qubits, {{q0}} et {{q1}}, sans aucune porte.",
+        "story": "Mesurez-les maintenant et les deux donnent 0, à chaque fois. Un résultat, une barre, rien d'autre sur le graphique. Une paire de bits ordinaires en resterait là."
+      },
+      "superposed": {
+        "name": "Une porte",
+        "circuit": "{{h}} sur {{q0}} : la porte qui met un qubit en superposition.",
+        "story": "Une barre en est devenue deux. {{q0}} donne 0 une fois sur deux et 1 une fois sur deux, et ce n'est pas une pièce dont vous ignoreriez encore la valeur : les deux résultats sont bel et bien là, et la porte suivante agit sur les deux à la fois. Voilà la superposition."
+      },
+      "independent": {
+        "name": "Deux pièces",
+        "circuit": "La même {{h}}, sur {{q1}} également.",
+        "story": "Quatre barres, un quart chacune. Les deux qubits sont en superposition et aucun ne dit rien de l'autre : apprendre que {{q0}} a donné 1 laisse {{q1}} aussi indécis qu'avant. Deux pièces indépendantes."
+      },
+      "entangled": {
+        "name": "Une paire",
+        "circuit": "{{h}} sur {{q0}}, puis {{cnot}} : elle inverse {{q1}} chaque fois que {{q0}} vaut 1.",
+        "story": "Chaque qubit donne encore 1 une fois sur deux : les deux valeurs ci-dessous n'ont pas bougé. Mais deux des quatre résultats ont disparu, et la paire s'accorde désormais toujours. Aucun des deux qubits n'a plus de réponse propre ; seule la paire en a une. Voilà l'intrication."
+      }
+    },
+    "reading": {
+      "outcomes": "Résultats possibles",
+      "marginal": "{{wire}} donne 1",
+      "agreement": "Les deux s'accordent",
+      "before": "avant : {{value}}"
+    },
+    "notation": {
+      "before": "Chaque barre est une lecture des deux fils, notée",
+      "after": "— le fil du bas à gauche, le fil du haut à droite."
+    }
+  },
+  "notes": {
+    "heading": "Comment cela fonctionne",
+    "local": {
+      "title": "Dans cet onglet",
+      "body": "La simulation tourne dans votre navigateur, sur un fil séparé. Il n'y a pas de compte, et rien de ce que vous construisez n'est envoyé nulle part."
+    },
+    "link": {
+      "title": "Le lien tient lieu de fichier",
+      "body": "Le circuit entier voyage dans l'adresse. Copiez-la, envoyez-la, et la personne qui l'ouvre voit exactement ce que vous avez dessiné."
+    },
+    "state": {
+      "title": "L'état, pas seulement le résultat",
+      "body": "Amplitude, phase et probabilité de chaque état de base, recalculées pendant que vous éditez, avec une chronologie qui parcourt le circuit colonne par colonne."
+    }
+  },
+  "closing": "Tout ce qui précède se construit avec quelques portes glissées dans l'éditeur."
+}

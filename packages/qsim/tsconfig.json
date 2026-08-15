@@ -1,0 +1,26 @@
+{
+  "extends": "@qsim/config/tsconfig/lib.json",
+  "compilerOptions": {
+    /*
+     * Deliberately relaxed for this package only, and only for this package.
+     *
+     * The gate-application kernel indexes Float64Array in tight loops where
+     * every index is provably in range by construction. Under
+     * noUncheckedIndexedAccess every one of those reads becomes
+     * `number | undefined` and the only remedy is a non-null assertion on
+     * each line — which adds noise without adding safety, and makes the
+     * hot loops harder to read. Correctness here is guaranteed by the test
+     * suite (analytic states, unitarity, norm preservation), not by the
+     * index checker.
+     *
+     * The relaxation is contained: consumers resolve `@qsim/core` to the
+     * declarations emitted by tsconfig.build.json, so they never compile
+     * these sources under their own compiler options and keep the check on
+     * for their own code. Repointing the `types` condition in package.json
+     * back at `./src/index.ts` would silently spread this line to every
+     * consumer — see tsconfig.build.json before touching it.
+     */
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*", "vitest.config.ts", "vitest.perf.config.ts"]
+}

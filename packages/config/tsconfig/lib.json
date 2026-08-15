@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Shared library",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    /*
+     * No ambient type packages. This is how "shared packages never touch
+     * Node APIs" (specification §12.3) becomes a compile error rather than
+     * a code review note: `process`, `Buffer` and `__dirname` are simply
+     * not in scope here.
+     */
+    "types": []
+  }
+}

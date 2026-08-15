@@ -1,0 +1,29 @@
+{
+  "panel": {
+    "heading": "Simulation",
+    "state": {
+      "idle": "Rien n'a encore été simulé.",
+      "scheduled": "En attente de la fin de vos modifications.",
+      "running": "Simulation en cours…",
+      "ready": "Ceci décrit le circuit affiché.",
+      "error": "La simulation n'a pas été exécutée."
+    },
+    "qubits": "Qubits",
+    "support": "États de base de probabilité non nulle",
+    "duration": "Dernière exécution",
+    "milliseconds": "{{milliseconds}} ms",
+    "moment": {
+      "start": "L'état avant l'exécution de la colonne 0 — le point de départ du circuit.",
+      "column": "L'état après la colonne {{column}}, et non à la fin du circuit."
+    }
+  },
+  "errors": {
+    "too-many-qubits": "Ce circuit compte {{qubits}} qubits. Le navigateur en simule jusqu'à {{limit}} ; au-delà, l'état ne tient plus dans un onglet.",
+    "invalid-circuit": "Ce circuit ne correspond pas au format attendu par le simulateur.",
+    "measurement-in-analytic-mode": "Ce circuit mesure avant de se terminer : il n'a donc pas d'état final unique. Exécutez-le en mode échantillonnage pour obtenir les décomptes.",
+    "no-classical-bits": "L'échantillonnage rend compte du registre classique, et ce circuit ne déclare aucun bit classique. Ajoutez d'abord une mesure.",
+    "unsupported-operation": "Le simulateur ne sait pas encore exécuter l'une des portes de ce circuit.",
+    "worker-unavailable": "Ce navigateur n'a pas pu démarrer le simulateur. La simulation s'exécute sur un fil séparé, que cette page n'a pas réussi à créer.",
+    "worker-failed": "Le simulateur s'est arrêté de façon inattendue. Modifiez le circuit pour réessayer."
+  }
+}

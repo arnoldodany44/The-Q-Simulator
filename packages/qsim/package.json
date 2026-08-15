@@ -1,0 +1,30 @@
+{
+  "name": "@qsim/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Quantum circuit simulation engine — zero dependencies, runs in both a Web Worker and Node",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:perf": "vitest run --config vitest.perf.config.ts"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "eslint": "catalog:",
+    "fast-check": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "histogram": {
+    "heading": "Probabilité par état de base",
+    "caption": {
+      "complete_one": "{{occupied}} état de base sur {{total}} a une probabilité non nulle, et il est tracé.",
+      "complete_other": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle, et ils sont tous tracés.",
+      "capped_one": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle. Les {{shown}} plus probables sont tracés un par un ; le seul autre totalise {{share}} et occupe la dernière barre.",
+      "capped_other": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle. Les {{shown}} plus probables sont tracés un par un ; les {{hidden}} autres totalisent {{share}} à eux tous et se partagent la dernière barre."
+    },
+    "empty": "Aucun état de base ne porte de probabilité.",
+    "phasorNote": "Chaque flèche pointe dans la direction de la phase de son amplitude, et sa couleur est ce même angle. Deux flèches opposées, ce sont deux chemins qui s'annulent.",
+    "table": {
+      "caption": "Les mêmes barres en texte : état de base, probabilité et phase.",
+      "state": "État de base",
+      "probability": "Probabilité",
+      "phase": "Phase",
+      "remainder_one": "Le seul autre état de base",
+      "remainder_other": "Les {{hidden}} autres états de base, réunis",
+      "mixedPhase": "Plusieurs phases"
+    }
+  },
+  "amplitudes": {
+    "heading": "Amplitudes",
+    "caption": {
+      "complete_one": "{{occupied}} état de base sur {{total}} a une probabilité non nulle, et il est listé.",
+      "complete_other": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle, et ils sont tous listés.",
+      "capped_one": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle. Les {{shown}} plus probables sont listés un par un ; le seul autre totalise {{share}}.",
+      "capped_other": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle. Les {{shown}} plus probables sont listés un par un ; les {{hidden}} autres totalisent {{share}} à eux tous."
+    },
+    "empty": "Aucun état de base ne porte d'amplitude.",
+    "columns": {
+      "state": "État de base",
+      "amplitude": "Amplitude",
+      "magnitude": "Module",
+      "probability": "Probabilité",
+      "radians": "Phase (rad)",
+      "degrees": "Phase (°)"
+    },
+    "table": {
+      "caption": "Une ligne par état de base : amplitude, module, probabilité et phase. Les colonnes état de base et probabilité sont triables.",
+      "remainder_one": "Le seul autre état de base",
+      "remainder_other": "Les {{hidden}} autres états de base, réunis",
+      "noAmplitude": "Pas d'amplitude unique",
+      "mixedPhase": "Plusieurs phases"
+    }
+  },
+  "counts": {
+    "heading": "Comptages mesurés",
+    "intro_one": "Ce circuit mesure avant de se terminer : il n'a donc pas d'état final unique. Il a été exécuté {{shots}} fois, et le registre classique a toujours lu la même valeur.",
+    "intro_other": "Ce circuit mesure avant de se terminer : il n'a donc pas d'état final unique. Il a été exécuté {{shots}} fois, et le registre classique a lu {{readings}} valeurs différentes.",
+    "empty": "Aucune exécution n'a produit de lecture.",
+    "table": {
+      "caption": "Une ligne par lecture du registre classique : combien d'exécutions l'ont produite, et quelle part du total cela représente.",
+      "reading": "Registre",
+      "runs": "Exécutions",
+      "share": "Part",
+      "remainder_one": "La seule autre lecture",
+      "remainder_other": "Les {{hidden}} autres lectures, ensemble"
+    }
+  },
+  "sampling": {
+    "heading": "Échantillonnage par shots",
+    "intro": "Un simulateur connaît toutes les probabilités de façon exacte. Une vraie machine, elle, est exécutée un certain nombre de fois et compte ce qu'elle lit. Tirez des shots de cet état pour voir la différence.",
+    "enable": "Comparer un échantillon avec la distribution exacte",
+    "shots": "Shots",
+    "resample": "Tirer à nouveau",
+    "waiting": "Tirage de l'échantillon…",
+    "summary_one": "{{shots}} shot. Le plus grand écart entre l'échantillon et la distribution exacte est de {{gap}} ; avec ce nombre de shots, un écart d'environ {{typical}} est ce qu'il faut attendre. Multipliez les shots par cent et l'écart est divisé par dix.",
+    "summary_other": "{{shots}} shots. Le plus grand écart entre l'échantillon et la distribution exacte est de {{gap}} ; avec ce nombre de shots, un écart d'environ {{typical}} est ce qu'il faut attendre. Multipliez les shots par cent et l'écart est divisé par dix.",
+    "table": {
+      "caption": "Une ligne par état de base : la probabilité exacte, combien de shots y sont tombés, la proportion que cela représente et l'écart entre les deux.",
+      "state": "État de base",
+      "exact": "Exacte",
+      "count": "Shots",
+      "observed": "Échantillonnée",
+      "difference": "Écart",
+      "remainder_one": "Le seul autre état de base",
+      "remainder_other": "Les {{hidden}} autres états de base, réunis"
+    }
+  }
+}

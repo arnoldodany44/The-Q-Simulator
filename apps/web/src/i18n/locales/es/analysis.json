@@ -1,0 +1,81 @@
+{
+  "histogram": {
+    "heading": "Probabilidad por estado de la base",
+    "caption": {
+      "complete_one": "{{occupied}} de {{total}} estados de la base tiene probabilidad distinta de cero, y se dibuja.",
+      "complete_other": "{{occupied}} de {{total}} estados de la base tienen probabilidad distinta de cero, y se dibujan todos.",
+      "capped_one": "{{occupied}} de {{total}} estados de la base tienen probabilidad distinta de cero. Se dibujan uno a uno los {{shown}} más probables; el otro suma {{share}} y ocupa la última barra.",
+      "capped_other": "{{occupied}} de {{total}} estados de la base tienen probabilidad distinta de cero. Se dibujan uno a uno los {{shown}} más probables; los otros {{hidden}} suman {{share}} entre todos y comparten la última barra."
+    },
+    "empty": "Ningún estado de la base tiene probabilidad.",
+    "phasorNote": "Cada flecha apunta en la dirección de la fase de su amplitud, y su color es ese mismo ángulo. Dos flechas opuestas son dos caminos que se cancelan.",
+    "table": {
+      "caption": "Las mismas barras en texto: estado de la base, probabilidad y fase.",
+      "state": "Estado de la base",
+      "probability": "Probabilidad",
+      "phase": "Fase",
+      "remainder_one": "El otro estado de la base, por sí solo",
+      "remainder_other": "Los otros {{hidden}} estados de la base, juntos",
+      "mixedPhase": "Varias fases"
+    }
+  },
+  "amplitudes": {
+    "heading": "Amplitudes",
+    "caption": {
+      "complete_one": "{{occupied}} de {{total}} estados de la base tiene probabilidad distinta de cero, y se lista.",
+      "complete_other": "{{occupied}} de {{total}} estados de la base tienen probabilidad distinta de cero, y se listan todos.",
+      "capped_one": "{{occupied}} de {{total}} estados de la base tienen probabilidad distinta de cero. Se listan uno a uno los {{shown}} más probables; el otro suma {{share}}.",
+      "capped_other": "{{occupied}} de {{total}} estados de la base tienen probabilidad distinta de cero. Se listan uno a uno los {{shown}} más probables; los otros {{hidden}} suman {{share}} entre todos."
+    },
+    "empty": "Ningún estado de la base tiene amplitud.",
+    "columns": {
+      "state": "Estado de la base",
+      "amplitude": "Amplitud",
+      "magnitude": "Magnitud",
+      "probability": "Probabilidad",
+      "radians": "Fase (rad)",
+      "degrees": "Fase (°)"
+    },
+    "table": {
+      "caption": "Una fila por estado de la base: amplitud, magnitud, probabilidad y fase. Las columnas de estado de la base y de probabilidad se pueden ordenar.",
+      "remainder_one": "El otro estado de la base, por sí solo",
+      "remainder_other": "Los otros {{hidden}} estados de la base, juntos",
+      "noAmplitude": "Sin una amplitud única",
+      "mixedPhase": "Varias fases"
+    }
+  },
+  "counts": {
+    "heading": "Conteos medidos",
+    "intro_one": "Este circuito mide antes de terminar, así que no tiene un único estado final. Se ejecutó {{shots}} veces y el registro clásico leyó siempre el mismo valor.",
+    "intro_other": "Este circuito mide antes de terminar, así que no tiene un único estado final. Se ejecutó {{shots}} veces y el registro clásico leyó {{readings}} valores distintos.",
+    "empty": "Ninguna ejecución produjo una lectura.",
+    "table": {
+      "caption": "Una fila por cada lectura del registro clásico: cuántas ejecuciones la produjeron y qué proporción del total representa.",
+      "reading": "Registro",
+      "runs": "Ejecuciones",
+      "share": "Proporción",
+      "remainder_one": "La otra lectura, por sí sola",
+      "remainder_other": "Las otras {{hidden}} lecturas, juntas"
+    }
+  },
+  "sampling": {
+    "heading": "Muestreo con shots",
+    "intro": "Un simulador conoce todas las probabilidades de forma exacta. Una máquina real se ejecuta varias veces y cuenta lo que lee. Toma shots de este estado para ver la diferencia.",
+    "enable": "Comparar una muestra con la distribución exacta",
+    "shots": "Shots",
+    "resample": "Muestrear de nuevo",
+    "waiting": "Tomando la muestra…",
+    "summary_one": "{{shots}} shot. La mayor diferencia entre la muestra y la distribución exacta es de {{gap}}; con esta cantidad de shots lo esperable es una diferencia de alrededor de {{typical}}. Multiplica los shots por cien y la diferencia baja a la décima parte.",
+    "summary_other": "{{shots}} shots. La mayor diferencia entre la muestra y la distribución exacta es de {{gap}}; con esta cantidad de shots lo esperable es una diferencia de alrededor de {{typical}}. Multiplica los shots por cien y la diferencia baja a la décima parte.",
+    "table": {
+      "caption": "Una fila por estado de la base: la probabilidad exacta, cuántos shots cayeron ahí, qué proporción es y la diferencia entre ambas.",
+      "state": "Estado de la base",
+      "exact": "Exacta",
+      "count": "Shots",
+      "observed": "Muestreada",
+      "difference": "Diferencia",
+      "remainder_one": "El otro estado de la base, por sí solo",
+      "remainder_other": "Los otros {{hidden}} estados de la base, juntos"
+    }
+  }
+}

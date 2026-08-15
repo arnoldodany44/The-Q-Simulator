@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Base",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /*
+     * Turns every `arr[i]` into `T | undefined`. Catches real bugs in
+     * application code. Deliberately disabled in packages/qsim, where the
+     * simulation kernel indexes typed arrays in tight loops and the check
+     * would only produce non-null assertions — see that package's tsconfig.
+     */
+    "noUncheckedIndexedAccess": true,
+
+    "noEmit": true
+  }
+}
