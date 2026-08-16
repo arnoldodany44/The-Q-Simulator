@@ -73,8 +73,11 @@ ENV HOST=0.0.0.0
 EXPOSE 8080
 
 # Migrations run on release rather than at build time, because the build has no
-# database. `migrate deploy` only rolls forward and never resets, which is what
-# makes it safe to run on every start against the single shared database this
-# project has — and it takes an advisory lock, so two containers starting at
-# once cannot race.
-CMD ["sh", "-c", "pnpm --filter @qsim/db exec prisma migrate deploy && node apps/api/dist/server.js"]
+# database. release.sh explains the ordering and checks DIRECT_URL first, so a
+# missing variable names itself instead of surfacing as a Prisma stack trace
+# from a container that died before the server loaded.
+#
+# chmod here rather than relying on the checked-in mode: git on Windows does
+# not preserve the executable bit, so the file arrives without it.
+RUN chmod +x apps/api/release.sh
+CMD ["./apps/api/release.sh"]
