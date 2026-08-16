@@ -40,6 +40,7 @@ import {
 import {
   boxLabel,
   clbitLabel,
+  paramLabel,
   targetShape,
   touchesRegister,
 } from './operationRoles'
@@ -49,6 +50,17 @@ const NEGATIVE_CONTROL_RADIUS = 6.5
 const PLUS_RADIUS = 11
 const SWAP_ARM = 7
 const METER_RADIUS = 9
+/**
+ * Where the `i` of an iSWAP sits relative to the crossing point: up and to the
+ * right, in the quadrant the two arms leave empty. A mark rather than a colour
+ * or a thicker stroke, so it survives a screenshot, a grayscale printer and a
+ * reader who cannot see the difference between two blues (§10).
+ */
+const ISWAP_MARK_OFFSET = { x: 10, y: -9 } as const
+/** Distance from the centre of a gate box down to its parameter label. */
+const PARAM_LABEL_OFFSET = 24
+/** The mark that says "this crossing is an iSWAP". Notation, so D2 leaves it. */
+const ISWAP_MARK = 'i'
 /** Half the gap between the two strands of a classical link. */
 const CLASSICAL_SPACING = 2.5
 
@@ -142,6 +154,13 @@ export function GateNode({
           y={qubitY(qubit, metrics)}
           shape={shape}
           label={boxLabel(operation.gate, circuit)}
+          /*
+           * The angles, drawn. Without them `Rz(π/2)` and `Rz(0,1235)` are the
+           * same picture — which is a gate a reader cannot identify on the
+           * canvas and two different circuits with identical bytes once the
+           * drawing is exported. See `paramLabel`.
+           */
+          params={paramLabel(operation)}
           cell={{ qubit, column: operation.column }}
           metrics={metrics}
         />
@@ -176,6 +195,7 @@ function TargetGlyph({
   y,
   shape,
   label,
+  params,
   cell,
   metrics,
 }: {
@@ -183,6 +203,8 @@ function TargetGlyph({
   y: number
   shape: ReturnType<typeof targetShape>
   label: string
+  /** The angles under the box, already formatted. `''` for a gate with none. */
+  params: string
   cell: { qubit: number; column: number }
   metrics: GridMetrics
 }) {
@@ -208,7 +230,7 @@ function TargetGlyph({
     )
   }
 
-  if (shape === 'cross') {
+  if (shape === 'cross' || shape === 'cross-i') {
     return (
       <g className="qsim-target">
         <line
@@ -225,6 +247,20 @@ function TargetGlyph({
           x2={x + SWAP_ARM}
           y2={y - SWAP_ARM}
         />
+        {/*
+         * The one mark that separates an iSWAP from a SWAP. Without it the two
+         * gates drew the same picture — identical strings out of
+         * `circuitToSvg` and identical pixels out of the rasteriser — and they
+         * are not the same unitary.
+         */}
+        {shape === 'cross-i' ? (
+          <NotationText
+            className="qsim-swap__mark"
+            value={ISWAP_MARK}
+            x={x + ISWAP_MARK_OFFSET.x}
+            y={y + ISWAP_MARK_OFFSET.y}
+          />
+        ) : null}
       </g>
     )
   }
@@ -268,6 +304,20 @@ function TargetGlyph({
         rx={4}
       />
       <NotationText className="qsim-box__label" value={label} x={x} y={y} />
+      {/*
+       * Below the box rather than inside it. `gateBounds` clamps a box to the
+       * column width, so `Rz(π/2)` inside one would be clipped at the very
+       * width the grid depends on; beneath it there is a row's worth of space
+       * and the label is the only thing in it.
+       */}
+      {params === '' ? null : (
+        <NotationText
+          className="qsim-box__param"
+          value={params}
+          x={x}
+          y={y + PARAM_LABEL_OFFSET}
+        />
+      )}
     </g>
   )
 }

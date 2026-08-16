@@ -22,6 +22,7 @@
     "@fontsource/ibm-plex-mono": "catalog:",
     "@qsim/contract": "workspace:*",
     "@qsim/core": "workspace:*",
+    "@qsim/qasm": "workspace:*",
     "@qsim/schema": "workspace:*",
     "@supabase/supabase-js": "catalog:",
     "@tanstack/react-query": "catalog:",
@@ -32,6 +33,7 @@
     "react-dom": "catalog:",
     "react-i18next": "catalog:",
     "react-router": "catalog:",
+    "three": "catalog:",
     "zod": "catalog:",
     "zundo": "catalog:",
     "zustand": "catalog:"
@@ -44,6 +46,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@types/three": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "eslint": "catalog:",
     "fast-check": "catalog:",

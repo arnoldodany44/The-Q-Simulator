@@ -44,6 +44,28 @@
       "mixedPhase": "Varias fases"
     }
   },
+  "bloch": {
+    "heading": "Esferas de Bloch",
+    "caption": {
+      "product_one": "El único qubit del registro llega a la superficie de su esfera, así que tiene un estado propio.",
+      "product_other": "Los {{total}} qubits llegan a la superficie de sus esferas, así que ninguno está entrelazado con otro.",
+      "entangled_one": "Un qubit de {{total}} no llega a la superficie. Una flecha acortada es el aspecto que tiene aquí el entrelazamiento.",
+      "entangled_other": "{{shortened}} qubits de {{total}} no llegan a la superficie. Una flecha acortada es el aspecto que tiene aquí el entrelazamiento."
+    },
+    "note": "Cada flecha se dibuja con su longitud real. Un qubit entrelazado con el resto del registro no tiene estado propio, así que su flecha se acorta — y en cada mitad de un par de Bell colapsa al centro de la esfera.",
+    "loading": "Dibujando las esferas…",
+    "unavailable": "Este navegador no pudo abrir una vista 3D, así que las esferas no se dibujan. La tabla de abajo lleva la misma lectura.",
+    "table": {
+      "caption": "Una fila por qubit: las tres componentes de su vector de Bloch, la longitud de ese vector y lo que esa longitud dice del qubit.",
+      "qubit": "Qubit",
+      "reading": "Lectura"
+    },
+    "reading": {
+      "pure": "En la superficie: tiene estado propio",
+      "shortened": "Corta: parcialmente entrelazado",
+      "centre": "En el centro: sin estado propio"
+    }
+  },
   "counts": {
     "heading": "Conteos medidos",
     "intro_one": "Este circuito mide antes de terminar, así que no tiene un único estado final. Se ejecutó {{shots}} veces y el registro clásico leyó siempre el mismo valor.",

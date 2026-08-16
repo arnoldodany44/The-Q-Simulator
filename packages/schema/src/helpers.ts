@@ -87,9 +87,15 @@ export function depth(circuit: Circuit): number {
  * `0, 1, 2, …` in their original order.
  *
  * Editing leaves holes — delete every gate in column 3 and the circuit
- * still claims a column 3. This is what the editor calls after a delete and
- * what the QASM exporter calls before emitting, since QASM has no notion of
- * an empty moment.
+ * still claims a column 3. This is what the editor's document store calls
+ * after a delete (`useCircuitStore.ts`), and it is the only caller.
+ *
+ * The exporters deliberately do *not* call it, which the comment here used to
+ * claim they did. They read the operations through `orderedOperations`, which
+ * sorts by column and is indifferent to gaps — and keeping the original
+ * numbering is what lets the emitted note "in the source document both are in
+ * column N" name the column the reader can see on screen rather than a
+ * renumbered one.
  *
  * Operation order within the array is preserved, because the editor's undo
  * stack and React keys both depend on it.

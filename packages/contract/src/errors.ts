@@ -50,6 +50,15 @@ export const API_ERROR_CODES = [
   'CIRCUIT_TOO_LARGE',
   'VERSION_CONFLICT',
   'USER_EMAIL_ALREADY_LINKED',
+  /*
+   * 409 — the username somebody typed into their settings belongs to another
+   * account. It says exactly what a public profile already says about that
+   * handle and nothing more: reachable only by a signed-in caller changing
+   * their own name, it costs a write, and it never says whose.
+   */
+  'USERNAME_TAKEN',
+  /** 409 — the collection already holds `MAX_COLLECTION_ITEMS` circuits. */
+  'COLLECTION_FULL',
   'RATE_LIMITED',
   // 5xx — us
   'USERNAME_UNAVAILABLE',

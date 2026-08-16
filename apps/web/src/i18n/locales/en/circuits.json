@@ -46,9 +46,9 @@
     "ownershipLost": "This circuit is not yours to add to. You can keep your work as a circuit of your own instead.",
     "status": {
       "anonymous": "Not saved to an account. This circuit travels in the page address, exactly as it did before you signed up — sign in and it can have a home.",
-      "unsaved": "Not saved yet. The circuit is held in this page's address until you save it.",
+      "unsaved": "Not saved yet. The circuit is held in this page’s address until you save it.",
       "clean": "Saved as version {{version}}.",
-      "dirty": "Edited since version {{version}}. The change is held in this page's address until you save it.",
+      "dirty": "Edited since version {{version}}. The change is held in this page’s address until you save it.",
       "uncarried": "Edited since version {{version}}. This circuit is too large to fit in the page address, so the change exists only in this tab — save it before you close the page."
     },
     "title": {
@@ -108,7 +108,7 @@
       "toAccessible": "with version"
     },
     "restore": {
-      "explain": "Restoring saves version {{number}}'s circuit again, as a new version. Version {{number}} stays exactly where it is, and so does everything after it.",
+      "explain": "Restoring saves version {{number}}’s circuit again, as a new version. Version {{number}} stays exactly where it is, and so does everything after it.",
       "submit": "Restore version {{number}}",
       "saving": "Restoring…",
       "cancel": "Leave the history as it is",

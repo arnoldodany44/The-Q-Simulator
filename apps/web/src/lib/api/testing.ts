@@ -16,6 +16,7 @@ import { emptyCircuit } from '@qsim/schema'
 import type {
   CircuitDetail,
   CircuitVersion,
+  CircuitView,
   CircuitWithVersion,
 } from '@qsim/contract'
 
@@ -144,6 +145,21 @@ export const circuitDetailPayload = {
   updatedAt: CREATED_AT,
   owner: { id: 'usr_1', username: 'ada', avatarUrl: null },
   description: null,
+  // Canonical spellings, sorted, exactly as the API sends them (M1.5).
+  tags: [],
+  // The card's thumbnail (M1.5b), as `previewOf` derives it from the Bell
+  // pair this fixture describes. Written out rather than computed so that a
+  // change to the derivation shows up here as a decision rather than as a
+  // fixture that quietly followed it.
+  preview: {
+    qubits: 2,
+    columns: 2,
+    truncated: false,
+    operations: [
+      { gate: 'h', column: 0, targets: [0], controls: [] },
+      { gate: 'cx', column: 1, targets: [1], controls: [0] },
+    ],
+  },
 }
 
 export const versionPayload = {
@@ -159,7 +175,17 @@ export const circuitWithVersionPayload = {
   version: versionPayload,
 }
 
+/**
+ * What `GET /circuits/:id` answers from M1.5b: the same pair plus this
+ * viewer's own star, which rides in the envelope rather than on the circuit.
+ */
+export const circuitViewPayload = {
+  ...circuitWithVersionPayload,
+  starred: false,
+}
+
 /** The same values as this app's types see them, after parsing. */
 export type ParsedDetail = CircuitDetail
 export type ParsedVersion = CircuitVersion
 export type ParsedCircuitWithVersion = CircuitWithVersion
+export type ParsedCircuitView = CircuitView

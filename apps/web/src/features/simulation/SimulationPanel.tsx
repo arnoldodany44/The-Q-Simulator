@@ -9,8 +9,16 @@
  * and the shots control that compares a sample against it. The pipeline
  * wiring has not moved through any of it.
  *
- * WHAT IS STILL MISSING, and deliberately: the Bloch spheres, the Q-sphere
- * and the entanglement metrics. They are separate slices of §3.2 and they
+ * M1.6 added the Bloch spheres, and they cost this file four lines: they hang
+ * off the same `outcome` every other chart does. Two things about them are
+ * worth knowing from here, and both are argued where they live. They are the
+ * only part of the panel that can *fail* — WebGL may be refused or taken away
+ * — and they degrade to their own numbers rather than to a hole. And they are
+ * the only part that loads code on demand: three.js is in a chunk of its own
+ * (§9), so this panel is on screen and answering before it arrives.
+ *
+ * WHAT IS STILL MISSING, and deliberately: the Q-sphere, the entanglement
+ * metrics and the density heat map. They are separate slices of §3.2 and they
  * hang off the same `outcome`; nothing here has to move to admit them.
  *
  * THE MODE IS READ OFF THE CIRCUIT (M0.9). A circuit that measures before it
@@ -69,6 +77,7 @@ import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AmplitudeTable } from '../analysis/AmplitudeTable'
+import { BlochSpheres } from '../analysis/BlochSpheres'
 import { MeasurementCounts } from '../analysis/MeasurementCounts'
 import { ProbabilityHistogram } from '../analysis/ProbabilityHistogram'
 import { ShotSampler, type SamplingSettings } from '../analysis/ShotSampler'
@@ -245,6 +254,14 @@ export function SimulationPanel({
         <>
           <ProbabilityHistogram state={analytic.state} />
           <AmplitudeTable state={analytic.state} />
+          {/*
+           * After the exact reading and before the sampled one, which is
+           * §3.2's own order and is also the order the readings get further
+           * from the amplitudes: the histogram and the table are the state
+           * itself, the spheres are what tracing the other qubits out leaves
+           * of one wire, and the shots are a sample of the whole thing.
+           */}
+          <BlochSpheres state={analytic.state} />
           <ShotSampler
             state={analytic.state}
             settings={sampling}

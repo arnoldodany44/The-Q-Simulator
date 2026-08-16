@@ -41,6 +41,13 @@ import { Link } from 'react-router'
 
 import { LanguagePicker } from '../components/LanguagePicker'
 import { AccountMenu } from '../features/auth'
+/*
+ * The path template only, from a module that imports nothing — the same rule
+ * `App.tsx` follows for the same reason. Reaching for the gallery feature's
+ * barrel would pull React Query, the thumbnail renderer and the star wiring
+ * into the one route that must arrive before a stranger loses interest.
+ */
+import { GALLERY_PATH } from '../features/gallery/paths'
 import { LiveDemo } from '../features/landing/LiveDemo'
 
 /** The example the demo ends on, so "start from an example" starts from it. */
@@ -104,11 +111,18 @@ export function LandingRoute() {
 }
 
 /**
- * The two ways into the editor, rendered twice: once above the demonstration
- * for the reader who arrived knowing what they want, and once below it for the
- * reader the demonstration has just convinced. Same two destinations and the
- * same two labels both times — a second pair of buttons with different wording
- * would read as two different offers.
+ * The ways onwards, rendered twice: once above the demonstration for the
+ * reader who arrived knowing what they want, and once below it for the reader
+ * the demonstration has just convinced. Same destinations and the same labels
+ * both times — a second set of buttons with different wording would read as
+ * different offers.
+ *
+ * The gallery (M1.5b) is the third and is deliberately last: the first two
+ * answer "let me try this", which is what the page has just argued for, and
+ * the third answers "show me what people have made", which is a different
+ * appetite and a weaker one at this moment. It is a plain `<Link>` like the
+ * others, so it opens in a new tab, can be bookmarked, and works before any
+ * JavaScript has decided anything.
  */
 function Actions() {
   const { t } = useTranslation('landing')
@@ -119,6 +133,9 @@ function Actions() {
       </Link>
       <Link className="page__cta page__cta--quiet" to={EXAMPLE_ROUTE}>
         {t('cta.examples')}
+      </Link>
+      <Link className="page__cta page__cta--quiet" to={GALLERY_PATH}>
+        {t('cta.gallery')}
       </Link>
     </p>
   )

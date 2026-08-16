@@ -1,10 +1,22 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-import { CIRCUIT_SCHEMA_VERSION } from '@qsim/schema'
+import { CIRCUIT_SCHEMA_VERSION, previewOf } from '@qsim/schema'
 import type { Circuit } from '@qsim/schema'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { disconnectPrismaClient, getPrismaClient } from './client.js'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
+import {
+  createPrismaClient,
+  disconnectPrismaClient,
+  getPrismaClient,
+} from './client.js'
 import {
   forkCircuit,
   isVersionNumberConflict,
@@ -12,6 +24,7 @@ import {
 } from './circuits.js'
 import type { CircuitRepository } from './circuits.js'
 import { toCircuitJson } from './circuit-data.js'
+import { decodeGalleryCursor } from './gallery.js'
 import { Visibility } from './generated/prisma/client.js'
 import type { PrismaClient } from './generated/prisma/client.js'
 import type { SupabaseIdentity } from './users.js'
@@ -80,6 +93,54 @@ const STRANGER: SupabaseIdentity = {
 
 const RESERVED_IDS = [OWNER.id, STRANGER.id]
 
+/**
+ * Tags this suite may create, listed exhaustively.
+ *
+ * `Tag` is the one table here that hangs off no user, so nothing cascades it
+ * away and cleanup has to name it. An explicit list rather than a prefix
+ * match, so a delete cannot reach a row this file did not write — and the
+ * names are recognisably this suite's for the same reason the reserved UUIDs
+ * are.
+ */
+const RESERVED_TAGS = [
+  'qsim-itest-alpha',
+  'qsim-itest-beta',
+  'qsim-itest-shared',
+  // The concurrent-replacement test's four disjoint sets, two names each.
+  'qsim-itest-w0',
+  'qsim-itest-w1',
+  'qsim-itest-x0',
+  'qsim-itest-x1',
+  'qsim-itest-y0',
+  'qsim-itest-y1',
+  'qsim-itest-z0',
+  'qsim-itest-z1',
+]
+
+/**
+ * The four disjoint tag sets the concurrent-replacement test writes, one per
+ * connection. Two names each rather than eight: what is being measured is
+ * whether the sets *accumulate*, and four sets of two accumulate to eight just
+ * as visibly as four sets of eight accumulate to thirty-two — while keeping
+ * the list of rows this suite may delete short enough to read.
+ */
+const CONCURRENT_TAG_SETS = [
+  ['qsim-itest-w0', 'qsim-itest-w1'],
+  ['qsim-itest-x0', 'qsim-itest-x1'],
+  ['qsim-itest-y0', 'qsim-itest-y1'],
+  ['qsim-itest-z0', 'qsim-itest-z1'],
+]
+
+/*
+ * Every test here is a round trip to a shared Supabase pooler with
+ * `connection_limit=1`, so its wall clock is the network's rather than the
+ * code's: a test that creates five circuits is five serialised round trips
+ * plus their transactions, which passes Vitest's five-second default while
+ * nothing at all is wrong. Stated for the file rather than per test, because
+ * the cost is a property of the connection and not of any one assertion.
+ */
+vi.setConfig({ testTimeout: 60_000 })
+
 const bell: Circuit = {
   schemaVersion: CIRCUIT_SCHEMA_VERSION,
   qubits: 2,
@@ -105,9 +166,14 @@ describe.skipIf(!enabled)('the Prisma circuit repository', () => {
   let prisma: PrismaClient
   let repository: CircuitRepository
 
-  /** Deletes the two reserved users, and by cascade everything they own. */
+  /**
+   * Deletes the two reserved users — and by cascade their circuits, versions
+   * and stars — plus the tags this suite is allowed to have created, which
+   * belong to no user and so cascade from nothing.
+   */
   async function cleanup(): Promise<void> {
     await prisma.user.deleteMany({ where: { id: { in: RESERVED_IDS } } })
+    await prisma.tag.deleteMany({ where: { name: { in: RESERVED_TAGS } } })
   }
 
   beforeAll(async () => {
@@ -150,6 +216,32 @@ describe.skipIf(!enabled)('the Prisma circuit repository', () => {
     expect(version.versionNum).toBe(1)
     // Round-tripped through JSONB and back through `parseCircuit`.
     expect(version.data).toEqual(bell)
+  })
+
+  it('stores a thumbnail beside the counters and reads it back', async () => {
+    /*
+     * The half of M1.5b that only Postgres can answer: `preview` is a JSONB
+     * column with no shape Prisma can check, so "the value written is the
+     * value read" is a claim about the driver and the column rather than about
+     * `previewOf`. A card that draws nothing is the failure this catches, and
+     * it is silent everywhere else — the gallery would simply render the
+     * fallback for every circuit in the database.
+     */
+    const { circuit } = await owned(Visibility.PUBLIC)
+    expect(circuit.preview).toEqual(previewOf(bell))
+
+    // And it moves with the document. A thumbnail left behind by a save is a
+    // picture of a circuit nobody can open any more.
+    await repository.appendVersion({
+      circuitId: circuit.id,
+      ownerId: OWNER.id,
+      data: ghz,
+      message: 'now a GHZ',
+    })
+
+    const reread = await repository.findReadable(circuit.slug, null)
+    expect(reread?.preview).toEqual(previewOf(ghz))
+    expect(reread?.qubitCount).toBe(3)
   })
 
   it('applies the §11 filter in SQL, not in the caller', async () => {
@@ -514,6 +606,546 @@ describe.skipIf(!enabled)('the Prisma circuit repository', () => {
     expect(second.id).toBe(OWNER.id)
     const rows = await prisma.user.count({ where: { id: OWNER.id } })
     expect(rows).toBe(1)
+  })
+
+  /* ── The gallery, against real SQL ──────────────────────────────────── */
+
+  it('applies the gallery filter in SQL, from a stranger’s point of view', async () => {
+    /*
+     * The assertion the whole milestone rests on. `listPublished` is reached
+     * by an unauthenticated route over a table holding every private circuit
+     * in the database, and Prisma connects as `postgres` — which owns these
+     * tables and carries rolbypassrls — so this `where` is the only thing
+     * between the two.
+     */
+    await owned(Visibility.PRIVATE)
+    await owned(Visibility.UNLISTED)
+    await owned(Visibility.PUBLIC)
+
+    const cases: [string, string | null, number][] = [
+      ['anonymous', null, 1],
+      ['a stranger', STRANGER.id, 1],
+      ['the owner', OWNER.id, 3],
+    ]
+
+    for (const [label, viewerId, expected] of cases) {
+      const page = await repository.listPublished({
+        viewerId,
+        sort: 'recent',
+        take: 20,
+      })
+      expect(page.items, label).toHaveLength(expected)
+      if (viewerId !== OWNER.id) {
+        expect(
+          page.items.map((item) => item.visibility),
+          label
+        ).toEqual([Visibility.PUBLIC])
+      }
+    }
+  })
+
+  it('scopes a profile listing to one author without losing the rule', async () => {
+    await owned(Visibility.PUBLIC)
+    await owned(Visibility.PRIVATE)
+    await repository.ensureOwner(STRANGER)
+
+    const asStranger = await repository.listPublished({
+      viewerId: STRANGER.id,
+      ownerId: OWNER.id,
+      sort: 'recent',
+      take: 20,
+    })
+    const asOwner = await repository.listPublished({
+      viewerId: OWNER.id,
+      ownerId: OWNER.id,
+      sort: 'recent',
+      take: 20,
+    })
+    const theirsAsSeenByOwner = await repository.listPublished({
+      viewerId: OWNER.id,
+      ownerId: STRANGER.id,
+      sort: 'recent',
+      take: 20,
+    })
+
+    expect(asStranger.items).toHaveLength(1)
+    expect(asOwner.items).toHaveLength(2)
+    // Scoping to another author must not smuggle the viewer's own rows in.
+    expect(theirsAsSeenByOwner.items).toHaveLength(0)
+  })
+
+  it('searches title and description inside a word, case-insensitively', async () => {
+    // What the trigram index is for, and what `to_tsvector` could not do:
+    // "grov" finds Grover.
+    await repository.ensureOwner(OWNER)
+    await repository.create({
+      ownerId: OWNER.id,
+      title: 'Grover search',
+      description: 'Amplitude amplification over four items',
+      visibility: Visibility.PUBLIC,
+      data: bell,
+      message: null,
+      forkedFromId: null,
+    })
+    await owned(Visibility.PUBLIC)
+
+    const byTitle = await repository.listPublished({
+      viewerId: null,
+      sort: 'recent',
+      search: 'GROV',
+      take: 20,
+    })
+    const byDescription = await repository.listPublished({
+      viewerId: null,
+      sort: 'recent',
+      search: 'amplification',
+      take: 20,
+    })
+
+    expect(byTitle.items.map((item) => item.title)).toEqual(['Grover search'])
+    expect(byDescription.items.map((item) => item.title)).toEqual([
+      'Grover search',
+    ])
+  })
+
+  it('treats a LIKE wildcard in the search term as a character', async () => {
+    /*
+     * The escape, exercised against the database that actually interprets
+     * the pattern. Unescaped, `%` reaches Postgres as `ILIKE '%%%'` and
+     * returns every row — an accidental "list everything" on the one route
+     * where listing everything is the failure mode. The in-memory double
+     * models this, and this is the assertion that the model is right.
+     */
+    await repository.ensureOwner(OWNER)
+    await repository.create({
+      ownerId: OWNER.id,
+      title: 'Ninety-nine percent',
+      description: null,
+      visibility: Visibility.PUBLIC,
+      data: bell,
+      message: null,
+      forkedFromId: null,
+    })
+    await repository.create({
+      ownerId: OWNER.id,
+      title: '100% fidelity',
+      description: null,
+      visibility: Visibility.PUBLIC,
+      data: bell,
+      message: null,
+      forkedFromId: null,
+    })
+
+    const wildcard = await repository.listPublished({
+      viewerId: null,
+      sort: 'recent',
+      search: '%%%',
+      take: 20,
+    })
+    const literal = await repository.listPublished({
+      viewerId: null,
+      sort: 'recent',
+      search: '100%',
+      take: 20,
+    })
+    const underscore = await repository.listPublished({
+      viewerId: null,
+      sort: 'recent',
+      search: 'Nine_y',
+      take: 20,
+    })
+
+    expect(wildcard.items).toHaveLength(0)
+    expect(literal.items.map((item) => item.title)).toEqual(['100% fidelity'])
+    expect(underscore.items).toHaveLength(0)
+  })
+
+  it('keeps a private circuit out of a search that matches it exactly', async () => {
+    await repository.ensureOwner(OWNER)
+    await repository.create({
+      ownerId: OWNER.id,
+      title: 'Grover secret',
+      description: null,
+      visibility: Visibility.PRIVATE,
+      data: bell,
+      message: null,
+      forkedFromId: null,
+    })
+
+    const page = await repository.listPublished({
+      viewerId: STRANGER.id,
+      sort: 'recent',
+      search: 'Grover',
+      take: 20,
+    })
+
+    expect(page.items).toHaveLength(0)
+  })
+
+  it('paginates by cursor without repeating or skipping a row', async () => {
+    await repository.ensureOwner(OWNER)
+    const titles: string[] = []
+    for (let index = 0; index < 5; index += 1) {
+      const title = `Paged ${String(index)}`
+      titles.push(title)
+      await repository.create({
+        ownerId: OWNER.id,
+        title,
+        description: null,
+        visibility: Visibility.PUBLIC,
+        data: bell,
+        message: null,
+        forkedFromId: null,
+      })
+    }
+
+    const seen: string[] = []
+    let cursor = null as ReturnType<typeof decodeGalleryCursor>
+    let raw: string | null = null
+    for (let page = 0; page < 10; page += 1) {
+      const result = await repository.listPublished({
+        viewerId: null,
+        sort: 'recent',
+        take: 2,
+        cursor,
+      })
+      seen.push(...result.items.map((item) => item.title))
+      raw = result.nextCursor
+      if (raw === null) break
+      cursor = decodeGalleryCursor(raw, 'recent')
+      expect(cursor).not.toBeNull()
+    }
+
+    expect(raw).toBeNull()
+    expect(new Set(seen).size).toBe(5)
+    expect([...seen].sort()).toEqual([...titles].sort())
+  })
+
+  /* ── Stars ──────────────────────────────────────────────────────────── */
+
+  it('counts one star however many times the same user asks', async () => {
+    /*
+     * The concurrency case, against the database that decides it. Four
+     * simultaneous stars from one user must produce one `Star` row and a
+     * `starCount` of exactly one: the insert is `ON CONFLICT DO NOTHING`, so
+     * three of the four are told "0 rows" and skip the increment. A
+     * read-modify-write here would produce four.
+     */
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(STRANGER)
+
+    const results = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        repository.star({ userId: STRANGER.id, circuitId: circuit.id })
+      )
+    )
+
+    for (const result of results) expect(result.starred).toBe(true)
+    const rows = await prisma.star.count({ where: { circuitId: circuit.id } })
+    const after = await repository.findReadable(circuit.id, null)
+    expect(rows).toBe(1)
+    expect(after?.starCount).toBe(1)
+  })
+
+  it('counts two people as two stars', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(STRANGER)
+
+    await repository.star({ userId: OWNER.id, circuitId: circuit.id })
+    const second = await repository.star({
+      userId: STRANGER.id,
+      circuitId: circuit.id,
+    })
+
+    expect(second.starCount).toBe(2)
+  })
+
+  it('unstars idempotently and never below zero', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(STRANGER)
+    await repository.star({ userId: STRANGER.id, circuitId: circuit.id })
+
+    const first = await repository.unstar({
+      userId: STRANGER.id,
+      circuitId: circuit.id,
+    })
+    const second = await repository.unstar({
+      userId: STRANGER.id,
+      circuitId: circuit.id,
+    })
+    const never = await repository.unstar({
+      userId: OWNER.id,
+      circuitId: circuit.id,
+    })
+
+    expect(first).toEqual({ starred: false, starCount: 0 })
+    expect(second).toEqual({ starred: false, starCount: 0 })
+    expect(never).toEqual({ starred: false, starCount: 0 })
+    expect(await prisma.star.count({ where: { circuitId: circuit.id } })).toBe(
+      0
+    )
+  })
+
+  it('reports whether this viewer has starred, and nobody else’s star', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(STRANGER)
+    await repository.star({ userId: STRANGER.id, circuitId: circuit.id })
+
+    expect(
+      await repository.hasStarred({
+        userId: STRANGER.id,
+        circuitId: circuit.id,
+      })
+    ).toBe(true)
+    expect(
+      await repository.hasStarred({ userId: OWNER.id, circuitId: circuit.id })
+    ).toBe(false)
+  })
+
+  it('answers a star against a deleted circuit rather than inventing one', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(STRANGER)
+    await repository.remove({ id: circuit.id, ownerId: OWNER.id })
+
+    // The foreign key on Star.circuitId is what fires. What matters at this
+    // level is that nothing is written; the API maps it to 404.
+    await expect(
+      repository.star({ userId: STRANGER.id, circuitId: circuit.id })
+    ).rejects.toThrow()
+    expect(await prisma.star.count({ where: { circuitId: circuit.id } })).toBe(
+      0
+    )
+  })
+
+  it('takes a circuit’s stars with it when the circuit is deleted', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.star({ userId: OWNER.id, circuitId: circuit.id })
+
+    await repository.remove({ id: circuit.id, ownerId: OWNER.id })
+
+    // `ON DELETE CASCADE` on Star.circuitId, asserted rather than assumed: an
+    // orphaned star would be a row nothing can ever reach or remove.
+    expect(await prisma.star.count({ where: { circuitId: circuit.id } })).toBe(
+      0
+    )
+  })
+
+  /* ── Tags ───────────────────────────────────────────────────────────── */
+
+  it('creates a tag once however many circuits claim it at the same time', async () => {
+    /*
+     * `Tag.name` is unique, and a popular tag is by definition one many
+     * people are writing at the same moment. The naive "look it up, insert
+     * if missing" loses that race and fails an unrelated save with P2002;
+     * `ON CONFLICT DO NOTHING` cannot.
+     */
+    await repository.ensureOwner(OWNER)
+
+    await Promise.all(
+      Array.from({ length: 3 }, (_, index) =>
+        repository.create({
+          ownerId: OWNER.id,
+          title: `Tagged ${String(index)}`,
+          description: null,
+          visibility: Visibility.PUBLIC,
+          data: bell,
+          message: null,
+          forkedFromId: null,
+          tags: ['qsim-itest-shared'],
+        })
+      )
+    )
+
+    const tags = await prisma.tag.count({
+      where: { name: 'qsim-itest-shared' },
+    })
+    const links = await prisma.circuitTag.count({
+      where: { tag: { name: 'qsim-itest-shared' } },
+    })
+    expect(tags).toBe(1)
+    expect(links).toBe(3)
+  })
+
+  it('filters the gallery by tag, through the join', async () => {
+    await repository.ensureOwner(OWNER)
+    await repository.create({
+      ownerId: OWNER.id,
+      title: 'Has alpha',
+      description: null,
+      visibility: Visibility.PUBLIC,
+      data: bell,
+      message: null,
+      forkedFromId: null,
+      tags: ['qsim-itest-alpha', 'qsim-itest-beta'],
+    })
+    await owned(Visibility.PUBLIC)
+
+    const matching = await repository.listPublished({
+      viewerId: null,
+      sort: 'recent',
+      tag: 'qsim-itest-alpha',
+      take: 20,
+    })
+    const missing = await repository.listPublished({
+      viewerId: null,
+      sort: 'recent',
+      tag: 'qsim-itest-nobody',
+      take: 20,
+    })
+
+    expect(matching.items.map((item) => item.title)).toEqual(['Has alpha'])
+    expect(matching.items[0]?.tags).toEqual([
+      'qsim-itest-alpha',
+      'qsim-itest-beta',
+    ])
+    expect(missing.items).toHaveLength(0)
+  })
+
+  it('keeps a private circuit out of a tag facet it matches', async () => {
+    await repository.ensureOwner(OWNER)
+    await repository.create({
+      ownerId: OWNER.id,
+      title: 'Private but tagged',
+      description: null,
+      visibility: Visibility.PRIVATE,
+      data: bell,
+      message: null,
+      forkedFromId: null,
+      tags: ['qsim-itest-alpha'],
+    })
+
+    const page = await repository.listPublished({
+      viewerId: STRANGER.id,
+      sort: 'recent',
+      tag: 'qsim-itest-alpha',
+      take: 20,
+    })
+
+    expect(page.items).toHaveLength(0)
+  })
+
+  it('replaces a tag set on update and leaves it alone when unmentioned', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.update({
+      id: circuit.id,
+      ownerId: OWNER.id,
+      tags: ['qsim-itest-alpha', 'qsim-itest-beta'],
+    })
+
+    const replaced = await repository.update({
+      id: circuit.id,
+      ownerId: OWNER.id,
+      tags: ['qsim-itest-beta'],
+    })
+    const renamed = await repository.update({
+      id: circuit.id,
+      ownerId: OWNER.id,
+      title: 'Renamed',
+    })
+    const cleared = await repository.update({
+      id: circuit.id,
+      ownerId: OWNER.id,
+      tags: [],
+    })
+
+    expect(replaced?.tags).toEqual(['qsim-itest-beta'])
+    expect(renamed?.tags).toEqual(['qsim-itest-beta'])
+    expect(cleared?.tags).toEqual([])
+    // The join rows go, the `Tag` row stays — nothing sweeps unused tags,
+    // and a sweep would have to race every save about to reference one.
+    expect(
+      await prisma.circuitTag.count({ where: { circuitId: circuit.id } })
+    ).toBe(0)
+  })
+
+  it('replaces rather than accumulates when the replacements are concurrent', async () => {
+    /*
+     * THE DEFECT, and the only place it is visible.
+     *
+     * `setCircuitTags` is a DELETE followed by an INSERT over a *set*, and
+     * Postgres has no constraint that can arbitrate one. Under READ COMMITTED
+     * the delete removes only the join rows in its own transaction's snapshot,
+     * so two concurrent PATCHes each deleted the pre-existing set, each
+     * inserted their own, and neither insert conflicted with the other: both
+     * answered 200 and the circuit ended up carrying the union. Measured
+     * before the fix, with four connections and eight names each: 32 rows on a
+     * circuit whose card promises at most 8, answering to 32 gallery facets —
+     * and `forkCircuit` then copies all of them onto a new circuit with no
+     * concurrency involved at all.
+     *
+     * It needs more than one connection to reproduce, which is why it is here
+     * and not in `tags.test.ts` or in the API's route tests: the in-memory
+     * double replaces the array wholesale and *cannot* exhibit it, and the
+     * project's own pooler URL carries `connection_limit=1`, so a single
+     * client serialises the writes and the suite stays green while production
+     * with two replicas does not. Each writer therefore gets its own client.
+     *
+     * The assertion is the last writer's set exactly — not "at most eight".
+     * "At most eight" would also pass if three of the four replacements were
+     * silently lost, which is a different defect wearing the same number.
+     */
+    const url = process.env.DATABASE_URL
+    expect(
+      url,
+      'DATABASE_URL must be set for the integration suite'
+    ).toBeTruthy()
+
+    const { circuit } = await owned(Visibility.PUBLIC)
+    const clients = CONCURRENT_TAG_SETS.map(() => createPrismaClient(url!))
+
+    try {
+      const results = await Promise.all(
+        clients.map((client, index) =>
+          prismaCircuitRepository(client).update({
+            id: circuit.id,
+            ownerId: OWNER.id,
+            tags: CONCURRENT_TAG_SETS[index],
+          })
+        )
+      )
+
+      // Every one of them succeeded, so every one of them is a writer whose
+      // answer a client believed.
+      for (const result of results) expect(result).not.toBeNull()
+
+      const rows = await prisma.circuitTag.findMany({
+        where: { circuitId: circuit.id },
+        select: { tag: { select: { name: true } } },
+      })
+      const stored = rows.map((row) => row.tag.name).sort()
+
+      expect(stored).toHaveLength(2)
+      expect(CONCURRENT_TAG_SETS.map((set) => [...set].sort())).toContainEqual(
+        stored
+      )
+
+      /*
+       * And what the winner was told matches what is stored. Before the fix
+       * three of the four responses reported a set that was neither what was
+       * asked for nor what the row held.
+       */
+      const winner = results.find(
+        (result) =>
+          JSON.stringify([...(result?.tags ?? [])].sort()) ===
+          JSON.stringify(stored)
+      )
+      expect(winner, 'some response must describe the stored set').toBeDefined()
+    } finally {
+      await Promise.all(clients.map((client) => client.$disconnect()))
+    }
+  })
+
+  it('finds a user by their public handle, without their email', async () => {
+    await repository.ensureOwner(OWNER)
+    const created = await prisma.user.findUnique({ where: { id: OWNER.id } })
+
+    const found = await repository.findUserByUsername(
+      created?.username ?? 'missing'
+    )
+
+    expect(found?.id).toBe(OWNER.id)
+    expect(found).not.toHaveProperty('email')
+    expect(await repository.findUserByUsername('qsim-itest-nobody')).toBeNull()
   })
 
   it('leaves the database exactly as it found it', async () => {

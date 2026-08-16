@@ -12,7 +12,7 @@
  * leave it alone — otherwise Chrome's auto-translate happily turns a CNOT
  * label into something else entirely.
  */
-import type { SVGProps } from 'react'
+import type { Ref, SVGProps } from 'react'
 
 export function Notation({
   value,
@@ -54,15 +54,26 @@ export function NotationText({
   x,
   y,
   className,
+  ref,
 }: {
   value: string
   x: number
   y: number
   className?: string
+  /**
+   * The element itself, for a caller that has to move the label after React
+   * has placed it — the Bloch spheres write their two rotating axis labels
+   * from an animation frame rather than from state, exactly as the phasors
+   * write their rotation (M0.7b). Plain prop rather than `forwardRef`: React
+   * 19 passes `ref` to function components like any other prop, and the
+   * wrapper `forwardRef` used to add is now noise.
+   */
+  ref?: Ref<SVGTextElement>
 }) {
   return (
     <text
       {...NO_TRANSLATE}
+      ref={ref}
       x={x}
       y={y}
       className={className}

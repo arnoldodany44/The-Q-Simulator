@@ -41,6 +41,22 @@ const card = {
   createdAt: CREATED,
   updatedAt: UPDATED,
   owner,
+  tags: ['bell', 'entanglement'],
+  /*
+   * The thumbnail a card carries from M1.5b, as `previewOf` derives it from a
+   * Bell pair. Written out rather than computed, so that a change to the
+   * derivation shows up here as a decision rather than as a fixture that
+   * quietly followed it.
+   */
+  preview: {
+    qubits: 2,
+    columns: 2,
+    truncated: false,
+    operations: [
+      { gate: 'h', column: 0, targets: [0], controls: [] },
+      { gate: 'cx', column: 1, targets: [1], controls: [0] },
+    ],
+  },
 }
 
 const detail = { ...card, description: null }
@@ -133,6 +149,10 @@ describe('server and wire response schemas', () => {
     'CircuitDetailResponse',
     'VersionSummaryResponse',
     'VersionResponse',
+    'PublicUserResponse',
+    'GalleryPageResponse',
+    'UserCircuitsResponse',
+    'CircuitViewResponse',
   ] as const)('declares the same field set on both ends of %s', (name) => {
     const server = serverCircuitResponses[name] as z.ZodObject
     const wire = wireCircuitResponses[name] as z.ZodObject
@@ -163,6 +183,61 @@ describe('server and wire response schemas', () => {
     )
 
     expect(sent).not.toHaveProperty('ownerId')
+  })
+
+  it('round-trips a keyset page and carries the cursor opaquely', () => {
+    const page = {
+      items: [card],
+      nextCursor: 'eyJ2IjoxLCJzIjoicmVjZW50In0',
+      limit: 20,
+      // This viewer's stars on this page, from M1.5b — a property of the pair
+      // (circuit, viewer), which is why it rides in the envelope.
+      starred: ['cir_1'],
+    }
+    const sent = throughTheWire(
+      serverCircuitResponses.GalleryPageResponse,
+      page
+    )
+
+    expect(wireCircuitResponses.GalleryPageResponse.parse(sent)).toEqual(page)
+  })
+
+  it('says the last page with a null cursor rather than an empty string', () => {
+    // `''` and `null` would both be falsy in a client and only one of them
+    // is a value the decoder would ever be handed.
+    const sent = throughTheWire(serverCircuitResponses.GalleryPageResponse, {
+      items: [],
+      nextCursor: null,
+      limit: 20,
+      starred: [],
+    })
+
+    expect(sent).toEqual({
+      items: [],
+      nextCursor: null,
+      limit: 20,
+      starred: [],
+    })
+  })
+
+  it('never lets an email reach a profile page', () => {
+    /*
+     * `publicUserSelect` in @qsim/db does not fetch it, and this is the
+     * second lock: even handed a row that has one, the serialiser drops it,
+     * because the schema does not mention it. `email` is the one column on
+     * `User` that must never reach another user's browser.
+     */
+    const sent = throughTheWire(serverCircuitResponses.PublicUserResponse, {
+      id: 'usr_1',
+      username: 'ada',
+      displayName: 'Ada',
+      avatarUrl: null,
+      createdAt: CREATED,
+      email: 'ada@example.com',
+    })
+
+    expect(sent).not.toHaveProperty('email')
+    expect(JSON.stringify(sent)).not.toContain('ada@example.com')
   })
 })
 

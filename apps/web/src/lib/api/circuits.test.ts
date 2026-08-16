@@ -18,6 +18,7 @@ import type { ApiRequestError } from './errors.js'
 import {
   TEST_BASE_URL,
   circuitDetailPayload,
+  circuitViewPayload,
   circuitWithVersionPayload,
   errorResponse,
   jsonResponse,
@@ -85,9 +86,7 @@ describe('circuit routes', () => {
   })
 
   it('GET /circuits/:id, by slug or by id alike', async () => {
-    const { client, transport } = harness([
-      jsonResponse(circuitWithVersionPayload),
-    ])
+    const { client, transport } = harness([jsonResponse(circuitViewPayload)])
 
     await getCircuit(client, circuitDetailPayload.slug)
 
@@ -178,9 +177,7 @@ describe('circuit routes', () => {
   })
 
   it('encodes a handle that would otherwise change the path', async () => {
-    const { client, transport } = harness([
-      jsonResponse(circuitWithVersionPayload),
-    ])
+    const { client, transport } = harness([jsonResponse(circuitViewPayload)])
 
     await getCircuit(client, 'a/../b')
 

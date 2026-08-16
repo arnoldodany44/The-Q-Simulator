@@ -41,29 +41,44 @@
 
 import {
   circuitHandleFilter,
+  CircuitGoneError,
   CircuitNotWritableError,
+  collectionHandleFilter,
+  CollectionFullError,
+  CollectionNotWritableError,
+  cursorAfter,
   ensureUser,
+  galleryOrderBy,
+  galleryWhere,
   generateCircuitSlug,
+  listableCircuitFilter,
+  listableCollectionFilter,
   metricsOf,
+  MAX_COLLECTION_ITEMS,
   MAX_VERSION_ATTEMPTS,
   toCircuitJson,
+  UsernameTakenError,
   VersionConflictError,
 } from '@qsim/db'
 import type {
+  AccountDeletionReport,
   CircuitCard,
   CircuitDetail,
   CircuitRepository,
   CircuitVersionSummary,
   CircuitWithVersion,
+  CollectionCard,
+  GallerySort,
   Page,
   Prisma,
+  PublicUser,
   Visibility,
   StoredVersion,
   User,
   UserStore,
 } from '@qsim/db'
-import { emptyCircuit } from '@qsim/schema'
-import type { Circuit } from '@qsim/schema'
+import { emptyCircuit, previewOf } from '@qsim/schema'
+import type { Circuit, CircuitPreview } from '@qsim/schema'
 
 interface CircuitRow {
   id: string
@@ -80,6 +95,36 @@ interface CircuitRow {
   viewCount: number
   createdAt: Date
   updatedAt: Date
+  /** Canonical names, as `Tag.name` holds them. */
+  tags: string[]
+  /**
+   * The denormalised thumbnail, maintained by the two writes that store a
+   * document — exactly as production maintains it (M1.5b). Modelled rather
+   * than faked so that a route test can assert a card carries a picture, and
+   * so that forgetting to update it on a save fails here too.
+   */
+  preview: CircuitPreview | null
+}
+
+interface StarRow {
+  userId: string
+  circuitId: string
+}
+
+interface CollectionRow {
+  id: string
+  ownerId: string
+  title: string
+  description: string | null
+  visibility: Visibility
+  createdAt: Date
+  updatedAt: Date
+}
+
+interface CollectionItemRow {
+  collectionId: string
+  circuitId: string
+  orderIndex: number
 }
 
 interface VersionRow {
@@ -99,12 +144,30 @@ export interface MemoryRepositoryOptions {
    * hook reproduces the race the unique index exists to lose.
    */
   readonly beforeVersionWrite?: (circuitId: string) => Promise<void> | void
+  /**
+   * Called before a star is written, so a test can interleave two requests.
+   *
+   * The insert itself is synchronous below and stays that way on purpose:
+   * `INSERT … ON CONFLICT DO NOTHING` decides uniqueness inside one statement
+   * in production, so a double that let two interleaved calls both insert
+   * would be modelling a database this project does not have.
+   */
+  readonly beforeStarWrite?: (circuitId: string) => Promise<void> | void
 }
 
 export interface MemoryCircuitRepository extends CircuitRepository {
   /** Every version row, for assertions the HTTP surface cannot make. */
   allVersions(circuitId?: string): readonly VersionRow[]
   allCircuits(): readonly CircuitRow[]
+  allStars(circuitId?: string): readonly StarRow[]
+  allCollections(): readonly CollectionRow[]
+  /**
+   * Every membership row. The assertion this exists for is the orphan one:
+   * deleting a circuit has to remove its memberships from *other people's*
+   * collections, and no foreign key does that (§7), so nothing but a direct
+   * look at the join table can tell whether it happened.
+   */
+  allCollectionItems(collectionId?: string): readonly CollectionItemRow[]
   /**
    * Writes the next version number directly, the way a second process would.
    * Called from `beforeVersionWrite` it makes a save lose the race on
@@ -112,15 +175,128 @@ export interface MemoryCircuitRepository extends CircuitRepository {
    * called on every attempt, the 409 the retries eventually give up with.
    */
   stealNextVersion(circuitId: string): number
+  /** Registers a user row without a circuit, for profile-page tests. */
+  addUser(user: {
+    id: string
+    username: string
+    displayName?: string | null
+    avatarUrl?: string | null
+  }): void
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
- * Evaluates one of `visibility.ts`'s `where` fragments against a row.
+ * Compiles a SQL `LIKE` pattern the way Postgres reads one.
+ *
+ * This is modelled rather than approximated, and the difference matters. The
+ * obvious shortcut — "`contains` means substring, so use `includes`" — cannot
+ * see the bug this exists to catch: `@qsim/db` escapes `%` and `_` before
+ * handing a search term to Prisma, and if it ever stopped, a search for `%`
+ * would reach Postgres as `%%%` and return *every circuit in the gallery*. A
+ * double that treats the pattern as a literal string matches nothing either
+ * way and reports success on a broken escape.
+ *
+ * So `%` and `_` are wildcards here as they are there, `\` escapes them as it
+ * does there, and the anchors are the whole string because Prisma wraps a
+ * `contains` value in `%…%` itself.
+ */
+function likeToRegExp(pattern: string): RegExp {
+  let source = ''
+  for (let index = 0; index < pattern.length; index += 1) {
+    const character = pattern[index] as string
+    if (character === '\\') {
+      const escaped = pattern[index + 1]
+      if (escaped === undefined) {
+        source += '\\\\'
+        continue
+      }
+      source += escapeRegExp(escaped)
+      index += 1
+      continue
+    }
+    if (character === '%') {
+      source += '[\\s\\S]*'
+      continue
+    }
+    if (character === '_') {
+      source += '[\\s\\S]'
+      continue
+    }
+    source += escapeRegExp(character)
+  }
+  // `i` is Postgres's ILIKE, near enough for a double: both fold case.
+  return new RegExp(`^${source}$`, 'i')
+}
+
+/** Prisma's scalar conditions, as `visibility.ts` and `gallery.ts` build them. */
+interface ScalarCondition {
+  lt?: unknown
+  in?: unknown[]
+  contains?: string
+  mode?: string
+}
+
+function isCondition(value: unknown): value is ScalarCondition {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !(value instanceof Date) &&
+    !Array.isArray(value)
+  )
+}
+
+function comparable(value: unknown): number | string {
+  return value instanceof Date ? value.getTime() : (value as number | string)
+}
+
+/**
+ * One field against one condition — equality, `lt`, `in`, or a `contains`
+ * that has to behave like ILIKE.
+ */
+function matchesScalar(actual: unknown, condition: unknown): boolean {
+  if (!isCondition(condition)) {
+    return comparable(actual) === comparable(condition)
+  }
+  if (condition.in !== undefined) {
+    return condition.in.some(
+      (entry) => comparable(entry) === comparable(actual)
+    )
+  }
+  if (condition.lt !== undefined) {
+    return comparable(actual) < comparable(condition.lt)
+  }
+  if (condition.contains !== undefined) {
+    if (condition.mode !== 'insensitive') {
+      throw new Error(
+        'The in-memory repository only models case-insensitive `contains`, ' +
+          'which is what the gallery search uses. Teach it the other mode ' +
+          'rather than letting a test pass on a comparison it ignored.'
+      )
+    }
+    if (typeof actual !== 'string') return false
+    // Prisma wraps a `contains` value in `%…%`; so does this.
+    return likeToRegExp(`%${condition.contains}%`).test(actual)
+  }
+  throw new Error(
+    `The in-memory repository cannot evaluate the condition ${JSON.stringify(condition)}.`
+  )
+}
+
+/**
+ * Evaluates a `where` fragment from `visibility.ts` or `gallery.ts` against a
+ * row.
  *
  * Deliberately total for the shapes those helpers produce and hostile to
  * everything else: an unrecognised key throws, because the alternative —
  * ignoring it — turns a filter that got stricter in production into a filter
- * these tests believe is still permissive.
+ * these tests believe is still permissive. On the gallery that is not an
+ * abstract concern: the fragment being evaluated here is the one thing
+ * standing between an anonymous listing and every private circuit in the
+ * table, so a double that quietly skipped a clause would report a leak as a
+ * pass.
  */
 function matchesFilter(
   row: CircuitRow,
@@ -141,12 +317,98 @@ function matchesFilter(
     if (key === 'visibility') return row.visibility === value
     if (key === 'ownerId') return row.ownerId === value
     if (key === 'slug') return row.slug === value
-    if (key === 'id') return row.id === value
+    if (key === 'id') return matchesScalar(row.id, value)
+    if (key === 'title') return matchesScalar(row.title, value)
+    if (key === 'description') return matchesScalar(row.description, value)
+    if (key === 'starCount') return matchesScalar(row.starCount, value)
+    if (key === 'createdAt') return matchesScalar(row.createdAt, value)
+    if (key === 'tags') {
+      // `{ tags: { some: { tag: { name } } } }` — the join, as Prisma spells
+      // it. Written out rather than pattern-matched loosely so that a change
+      // in how the relation is filtered fails here instead of passing.
+      const some = (value as { some?: { tag?: { name?: unknown } } }).some
+      const name = some?.tag?.name
+      if (typeof name !== 'string') {
+        throw new Error(
+          'The in-memory repository only models `tags.some.tag.name`.'
+        )
+      }
+      return row.tags.includes(name)
+    }
     throw new Error(
       `The in-memory repository cannot evaluate the filter key "${key}". ` +
         'Teach it, rather than letting a test pass on a rule it ignored.'
     )
   })
+}
+
+/**
+ * The same evaluation over a `Collection` row — M1.9.
+ *
+ * Separate from `matchesFilter` rather than generic, because the fragments it
+ * evaluates are typed against a different model and the value of this whole
+ * approach is that the double runs *the production fragment*. It is equally
+ * hostile to a key it does not know, for the same reason: the alternative to
+ * throwing is a filter that got stricter in production and permissive here,
+ * which reports a leak as a pass.
+ */
+function matchesCollectionFilter(
+  row: CollectionRow,
+  filter: Prisma.CollectionWhereInput
+): boolean {
+  return Object.entries(filter).every(([key, value]) => {
+    if (key === 'OR') {
+      return (value as Prisma.CollectionWhereInput[]).some((branch) =>
+        matchesCollectionFilter(row, branch)
+      )
+    }
+    if (key === 'AND') {
+      return (value as Prisma.CollectionWhereInput[]).every((branch) =>
+        matchesCollectionFilter(row, branch)
+      )
+    }
+    if (key === 'visibility') return row.visibility === value
+    if (key === 'ownerId') return row.ownerId === value
+    if (key === 'id') return row.id === value
+    throw new Error(
+      `The in-memory repository cannot evaluate the collection filter key ` +
+        `"${key}". Teach it, rather than letting a test pass on a rule it ` +
+        'ignored.'
+    )
+  })
+}
+
+/** The key a gallery ordering term names, and the direction it wants. */
+type OrderKey = 'starCount' | 'createdAt' | 'id'
+
+/**
+ * A comparator built *from* `galleryOrderBy`, so the double cannot sort by
+ * one rule while production sorts by another — which would make every cursor
+ * assertion here meaningless.
+ */
+function galleryComparator(
+  sort: GallerySort
+): (a: CircuitRow, b: CircuitRow) => number {
+  const terms = galleryOrderBy(sort).map((term) => {
+    const [key, direction] = Object.entries(term)[0] as [string, string]
+    if (key !== 'starCount' && key !== 'createdAt' && key !== 'id') {
+      throw new Error(`The in-memory repository cannot order by "${key}".`)
+    }
+    if (direction !== 'desc') {
+      throw new Error(`The in-memory repository only orders descending.`)
+    }
+    return key satisfies OrderKey
+  })
+
+  return (a, b) => {
+    for (const key of terms) {
+      const left = comparable(a[key])
+      const right = comparable(b[key])
+      if (left < right) return 1
+      if (left > right) return -1
+    }
+    return 0
+  }
 }
 
 export function createMemoryCircuitRepository(
@@ -155,6 +417,9 @@ export function createMemoryCircuitRepository(
   const users = new Map<string, User>()
   const circuits: CircuitRow[] = []
   const versions: VersionRow[] = []
+  const stars: StarRow[] = []
+  const collections: CollectionRow[] = []
+  const collectionItems: CollectionItemRow[] = []
   let sequence = 0
 
   /** Ids long enough to satisfy the route's handle pattern, as a cuid is. */
@@ -212,7 +477,24 @@ export function createMemoryCircuitRepository(
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       owner: ownerRef(row.ownerId),
+      // Sorted, exactly as `toCircuitCard` sorts what Prisma returns.
+      tags: [...row.tags].sort(),
+      preview: row.preview,
     }
+  }
+
+  function starredBy(userId: string, circuitId: string): boolean {
+    return stars.some(
+      (row) => row.userId === userId && row.circuitId === circuitId
+    )
+  }
+
+  function circuitOrThrow(circuitId: string): CircuitRow {
+    const row = circuits.find((candidate) => candidate.id === circuitId)
+    // What the foreign key on `Star.circuitId` would have said, and what a
+    // caller racing a delete actually gets.
+    if (row === undefined) throw new CircuitGoneError(circuitId)
+    return row
   }
 
   function toDetail(row: CircuitRow): CircuitDetail {
@@ -260,6 +542,44 @@ export function createMemoryCircuitRepository(
     return { items: rows.slice(skip, skip + take), total: rows.length }
   }
 
+  function toCollectionCard(row: CollectionRow): CollectionCard {
+    return {
+      ...row,
+      owner: ownerRef(row.ownerId),
+      itemCount: collectionItems.filter((item) => item.collectionId === row.id)
+        .length,
+    }
+  }
+
+  /** This owner's collections as this viewer may list them, newest first. */
+  function listableCollections(
+    ownerId: string,
+    viewerId: string | null
+  ): CollectionRow[] {
+    const filter = listableCollectionFilter(viewerId)
+    return collections
+      .filter(
+        (row) => row.ownerId === ownerId && matchesCollectionFilter(row, filter)
+      )
+      .sort((a, b) => {
+        const byTime = b.updatedAt.getTime() - a.updatedAt.getTime()
+        // The tie-break `collectionOrderBy` ends with, so a page boundary
+        // falls in the same place here as it does in Postgres.
+        return byTime !== 0 ? byTime : a.id < b.id ? 1 : -1
+      })
+  }
+
+  function ownedCollection(
+    collectionId: string,
+    ownerId: string
+  ): CollectionRow | null {
+    return (
+      collections.find(
+        (row) => row.id === collectionId && row.ownerId === ownerId
+      ) ?? null
+    )
+  }
+
   return {
     ensureOwner: (identity) => ensureUser(userStore, identity),
 
@@ -269,6 +589,99 @@ export function createMemoryCircuitRepository(
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
         .map(toCard)
       return Promise.resolve(paginate(mine, skip, take))
+    },
+
+    listPublished({ take, ...query }) {
+      /*
+       * The production `where` in full, evaluated rather than reimplemented.
+       * That is the whole point on this route: the gallery is an anonymous
+       * listing over a table holding every private circuit, so a double that
+       * decided visibility for itself would be testing its own opinion.
+       */
+      const filter = galleryWhere(query)
+      const matching = circuits
+        .filter((row) => matchesFilter(row, filter))
+        .sort(galleryComparator(query.sort))
+
+      // One more than asked for, exactly as the Prisma implementation reads
+      // one more, so "is there a next page" is decided the same way.
+      const window = matching.slice(0, take + 1)
+      const items = window.slice(0, take).map(toCard)
+      const last = items.at(-1)
+      const nextCursor =
+        window.length > take && last !== undefined
+          ? cursorAfter(last, query.sort)
+          : null
+      return Promise.resolve({ items, nextCursor })
+    },
+
+    countPublished(query) {
+      // The same fragment the listing evaluates, for the reason the interface
+      // gives: an aggregate is a listing, and a count with its own `where` is
+      // a count that can report on rows the listing would have hidden.
+      const filter = galleryWhere(query)
+      return Promise.resolve(
+        circuits.filter((row) => matchesFilter(row, filter)).length
+      )
+    },
+
+    findUserByUsername(username) {
+      for (const user of users.values()) {
+        if (user.username !== username) continue
+        // `publicUserSelect`'s columns and no others — in particular no
+        // `email`, which is the one column on User that must never reach
+        // another user's browser.
+        const projected: PublicUser = {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+          createdAt: user.createdAt,
+        }
+        return Promise.resolve(projected)
+      }
+      return Promise.resolve(null)
+    },
+
+    async star({ userId, circuitId }) {
+      const circuit = circuitOrThrow(circuitId)
+      // The window a second request slips into. Everything below is the
+      // atomic insert `ON CONFLICT DO NOTHING` performs in production.
+      await options.beforeStarWrite?.(circuitId)
+
+      if (!starredBy(userId, circuitId)) {
+        stars.push({ userId, circuitId })
+        circuit.starCount += 1
+      }
+      return { starred: true, starCount: circuit.starCount }
+    },
+
+    async unstar({ userId, circuitId }) {
+      const circuit = circuitOrThrow(circuitId)
+      await options.beforeStarWrite?.(circuitId)
+
+      const index = stars.findIndex(
+        (row) => row.userId === userId && row.circuitId === circuitId
+      )
+      if (index !== -1) {
+        stars.splice(index, 1)
+        // The floor the production `updateMany` enforces with `starCount > 0`.
+        circuit.starCount = Math.max(0, circuit.starCount - 1)
+      }
+      return { starred: false, starCount: circuit.starCount }
+    },
+
+    hasStarred({ userId, circuitId }) {
+      return Promise.resolve(starredBy(userId, circuitId))
+    },
+
+    starredAmong({ userId, circuitIds }) {
+      // Scoped to the ids asked about, exactly as the `IN` clause is: this
+      // must not become a way to learn what somebody starred on a page they
+      // were not shown.
+      return Promise.resolve(
+        circuitIds.filter((circuitId) => starredBy(userId, circuitId))
+      )
     },
 
     findReadable(handle, viewerId) {
@@ -307,6 +720,10 @@ export function createMemoryCircuitRepository(
         viewCount: 0,
         createdAt: now,
         updatedAt: now,
+        // Already canonical: `normalizeTagNames` ran at the edge, which is
+        // the same order the Prisma implementation relies on.
+        tags: [...(input.tags ?? [])],
+        preview: previewOf(input.data),
         ...metrics,
       }
       circuits.push(circuit)
@@ -337,6 +754,9 @@ export function createMemoryCircuitRepository(
         row.description = changes.description
       }
       if (changes.visibility !== undefined) row.visibility = changes.visibility
+      // `undefined` leaves the set alone, `[]` clears it — two different
+      // requests, as they are in `setCircuitTags`.
+      if (changes.tags !== undefined) row.tags = [...changes.tags]
       row.updatedAt = new Date()
       return Promise.resolve(toDetail(row))
     },
@@ -350,6 +770,21 @@ export function createMemoryCircuitRepository(
       // `onDelete: Cascade` on CircuitVersion.circuitId.
       for (let i = versions.length - 1; i >= 0; i -= 1) {
         if (versions[i]?.circuitId === id) versions.splice(i, 1)
+      }
+      // And on Star.circuitId, which is why a deleted circuit takes its
+      // stars with it rather than leaving rows pointing at nothing.
+      for (let i = stars.length - 1; i >= 0; i -= 1) {
+        if (stars[i]?.circuitId === id) stars.splice(i, 1)
+      }
+      /*
+       * What no foreign key does. `CollectionItem.circuitId` has none (§7), so
+       * production sweeps these by hand inside the same transaction, and this
+       * double has to sweep them too — otherwise a test would pass against a
+       * fake that leaves no orphan while production leaves one in every
+       * collection that held the circuit, including strangers'.
+       */
+      for (let i = collectionItems.length - 1; i >= 0; i -= 1) {
+        if (collectionItems[i]?.circuitId === id) collectionItems.splice(i, 1)
       }
       return Promise.resolve(true)
     },
@@ -394,7 +829,12 @@ export function createMemoryCircuitRepository(
         }
         versions.push(row)
 
-        Object.assign(circuit, metrics, { updatedAt: new Date() })
+        // The thumbnail moves with the counters, in the same assignment the
+        // production `updateMany` makes in one statement.
+        Object.assign(circuit, metrics, {
+          preview: previewOf(data),
+          updatedAt: new Date(),
+        })
         return toStored(row)
       }
       throw new VersionConflictError(circuitId, MAX_VERSION_ATTEMPTS)
@@ -425,13 +865,313 @@ export function createMemoryCircuitRepository(
       return Promise.resolve(row === undefined ? null : toStored(row))
     },
 
+    /* ── Collections (M1.9) ───────────────────────────────────────────── */
+
+    listCollections({ ownerId, viewerId, skip, take }) {
+      const rows = listableCollections(ownerId, viewerId).map(toCollectionCard)
+      return Promise.resolve(paginate(rows, skip, take))
+    },
+
+    countCollections({ ownerId, viewerId }) {
+      return Promise.resolve(listableCollections(ownerId, viewerId).length)
+    },
+
+    findReadableCollection(id, viewerId) {
+      // The production fragment in full, evaluated rather than reimplemented —
+      // including the part that decides whether an id reaches an UNLISTED
+      // collection, which is the decision `visibility.ts` argues at length.
+      const filter = collectionHandleFilter(id, viewerId)
+      const row = collections.find((candidate) =>
+        matchesCollectionFilter(candidate, filter)
+      )
+      return Promise.resolve(row === undefined ? null : toCollectionCard(row))
+    },
+
+    readCollectionItems({ collectionId, viewerId }) {
+      const memberships = collectionItems
+        .filter((row) => row.collectionId === collectionId)
+        .sort((a, b) =>
+          a.orderIndex === b.orderIndex
+            ? a.circuitId.localeCompare(b.circuitId)
+            : a.orderIndex - b.orderIndex
+        )
+
+      /*
+       * THE rule of this milestone, evaluated with the production fragment:
+       * a collection's visibility governs the collection, and the circuits
+       * inside it are filtered by their own. A double that skipped this would
+       * report the leak it exists to catch as a pass.
+       */
+      const filter = listableCircuitFilter(viewerId)
+      const visible = memberships
+        .map((row) => circuits.find((circuit) => circuit.id === row.circuitId))
+        .filter(
+          (row): row is CircuitRow =>
+            row !== undefined && matchesFilter(row, filter)
+        )
+
+      return Promise.resolve({
+        items: visible.map(toCard),
+        withheld: memberships.length - visible.length,
+      })
+    },
+
+    createCollection(input) {
+      const now = new Date()
+      const row: CollectionRow = {
+        id: nextId('col_'),
+        ownerId: input.ownerId,
+        title: input.title,
+        description: input.description,
+        visibility: input.visibility,
+        createdAt: now,
+        updatedAt: now,
+      }
+      collections.push(row)
+      return Promise.resolve(toCollectionCard(row))
+    },
+
+    updateCollection({ id, ownerId, ...changes }) {
+      const row = ownedCollection(id, ownerId)
+      if (row === null) return Promise.resolve(null)
+      if (changes.title !== undefined) row.title = changes.title
+      if (changes.description !== undefined) {
+        row.description = changes.description
+      }
+      if (changes.visibility !== undefined) row.visibility = changes.visibility
+      row.updatedAt = new Date()
+      return Promise.resolve(toCollectionCard(row))
+    },
+
+    removeCollection({ id, ownerId }) {
+      const index = collections.findIndex(
+        (row) => row.id === id && row.ownerId === ownerId
+      )
+      if (index === -1) return Promise.resolve(false)
+      collections.splice(index, 1)
+      // `onDelete: Cascade` on CollectionItem.collectionId — which this join
+      // table does have, unlike its other column.
+      for (let i = collectionItems.length - 1; i >= 0; i -= 1) {
+        if (collectionItems[i]?.collectionId === id) {
+          collectionItems.splice(i, 1)
+        }
+      }
+      return Promise.resolve(true)
+    },
+
+    addCollectionItem({ collectionId, ownerId, circuitId }) {
+      const row = ownedCollection(collectionId, ownerId)
+      // What the owner-scoped read inside the production transaction says.
+      if (row === null) throw new CollectionNotWritableError(collectionId)
+
+      const held = collectionItems.filter(
+        (item) => item.collectionId === collectionId
+      )
+      const already = held.some((item) => item.circuitId === circuitId)
+      // The bound Postgres cannot express as a constraint, checked before the
+      // insert exactly as the transaction checks it.
+      if (!already && held.length >= MAX_COLLECTION_ITEMS) {
+        throw new CollectionFullError(collectionId)
+      }
+      if (!already) {
+        collectionItems.push({
+          collectionId,
+          circuitId,
+          orderIndex: held.length,
+        })
+      }
+      row.updatedAt = new Date()
+      return Promise.resolve(toCollectionCard(row))
+    },
+
+    removeCollectionItem({ collectionId, ownerId, circuitId }) {
+      const row = ownedCollection(collectionId, ownerId)
+      if (row === null) return Promise.resolve(false)
+
+      const index = collectionItems.findIndex(
+        (item) =>
+          item.collectionId === collectionId && item.circuitId === circuitId
+      )
+      if (index === -1) return Promise.resolve(false)
+      collectionItems.splice(index, 1)
+      row.updatedAt = new Date()
+      return Promise.resolve(true)
+    },
+
+    collectionIdsHolding({ ownerId, circuitId }) {
+      const mine = new Set(
+        collections
+          .filter((row) => row.ownerId === ownerId)
+          .map((row) => row.id)
+      )
+      return Promise.resolve(
+        collectionItems
+          .filter(
+            (item) =>
+              item.circuitId === circuitId && mine.has(item.collectionId)
+          )
+          .map((item) => item.collectionId)
+      )
+    },
+
+    /* ── The account itself (M1.9) ────────────────────────────────────── */
+
+    findUserById(id) {
+      const user = users.get(id)
+      if (user === undefined) return Promise.resolve(null)
+      // `publicUserSelect`'s columns and no others — no `email`, which the
+      // fixture deliberately sets so a test can assert it never comes back.
+      const projected: PublicUser = {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        createdAt: user.createdAt,
+      }
+      return Promise.resolve(projected)
+    },
+
+    updateProfile({ userId, ...changes }) {
+      const user = users.get(userId)
+      if (user === undefined) {
+        // What `prisma.user.update` raises for a row that is not there.
+        throw Object.assign(new Error('Record to update not found'), {
+          code: 'P2025',
+        })
+      }
+      if (changes.username !== undefined) {
+        // `User_username_key`. The write decides, exactly as it does in
+        // production — there is no availability check anywhere.
+        for (const other of users.values()) {
+          if (other.id !== userId && other.username === changes.username) {
+            throw new UsernameTakenError(changes.username)
+          }
+        }
+        user.username = changes.username
+      }
+      if (changes.displayName !== undefined) {
+        user.displayName = changes.displayName
+      }
+      if (changes.avatarUrl !== undefined) user.avatarUrl = changes.avatarUrl
+
+      const projected: PublicUser = {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        createdAt: user.createdAt,
+      }
+      return Promise.resolve(projected)
+    },
+
+    /**
+     * The deletion, modelled to the extent this double models the schema.
+     *
+     * `SimulationRun`, `HardwareJob` and `Comment` have no representation
+     * here, because no route in this API touches them — so their counts come
+     * back as zero and the sweeps over them are covered by the Prisma
+     * implementation rather than from an HTTP test. What *is* modelled is
+     * everything the routes can observe: the cascades, the star counts no
+     * foreign key maintains, and the collection memberships in other people's
+     * collections that no foreign key removes.
+     */
+    deleteAccount(userId) {
+      const owned = circuits.filter((row) => row.ownerId === userId)
+      const ownedIds = new Set(owned.map((row) => row.id))
+      const mine = collections.filter((row) => row.ownerId === userId)
+
+      // The denormalised counter nothing else maintains: cascading a `Star`
+      // away leaves a count that is too high on somebody else's circuit.
+      const starredByUser = stars.filter((row) => row.userId === userId)
+      for (const star of starredByUser) {
+        const circuit = circuits.find((row) => row.id === star.circuitId)
+        if (circuit !== undefined) {
+          circuit.starCount = Math.max(0, circuit.starCount - 1)
+        }
+      }
+
+      let orphanedCollectionItems = 0
+      for (let i = collectionItems.length - 1; i >= 0; i -= 1) {
+        const item = collectionItems[i]
+        if (item === undefined) continue
+        const inOwnCollection = mine.some((row) => row.id === item.collectionId)
+        // Rows in the user's own collections go by cascade; rows in anybody
+        // else's naming one of the user's circuits are the orphans.
+        if (ownedIds.has(item.circuitId) && !inOwnCollection) {
+          orphanedCollectionItems += 1
+          collectionItems.splice(i, 1)
+          continue
+        }
+        if (inOwnCollection) collectionItems.splice(i, 1)
+      }
+
+      for (let i = collections.length - 1; i >= 0; i -= 1) {
+        if (collections[i]?.ownerId === userId) collections.splice(i, 1)
+      }
+      for (let i = stars.length - 1; i >= 0; i -= 1) {
+        const star = stars[i]
+        if (star === undefined) continue
+        if (star.userId === userId || ownedIds.has(star.circuitId)) {
+          stars.splice(i, 1)
+        }
+      }
+      for (let i = versions.length - 1; i >= 0; i -= 1) {
+        const version = versions[i]
+        if (version !== undefined && ownedIds.has(version.circuitId)) {
+          versions.splice(i, 1)
+        }
+      }
+      for (let i = circuits.length - 1; i >= 0; i -= 1) {
+        if (circuits[i]?.ownerId === userId) circuits.splice(i, 1)
+      }
+      users.delete(userId)
+
+      const report: AccountDeletionReport = {
+        circuits: owned.length,
+        collections: mine.length,
+        comments: 0,
+        stars: starredByUser.length,
+        simulationRuns: 0,
+        hardwareJobs: 0,
+        orphanedCollectionItems,
+      }
+      return Promise.resolve(report)
+    },
+
     allVersions(circuitId) {
       return circuitId === undefined
         ? [...versions]
         : versions.filter((row) => row.circuitId === circuitId)
     },
 
+    allCollections: () => [...collections],
+
+    allCollectionItems(collectionId) {
+      return collectionId === undefined
+        ? [...collectionItems]
+        : collectionItems.filter((row) => row.collectionId === collectionId)
+    },
+
     allCircuits: () => [...circuits],
+
+    allStars(circuitId) {
+      return circuitId === undefined
+        ? [...stars]
+        : stars.filter((row) => row.circuitId === circuitId)
+    },
+
+    addUser({ id, username, displayName = null, avatarUrl = null }) {
+      users.set(id, {
+        id,
+        // Never returned by any projection, and present here precisely so a
+        // test can assert that it is not.
+        email: `${username}@example.invalid`,
+        username,
+        displayName,
+        avatarUrl,
+        createdAt: new Date(),
+      })
+    },
 
     stealNextVersion(circuitId) {
       const versionNum = highestVersion(circuitId) + 1

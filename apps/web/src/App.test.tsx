@@ -15,7 +15,7 @@ import enLanding from './i18n/locales/en/landing.json'
 import { ApiProvider, createApiClient, createQueryClient } from './lib/api'
 import {
   TEST_BASE_URL,
-  circuitWithVersionPayload,
+  circuitViewPayload,
   jsonResponse,
   stubFetch,
 } from './lib/api/testing.js'
@@ -146,7 +146,7 @@ describe('routes', () => {
   })
 
   it('shows the same editor at /c/:slug, over the saved circuit', async () => {
-    at('/c/V1StGXR8Z5jdHi6BmyT8a', [jsonResponse(circuitWithVersionPayload)])
+    at('/c/V1StGXR8Z5jdHi6BmyT8a', [jsonResponse(circuitViewPayload)])
 
     expect(
       await screen.findByRole(
@@ -167,7 +167,7 @@ describe('routes', () => {
      * all. This session is anonymous (`runtime={null}`), so a guard would
      * redirect — and every link anybody ever shared would break.
      */
-    at('/c/V1StGXR8Z5jdHi6BmyT8a', [jsonResponse(circuitWithVersionPayload)])
+    at('/c/V1StGXR8Z5jdHi6BmyT8a', [jsonResponse(circuitViewPayload)])
 
     expect(
       await screen.findByRole(

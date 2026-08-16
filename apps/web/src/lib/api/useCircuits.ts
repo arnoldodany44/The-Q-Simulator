@@ -26,10 +26,15 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query'
+import type {
+  QueryClient,
+  UseMutationResult,
+  UseQueryResult,
+} from '@tanstack/react-query'
 import type {
   CircuitEnvelope,
   CircuitPage,
+  CircuitView,
   CircuitWithVersion,
   CreateCircuitRequest,
   CreateVersionRequest,
@@ -52,7 +57,25 @@ import {
   listVersions,
   updateCircuit,
 } from './circuits.js'
-import { circuitKeys } from './queryKeys.js'
+import { circuitKeys, galleryKeys } from './queryKeys.js'
+
+/**
+ * The public listings a write can change (M1.5b).
+ *
+ * Creating, renaming, retagging, publishing and deleting all move rows into or
+ * out of the gallery and the author's profile page, and those listings live
+ * under their own cache root — so a mutation that invalidated only
+ * `circuitKeys.lists()` would leave a circuit visible in the gallery after its
+ * owner made it private. Invalidation rather than surgery: the server owns the
+ * ordering, and the cursor that resumes it.
+ */
+function invalidateListings(queryClient: QueryClient, handle?: string): void {
+  void queryClient.invalidateQueries({ queryKey: circuitKeys.lists() })
+  void queryClient.invalidateQueries({ queryKey: galleryKeys.all })
+  if (handle !== undefined) {
+    void queryClient.invalidateQueries({ queryKey: circuitKeys.detail(handle) })
+  }
+}
 
 /** `GET /circuits` — the signed-in user's own circuits. */
 export function useCircuits(
@@ -69,10 +92,13 @@ export function useCircuits(
   })
 }
 
-/** `GET /circuits/:id` — a circuit and the version to open in the editor. */
+/**
+ * `GET /circuits/:id` — a circuit, the version to open in the editor, and
+ * whether this viewer has starred it (M1.5b).
+ */
 export function useCircuit(
   handle: string | null
-): UseQueryResult<CircuitWithVersion, unknown> {
+): UseQueryResult<CircuitView, unknown> {
   const client = useApiClient()
   return useQuery({
     queryKey: circuitKeys.detail(handle ?? ''),
@@ -133,12 +159,17 @@ export function useCreateCircuit(): UseMutationResult<
        * this tab is holding. `invalidateQueries` on the lists rather than a
        * manual splice: the server decides ordering and totals, and inventing
        * them here is how a pager starts disagreeing with itself.
+       *
+       * `starred: false` is not a guess. `POST /circuits` answers with the
+       * circuit and its first version and does not answer this question at
+       * all — it has no reason to, since a circuit created a millisecond ago
+       * has no stars and its creator has not pressed anything.
        */
-      queryClient.setQueryData(
-        circuitKeys.detail(created.circuit.slug),
-        created
-      )
-      void queryClient.invalidateQueries({ queryKey: circuitKeys.lists() })
+      queryClient.setQueryData(circuitKeys.detail(created.circuit.slug), {
+        ...created,
+        starred: false,
+      })
+      invalidateListings(queryClient)
     },
   })
 }
@@ -161,10 +192,7 @@ export function useUpdateCircuit(): UseMutationResult<
     mutationFn: ({ handle, body }: UpdateCircuitVariables) =>
       updateCircuit(client, handle, body),
     onSuccess: (_result, { handle }) => {
-      void queryClient.invalidateQueries({
-        queryKey: circuitKeys.detail(handle),
-      })
-      void queryClient.invalidateQueries({ queryKey: circuitKeys.lists() })
+      invalidateListings(queryClient, handle)
     },
   })
 }
@@ -184,7 +212,7 @@ export function useDeleteCircuit(): UseMutationResult<void, unknown, string> {
        * versions, since the versions key is nested under the detail.
        */
       queryClient.removeQueries({ queryKey: circuitKeys.detail(handle) })
-      void queryClient.invalidateQueries({ queryKey: circuitKeys.lists() })
+      invalidateListings(queryClient)
     },
   })
 }
@@ -207,11 +235,14 @@ export function useForkCircuit(): UseMutationResult<
     mutationFn: ({ handle, body }: ForkCircuitVariables) =>
       forkCircuit(client, handle, body),
     onSuccess: (created) => {
-      queryClient.setQueryData(
-        circuitKeys.detail(created.circuit.slug),
-        created
-      )
-      void queryClient.invalidateQueries({ queryKey: circuitKeys.lists() })
+      // A fork is a brand-new PRIVATE circuit owned by the caller, so it has
+      // no stars and the caller has starred nothing on it. Seeding the cache
+      // is what lets the editor open on it without a round trip.
+      queryClient.setQueryData(circuitKeys.detail(created.circuit.slug), {
+        ...created,
+        starred: false,
+      })
+      invalidateListings(queryClient)
     },
   })
 }
@@ -241,10 +272,10 @@ export function useSaveVersion(): UseMutationResult<
     mutationFn: ({ handle, body }: SaveVersionVariables) =>
       createVersion(client, handle, body),
     onSuccess: (_result, { handle }) => {
-      void queryClient.invalidateQueries({
-        queryKey: circuitKeys.detail(handle),
-      })
-      void queryClient.invalidateQueries({ queryKey: circuitKeys.lists() })
+      // The gallery too, from M1.5b: a save redraws the card's thumbnail as
+      // well as moving its counters, so a listing left alone would advertise
+      // a diagram of the circuit as it used to be.
+      invalidateListings(queryClient, handle)
     },
   })
 }

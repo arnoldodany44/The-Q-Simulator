@@ -61,7 +61,42 @@ export {
 } from './circuits.js'
 export type { RequestContext } from './circuits.js'
 
-export { circuitKeys } from './queryKeys.js'
+export {
+  galleryQuery,
+  listGallery,
+  listUserCircuits,
+  starCircuit,
+  unstarCircuit,
+} from './gallery.js'
+
+export { applyStarToPage, applyStarToPages, applyStarToView } from './stars.js'
+export type { StarUpdate, StarrablePage } from './stars.js'
+
+export {
+  deleteAccount,
+  getAccount,
+  getProfile,
+  listUserCollections,
+  updateProfile,
+} from './account.js'
+
+export {
+  addCollectionItem,
+  createCollection,
+  deleteCollection,
+  getCollection,
+  listCollections,
+  listCollectionsHolding,
+  removeCollectionItem,
+  updateCollection,
+} from './collections.js'
+
+export {
+  accountKeys,
+  circuitKeys,
+  collectionKeys,
+  galleryKeys,
+} from './queryKeys.js'
 export {
   DEFAULT_STALE_TIME_MS,
   MAX_QUERY_RETRIES,
@@ -89,6 +124,32 @@ export type {
   SaveVersionVariables,
   UpdateCircuitVariables,
 } from './useCircuits.js'
+
+export { useGallery, useStarCircuit, useUserCircuits } from './useGallery.js'
+export type { GallerySelection, StarVariables } from './useGallery.js'
+
+export {
+  useAccount,
+  useDeleteAccount,
+  useProfile,
+  useUpdateProfile,
+  useUserCollections,
+} from './useAccount.js'
+
+export {
+  useAddCollectionItem,
+  useCollection,
+  useCollections,
+  useCollectionsHolding,
+  useCreateCollection,
+  useDeleteCollection,
+  useRemoveCollectionItem,
+  useUpdateCollection,
+} from './useCollections.js'
+export type {
+  CollectionItemVariables,
+  UpdateCollectionVariables,
+} from './useCollections.js'
 
 export { useApiErrorMessage } from './useApiErrorMessage.js'
 export type { ApiErrorMessage } from './useApiErrorMessage.js'

@@ -56,8 +56,11 @@ export {
   MAX_DESCRIPTION_LENGTH,
   MAX_MESSAGE_LENGTH,
   MAX_PER_PAGE,
+  MAX_TAG_INPUT_LENGTH,
+  MAX_TAGS,
   MAX_TITLE_LENGTH,
   PaginationQuery,
+  TagsSchema,
   UpdateCircuitBody,
   serverCircuitResponses,
   serverTimestamp,
@@ -72,16 +75,99 @@ export type {
   CircuitPage,
   CircuitVersion,
   CircuitVersionSummary,
+  CircuitView,
   CircuitWithVersion,
   CreateCircuitRequest,
   CreateVersionRequest,
   ForkCircuitRequest,
+  GalleryPage,
   Pagination,
   PaginationParams,
+  PublicUser,
   UpdateCircuitRequest,
+  UserCircuitsPage,
   VersionEnvelope,
   VersionPage,
 } from './circuits.js'
 
-export { API_PREFIX, CIRCUIT_ROUTES, circuitPath, fillRoute } from './paths.js'
-export type { CircuitRoute } from './paths.js'
+export {
+  DEFAULT_GALLERY_LIMIT,
+  DEFAULT_GALLERY_SORT,
+  GALLERY_SORTS,
+  GalleryQuerySchema,
+  GallerySortSchema,
+  MAX_CURSOR_LENGTH,
+  MAX_GALLERY_LIMIT,
+  MAX_SEARCH_LENGTH,
+  MAX_TAG_QUERY_LENGTH,
+  MIN_SEARCH_LENGTH,
+  StarStateResponse,
+} from './gallery.js'
+export type {
+  GalleryQuery,
+  GalleryQueryParams,
+  GallerySort,
+  StarState,
+} from './gallery.js'
+
+export {
+  AVATAR_SOURCES,
+  AvatarSourceSchema,
+  DeleteAccountBody,
+  MAX_DISPLAY_NAME_LENGTH,
+  MAX_USERNAME_LENGTH,
+  MIN_USERNAME_LENGTH,
+  USERNAME_PATTERN,
+  UpdateProfileBody,
+  UsernameSchema,
+  serverUserResponses,
+  wireUserResponses,
+} from './users.js'
+export type {
+  Account,
+  AccountDeletion,
+  AvatarSource,
+  DeleteAccountRequest,
+  Profile,
+  UpdateProfileRequest,
+} from './users.js'
+
+export {
+  AddCollectionItemBody,
+  CreateCollectionBody,
+  MAX_COLLECTION_DESCRIPTION_LENGTH,
+  MAX_COLLECTION_ITEMS,
+  MAX_COLLECTION_TITLE_LENGTH,
+  UpdateCollectionBody,
+  serverCollectionResponses,
+  wireCollectionResponses,
+} from './collections.js'
+export type {
+  AddCollectionItemRequest,
+  CollectionCard,
+  CollectionEnvelope,
+  CollectionMembership,
+  CollectionPage,
+  CollectionView,
+  CreateCollectionRequest,
+  UpdateCollectionRequest,
+} from './collections.js'
+
+export {
+  API_PREFIX,
+  CIRCUIT_ROUTES,
+  COLLECTION_ROUTES,
+  GALLERY_ROUTES,
+  USER_ROUTES,
+  circuitPath,
+  collectionPath,
+  fillRoute,
+  galleryPath,
+  userPath,
+} from './paths.js'
+export type {
+  CircuitRoute,
+  CollectionRoute,
+  GalleryRoute,
+  UserRoute,
+} from './paths.js'

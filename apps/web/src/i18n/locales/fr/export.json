@@ -1,0 +1,30 @@
+{
+  "heading": "Exporter",
+  "hint": "Chaque format est produit ici, dans cet onglet. Rien n’est envoyé pour créer un fichier.",
+  "action": "Télécharger en {{format}}",
+  "formats": {
+    "qasm3": "Le format d’échange. Qiskit et la plupart des chaînes d’outils matérielles le lisent ; une porte sans équivalent y est écrite sous forme de décomposition exacte, avec un commentaire qui le précise.",
+    "qiskit": "Du Python pour un carnet, avec les imports, les registres et un commentaire nommant sa provenance.",
+    "json": "Le format natif. La seule exportation qui ne perd rien, et celle à conserver pour rouvrir ce circuit ici.",
+    "svg": "Le diagramme en image vectorielle. Autonome : le fichier porte ses propres couleurs et ne demande aucune police qu’il n’a pas.",
+    "png": "Le diagramme en image, dessiné au double de sa taille à l’écran pour rester net dans une diapositive ou un ticket."
+  },
+  "status": {
+    "working": "Préparation du fichier {{format}}…",
+    "offered": "{{filename}} a été remis à votre navigateur."
+  },
+  "failure": {
+    "too-large": "Ce circuit est trop large pour être converti en image. L’exportation SVG n’a pas cette limite.",
+    "unknown": "Ce fichier n’a pas pu être créé."
+  },
+  "diagram": {
+    "title": "Circuit quantique : {{title}}",
+    "untitled": "Circuit quantique",
+    "description": "Diagramme du circuit : {{qubits}}, {{gates}}, {{depth}}.",
+    "qubits_one": "{{value}} qubit",
+    "qubits_other": "{{value}} qubits",
+    "gates_one": "{{value}} porte",
+    "gates_other": "{{value}} portes",
+    "depth": "profondeur {{value}}"
+  }
+}

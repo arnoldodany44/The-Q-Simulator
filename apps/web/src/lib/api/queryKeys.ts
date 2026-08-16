@@ -27,7 +27,7 @@
  * cache entry under an address that was never requested.
  */
 
-import type { PaginationParams } from '@qsim/contract'
+import type { GalleryQueryParams, PaginationParams } from '@qsim/contract'
 
 export const circuitKeys = {
   all: ['circuits'] as const,
@@ -52,3 +52,103 @@ export const circuitKeys = {
   version: (handle: string, versionNum: number) =>
     [...circuitKeys.versions(handle), versionNum] as const,
 } as const
+
+/**
+ * The public listings (M1.5b), under their own root rather than beneath
+ * `circuits`.
+ *
+ * They are a different question about a different set of rows: `circuits` is
+ * "mine", the gallery is "everyone's, filtered by §11". Nesting them would
+ * make `invalidateQueries({ queryKey: circuitKeys.lists() })` — which every
+ * save and every delete already fires — refetch every gallery page the reader
+ * has scrolled through, on a route whose pages are cursor-linked and therefore
+ * expensive to rebuild.
+ *
+ *     ['gallery']                                    everything public
+ *     ['gallery','browse',{sort,tag,q,limit}]        one selection, all pages
+ *     ['gallery','user',username,{sort,tag,q,limit}] one author's listing
+ *
+ * The cursor is deliberately absent from the key, and `limit` deliberately is
+ * not. React Query's infinite query holds every page of one selection under a
+ * single entry — that is what makes "show more" append rather than replace —
+ * so a key that varied with the cursor would give each page its own cache line
+ * and no listing at all. A different page size, on the other hand, is a
+ * different listing: its cursors do not describe positions in the other one.
+ */
+export const galleryKeys = {
+  all: ['gallery'] as const,
+
+  browses: () => [...galleryKeys.all, 'browse'] as const,
+  browse: (params: GalleryQueryParams = {}) =>
+    [...galleryKeys.browses(), selectionOf(params)] as const,
+
+  users: () => [...galleryKeys.all, 'user'] as const,
+  user: (username: string, params: GalleryQueryParams = {}) =>
+    [...galleryKeys.users(), username, selectionOf(params)] as const,
+} as const
+
+/**
+ * Everything about a request that decides *which listing* it is, spelled out
+ * field by field rather than spread.
+ *
+ * Spreading would put the cursor in the key the first time somebody passed a
+ * whole `GalleryQueryParams` through, which is the one field that must not be
+ * there — and the failure would be a "show more" that silently replaced the
+ * listing instead of growing it.
+ */
+/**
+ * The account and the collections (M1.9), each under their own root.
+ *
+ * `account` is one row and has no listing beneath it, so it is a single key.
+ * It is separate from `gallery` and from `circuits` because the thing that
+ * invalidates it is different from what invalidates either: renaming yourself
+ * changes every byline in every listing, which is why `useUpdateProfile`
+ * invalidates all three rather than trying to patch cards in place.
+ *
+ *     ['account']                       the caller's own row
+ *     ['collections']                   everything about collections
+ *     ['collections','list',{page}]     the caller's own index
+ *     ['collections','detail',id]       one collection and its items
+ *     ['collections','user',username,…] one author's, on their profile
+ *     ['collections','holding',handle]  which of mine hold this circuit
+ */
+export const accountKeys = {
+  all: ['account'] as const,
+  me: () => [...accountKeys.all, 'me'] as const,
+  profile: (username: string) =>
+    [...accountKeys.all, 'profile', username] as const,
+} as const
+
+export const collectionKeys = {
+  all: ['collections'] as const,
+
+  lists: () => [...collectionKeys.all, 'list'] as const,
+  list: (params: PaginationParams = {}) =>
+    [
+      ...collectionKeys.lists(),
+      { page: params.page, perPage: params.perPage },
+    ] as const,
+
+  details: () => [...collectionKeys.all, 'detail'] as const,
+  detail: (id: string) => [...collectionKeys.details(), id] as const,
+
+  users: () => [...collectionKeys.all, 'user'] as const,
+  user: (username: string, params: PaginationParams = {}) =>
+    [
+      ...collectionKeys.users(),
+      username,
+      { page: params.page, perPage: params.perPage },
+    ] as const,
+
+  holding: (handle: string) =>
+    [...collectionKeys.all, 'holding', handle] as const,
+} as const
+
+function selectionOf(params: GalleryQueryParams) {
+  return {
+    sort: params.sort,
+    tag: params.tag,
+    q: params.q,
+    limit: params.limit,
+  }
+}

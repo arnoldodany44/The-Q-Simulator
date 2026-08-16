@@ -1,0 +1,64 @@
+{
+  "title": "Tus colecciones",
+  "lead": "Agrupa circuitos bajo un mismo título: una familia de algoritmos, una lección, un conjunto de experimentos.",
+  "loading": "Cargando colecciones…",
+  "offline": "Esperando a la red. Tus colecciones aparecerán cuando vuelva la conexión.",
+  "retry": "Reintentar",
+  "listing": "Colecciones",
+  "unknown": "No hay ninguna colección en esa dirección, o no se ha compartido contigo.",
+  "toGallery": "Volver a la galería",
+  "create": {
+    "open": "Nueva colección",
+    "submit": "Crear colección"
+  },
+  "empty": {
+    "heading": "Aún no hay colecciones.",
+    "body": "Una colección es una lista de circuitos que puedes guardar para ti o compartir como una sola página."
+  },
+  "pager": {
+    "label": "Páginas de colecciones",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "position": "Página {{page}} de {{pages}} — {{total}} colecciones"
+  },
+  "card": {
+    "items": "Circuitos",
+    "updated": "Actualizada"
+  },
+  "form": {
+    "title": "Título",
+    "description": "Descripción",
+    "visibility": "Visibilidad",
+    "visibilityNote": "Este ajuste se refiere a la colección en sí. Cada circuito conserva la suya: una colección pública nunca publica un circuito privado, simplemente no lo muestra.",
+    "saving": "Guardando…"
+  },
+  "edit": {
+    "open": "Editar",
+    "cancel": "Dejar de editar",
+    "save": "Guardar colección",
+    "delete": "Eliminar colección",
+    "deleting": "Eliminando…"
+  },
+  "add": {
+    "label": "Añadir uno de tus circuitos",
+    "placeholder": "Elige un circuito",
+    "submit": "Añadir a la colección",
+    "adding": "Añadiendo…",
+    "loading": "Cargando tus circuitos…",
+    "none": "Todos los circuitos que has guardado ya están en esta colección."
+  },
+  "page": {
+    "curator": "reunido por",
+    "shown_one": "Mostrando {{shown}} de {{total}} circuito.",
+    "shown_other": "Mostrando {{shown}} de {{total}} circuitos.",
+    "withheld_one": "{{value}} no es visible para ti.",
+    "withheld_other": "{{value}} no son visibles para ti.",
+    "empty": "Nada de esta colección es visible para ti.",
+    "emptyOwner": "Añade arriba uno de tus circuitos.",
+    "remove": "Quitar {{title}} de esta colección"
+  },
+  "profile": {
+    "heading": "Colecciones",
+    "listing": "Colecciones de este autor"
+  }
+}

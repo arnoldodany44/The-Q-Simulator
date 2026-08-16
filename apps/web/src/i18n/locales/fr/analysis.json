@@ -8,7 +8,7 @@
       "capped_other": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle. Les {{shown}} plus probables sont tracés un par un ; les {{hidden}} autres totalisent {{share}} à eux tous et se partagent la dernière barre."
     },
     "empty": "Aucun état de base ne porte de probabilité.",
-    "phasorNote": "Chaque flèche pointe dans la direction de la phase de son amplitude, et sa couleur est ce même angle. Deux flèches opposées, ce sont deux chemins qui s'annulent.",
+    "phasorNote": "Chaque flèche pointe dans la direction de la phase de son amplitude, et sa couleur est ce même angle. Deux flèches opposées, ce sont deux chemins qui s’annulent.",
     "table": {
       "caption": "Les mêmes barres en texte : état de base, probabilité et phase.",
       "state": "État de base",
@@ -27,7 +27,7 @@
       "capped_one": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle. Les {{shown}} plus probables sont listés un par un ; le seul autre totalise {{share}}.",
       "capped_other": "{{occupied}} états de base sur {{total}} ont une probabilité non nulle. Les {{shown}} plus probables sont listés un par un ; les {{hidden}} autres totalisent {{share}} à eux tous."
     },
-    "empty": "Aucun état de base ne porte d'amplitude.",
+    "empty": "Aucun état de base ne porte d’amplitude.",
     "columns": {
       "state": "État de base",
       "amplitude": "Amplitude",
@@ -40,17 +40,39 @@
       "caption": "Une ligne par état de base : amplitude, module, probabilité et phase. Les colonnes état de base et probabilité sont triables.",
       "remainder_one": "Le seul autre état de base",
       "remainder_other": "Les {{hidden}} autres états de base, réunis",
-      "noAmplitude": "Pas d'amplitude unique",
+      "noAmplitude": "Pas d’amplitude unique",
       "mixedPhase": "Plusieurs phases"
+    }
+  },
+  "bloch": {
+    "heading": "Sphères de Bloch",
+    "caption": {
+      "product_one": "L’unique qubit du registre atteint la surface de sa sphère : il possède donc un état propre.",
+      "product_other": "Les {{total}} qubits atteignent la surface de leur sphère : aucun n’est donc intriqué avec un autre.",
+      "entangled_one": "Un qubit sur {{total}} n’atteint pas la surface. Une flèche raccourcie, voilà à quoi ressemble ici l’intrication.",
+      "entangled_other": "{{shortened}} qubits sur {{total}} n’atteignent pas la surface. Une flèche raccourcie, voilà à quoi ressemble ici l’intrication."
+    },
+    "note": "Chaque flèche est tracée à sa longueur réelle. Un qubit intriqué avec le reste du registre n’a pas d’état propre : sa flèche raccourcit — et pour chaque moitié d’une paire de Bell elle s’effondre au centre de la sphère.",
+    "loading": "Tracé des sphères…",
+    "unavailable": "Ce navigateur n’a pas pu ouvrir de vue 3D : les sphères ne sont donc pas tracées. Le tableau ci-dessous porte la même lecture.",
+    "table": {
+      "caption": "Une ligne par qubit : les trois composantes de son vecteur de Bloch, la longueur de ce vecteur, et ce que cette longueur dit du qubit.",
+      "qubit": "Qubit",
+      "reading": "Lecture"
+    },
+    "reading": {
+      "pure": "À la surface : un état propre",
+      "shortened": "Courte : partiellement intriqué",
+      "centre": "Au centre : pas d’état propre"
     }
   },
   "counts": {
     "heading": "Comptages mesurés",
-    "intro_one": "Ce circuit mesure avant de se terminer : il n'a donc pas d'état final unique. Il a été exécuté {{shots}} fois, et le registre classique a toujours lu la même valeur.",
-    "intro_other": "Ce circuit mesure avant de se terminer : il n'a donc pas d'état final unique. Il a été exécuté {{shots}} fois, et le registre classique a lu {{readings}} valeurs différentes.",
-    "empty": "Aucune exécution n'a produit de lecture.",
+    "intro_one": "Ce circuit mesure avant de se terminer : il n’a donc pas d’état final unique. Il a été exécuté {{shots}} fois, et le registre classique a toujours lu la même valeur.",
+    "intro_other": "Ce circuit mesure avant de se terminer : il n’a donc pas d’état final unique. Il a été exécuté {{shots}} fois, et le registre classique a lu {{readings}} valeurs différentes.",
+    "empty": "Aucune exécution n’a produit de lecture.",
     "table": {
-      "caption": "Une ligne par lecture du registre classique : combien d'exécutions l'ont produite, et quelle part du total cela représente.",
+      "caption": "Une ligne par lecture du registre classique : combien d’exécutions l’ont produite, et quelle part du total cela représente.",
       "reading": "Registre",
       "runs": "Exécutions",
       "share": "Part",
@@ -60,15 +82,15 @@
   },
   "sampling": {
     "heading": "Échantillonnage par shots",
-    "intro": "Un simulateur connaît toutes les probabilités de façon exacte. Une vraie machine, elle, est exécutée un certain nombre de fois et compte ce qu'elle lit. Tirez des shots de cet état pour voir la différence.",
+    "intro": "Un simulateur connaît toutes les probabilités de façon exacte. Une vraie machine, elle, est exécutée un certain nombre de fois et compte ce qu’elle lit. Tirez des shots de cet état pour voir la différence.",
     "enable": "Comparer un échantillon avec la distribution exacte",
     "shots": "Shots",
     "resample": "Tirer à nouveau",
-    "waiting": "Tirage de l'échantillon…",
-    "summary_one": "{{shots}} shot. Le plus grand écart entre l'échantillon et la distribution exacte est de {{gap}} ; avec ce nombre de shots, un écart d'environ {{typical}} est ce qu'il faut attendre. Multipliez les shots par cent et l'écart est divisé par dix.",
-    "summary_other": "{{shots}} shots. Le plus grand écart entre l'échantillon et la distribution exacte est de {{gap}} ; avec ce nombre de shots, un écart d'environ {{typical}} est ce qu'il faut attendre. Multipliez les shots par cent et l'écart est divisé par dix.",
+    "waiting": "Tirage de l’échantillon…",
+    "summary_one": "{{shots}} shot. Le plus grand écart entre l’échantillon et la distribution exacte est de {{gap}} ; avec ce nombre de shots, un écart d’environ {{typical}} est ce qu’il faut attendre. Multipliez les shots par cent et l’écart est divisé par dix.",
+    "summary_other": "{{shots}} shots. Le plus grand écart entre l’échantillon et la distribution exacte est de {{gap}} ; avec ce nombre de shots, un écart d’environ {{typical}} est ce qu’il faut attendre. Multipliez les shots par cent et l’écart est divisé par dix.",
     "table": {
-      "caption": "Une ligne par état de base : la probabilité exacte, combien de shots y sont tombés, la proportion que cela représente et l'écart entre les deux.",
+      "caption": "Une ligne par état de base : la probabilité exacte, combien de shots y sont tombés, la proportion que cela représente et l’écart entre les deux.",
       "state": "État de base",
       "exact": "Exacte",
       "count": "Shots",

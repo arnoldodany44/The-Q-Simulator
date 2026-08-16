@@ -1,4 +1,4 @@
-import { CIRCUIT_SCHEMA_VERSION, emptyCircuit } from '@qsim/schema'
+import { CIRCUIT_SCHEMA_VERSION, emptyCircuit, previewOf } from '@qsim/schema'
 import type { Circuit } from '@qsim/schema'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -199,6 +199,8 @@ describe('forking', () => {
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-02-01T00:00:00Z'),
     owner: { id: 'owner-uuid', username: 'ada', avatarUrl: null },
+    tags: ['bell', 'entanglement'],
+    preview: previewOf(bell),
   }
 
   const latest: StoredVersion = {
@@ -237,6 +239,10 @@ describe('forking', () => {
       message: null,
       // The attribution the whole feature exists for.
       forkedFromId: 'cir_source',
+      // Tags describe what the circuit *is*, and a fork is the same circuit
+      // until its new owner changes it. Dropping them would file every fork
+      // under nothing.
+      tags: ['bell', 'entanglement'],
     })
   })
 

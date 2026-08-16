@@ -1,0 +1,32 @@
+{
+  "name": "@qsim/qasm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Serialisers from the circuit contract to OpenQASM 3, Qiskit Python and native JSON",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@qsim/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "@qsim/core": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

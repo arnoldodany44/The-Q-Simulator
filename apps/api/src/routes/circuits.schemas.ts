@@ -36,6 +36,7 @@ export const {
   CircuitDetailResponse,
   CircuitEnvelope,
   CircuitPageResponse,
+  CircuitViewResponse,
   CircuitWithVersionResponse,
   VersionEnvelope,
   VersionPageResponse,

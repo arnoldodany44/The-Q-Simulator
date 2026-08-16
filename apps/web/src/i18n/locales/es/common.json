@@ -26,7 +26,9 @@
     "circuits": "Tus circuitos",
     "signOut": "Cerrar sesión",
     "signIn": "Iniciar sesión",
-    "signOutFailed": "No se pudo cerrar la sesión. Revisa tu conexión e inténtalo de nuevo."
+    "signOutFailed": "No se pudo cerrar la sesión. Revisa tu conexión e inténtalo de nuevo.",
+    "collections": "Tus colecciones",
+    "settings": "Ajustes"
   },
   "loading": "Cargando…"
 }

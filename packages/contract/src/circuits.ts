@@ -37,7 +37,12 @@
  * a field is physically incapable of reaching only one of them.
  */
 
-import { CircuitSchema, storableProse, storableText } from '@qsim/schema'
+import {
+  CircuitPreviewSchema,
+  CircuitSchema,
+  storableProse,
+  storableText,
+} from '@qsim/schema'
 import { z } from 'zod'
 import { VisibilitySchema, Visibility } from './visibility.js'
 
@@ -47,6 +52,22 @@ export const MAX_TITLE_LENGTH = 120
 export const MAX_DESCRIPTION_LENGTH = 4000
 /** A commit message for a version. Same spirit as a git subject line. */
 export const MAX_MESSAGE_LENGTH = 200
+/**
+ * Longest tag a request may carry *before* normalisation.
+ *
+ * Deliberately larger than what survives: `@qsim/db` folds a tag to its
+ * canonical spelling and caps the result at 32, and a name that is longer
+ * than that afterwards is refused there with the position that was wrong.
+ * This bound is the cheap one — it stops a kilobyte of "tag" from reaching
+ * the normaliser at all — and it is not the rule.
+ */
+export const MAX_TAG_INPUT_LENGTH = 64
+/**
+ * Most tags one circuit may carry. Mirrors `MAX_TAGS_PER_CIRCUIT` in
+ * `@qsim/db`, which is the authority; `apps/api` asserts the two agree, in
+ * the same way and for the same reason it does for `Visibility`.
+ */
+export const MAX_TAGS = 8
 /** Largest page a listing will serve, whatever `perPage` asks for. */
 export const MAX_PER_PAGE = 100
 /** What `perPage` means when a client does not say. */
@@ -87,6 +108,20 @@ const DescriptionSchema = storableProse(
 const MessageSchema = storableText(
   z.string().trim().max(MAX_MESSAGE_LENGTH)
 ).nullable()
+
+/**
+ * The tags on a request, as typed rather than as stored.
+ *
+ * This schema deliberately does *not* normalise. Canonicalising a tag is what
+ * makes `Tag.name @unique` a browsable facet instead of a pile of near
+ * duplicates, so it happens once, next to the write, in `@qsim/db` — the same
+ * argument that keeps slug generation there. What is enforced here is only
+ * what can be enforced without knowing that rule: the count, the length, and
+ * that the strings are storable at all.
+ */
+export const TagsSchema = z
+  .array(storableText(z.string().trim().min(1).max(MAX_TAG_INPUT_LENGTH)))
+  .max(MAX_TAGS)
 
 /* ── Requests ──────────────────────────────────────────────────────────── */
 
@@ -147,6 +182,7 @@ export const CreateCircuitBody = z.object({
   visibility: VisibilitySchema.default(Visibility.PRIVATE),
   circuit: CircuitSchema,
   message: MessageSchema.optional(),
+  tags: TagsSchema.optional(),
 })
 
 /**
@@ -159,6 +195,11 @@ export const UpdateCircuitBody = z
     title: TitleSchema.optional(),
     description: DescriptionSchema.optional(),
     visibility: VisibilitySchema.optional(),
+    /**
+     * Replaces the whole set. `[]` clears every tag, which is a thing a
+     * person can ask for and is not the same request as omitting the field.
+     */
+    tags: TagsSchema.optional(),
   })
   .refine((body) => Object.keys(body).length > 0, {
     error: 'at least one field must be present',
@@ -255,6 +296,35 @@ function buildCircuitResponses<Timestamp extends z.ZodType>(
     createdAt: timestamp,
     updatedAt: timestamp,
     owner: OwnerRef,
+    /**
+     * Canonical spellings, sorted. Present on the *card* and not only on the
+     * detail because the gallery filters by tag: a facet a card cannot show
+     * is one nobody can see they are standing inside.
+     *
+     * Unlike `forkedFromId`, a tag is a property of this circuit rather than
+     * a handle to a different one, so there is no visibility question to get
+     * wrong here.
+     */
+    tags: z.array(z.string()),
+    /**
+     * The thumbnail a card draws — @qsim/schema's bounded `CircuitPreview`,
+     * derived from the head version on write and stored beside these counters
+     * (M1.5b).
+     *
+     * It is on the *card* because that is the only place it is for, and it is
+     * a distinct shape from the circuit itself because a listing of fifty
+     * circuits must not carry fifty documents: `previewOf` keeps a handful of
+     * wires and a handful of columns and throws away parameters, labels,
+     * classical links and control polarity, none of which survives being drawn
+     * at this size. `truncated` inside it says when the real circuit reaches
+     * past the picture, because a drawing that silently omits its subject is a
+     * drawing that lies.
+     *
+     * `null` for a circuit stored before this field existed, and for a stored
+     * value that no longer parses. Both mean the same thing to a client: draw
+     * the counters, not a picture.
+     */
+    preview: CircuitPreviewSchema.nullable(),
   })
 
   const CircuitDetailResponse = CircuitCardResponse.extend({
@@ -284,21 +354,102 @@ function buildCircuitResponses<Timestamp extends z.ZodType>(
     })
   }
 
+  /**
+   * A keyset page: the rows, and the opaque handle that resumes after them.
+   *
+   * There is no `total` and no `totalPages`, which is the honest shape for a
+   * cursor listing — see `CursorPage` in `@qsim/db` for why counting the
+   * gallery on every request is a cost paid for a number that is stale before
+   * it renders. `nextCursor` is `null` exactly when this was the last page.
+   *
+   * The cursor is opaque *to the client on purpose*: it encodes a position in
+   * a server-side ordering, and a client that parsed it would be building on
+   * a shape that is free to change. It is not a credential either — every
+   * page re-applies the visibility filter, so a forged cursor moves the
+   * window and cannot widen it.
+   */
+  function cursorPageResponse<T extends z.ZodType>(item: T) {
+    return z.object({
+      items: z.array(item),
+      nextCursor: z.string().nullable(),
+      /** Echoed because the server may have clamped what was asked for. */
+      limit: z.int(),
+      /**
+       * The ids on *this page* that this viewer has starred. Empty for an
+       * anonymous caller, who has no stars to have (M1.5b).
+       *
+       * ── Why it rides in the envelope and not on the card ───────────────
+       *
+       * For the reason `starred` rides in `CircuitViewResponse` rather than on
+       * `CircuitDetailResponse`: it is not a property of a circuit, it is a
+       * property of the pair (circuit, viewer). Putting a boolean on the card
+       * would oblige every route that returns one — create, patch, fork, the
+       * owner's own listing — to answer a question it has no reason to ask,
+       * and would make a cached card wrong for the next person to sign in.
+       *
+       * ── Why a list and not a lookup per card ───────────────────────────
+       *
+       * Because a star button that does not know whether it is already
+       * starred is a button that lies. The alternatives were a boolean per
+       * card (above), or fifty `GET /circuits/:id` calls (the thing M1.5b's
+       * preview exists to avoid). This is one indexed read of `Star` over the
+       * ids the listing already returned, skipped entirely when nobody is
+       * signed in — which is most of this route's traffic.
+       *
+       * It is scoped to the page rather than to the account on purpose: "which
+       * of *these* have I starred" is answerable from the primary key, while
+       * "everything I have ever starred" grows without bound and is not a
+       * question any screen asks.
+       */
+      starred: z.array(z.string()),
+    })
+  }
+
+  /** A user as a profile page shows them. No `email`, ever (§11). */
+  const PublicUserResponse = z.object({
+    id: z.string(),
+    username: z.string(),
+    displayName: z.string().nullable(),
+    avatarUrl: z.string().nullable(),
+    createdAt: timestamp,
+  })
+
+  /** A circuit and the version to open in the editor. */
+  const CircuitWithVersionResponse = z.object({
+    circuit: CircuitDetailResponse,
+    version: VersionResponse,
+  })
+
   return {
     OwnerRef,
+    PublicUserResponse,
     CircuitCardResponse,
     CircuitDetailResponse,
     VersionSummaryResponse,
     VersionResponse,
-    /** A circuit and the version to open in the editor. */
-    CircuitWithVersionResponse: z.object({
-      circuit: CircuitDetailResponse,
-      version: VersionResponse,
+    CircuitWithVersionResponse,
+    /**
+     * The same thing plus this viewer's own star, which only the *read* route
+     * can answer.
+     *
+     * It rides in the envelope rather than on `CircuitDetailResponse` because
+     * it is not a property of the circuit: it is a property of the pair
+     * (circuit, viewer), and putting it on the resource would oblige every
+     * route that returns a circuit — create, patch, fork — to answer a
+     * question it has no reason to ask. `false` for an anonymous caller.
+     */
+    CircuitViewResponse: CircuitWithVersionResponse.extend({
+      starred: z.boolean(),
     }),
     CircuitEnvelope: z.object({ circuit: CircuitDetailResponse }),
     VersionEnvelope: z.object({ version: VersionResponse }),
     CircuitPageResponse: pageResponse(CircuitCardResponse),
     VersionPageResponse: pageResponse(VersionSummaryResponse),
+    GalleryPageResponse: cursorPageResponse(CircuitCardResponse),
+    /** The profile page: whose circuits these are, and the page of them. */
+    UserCircuitsResponse: cursorPageResponse(CircuitCardResponse).extend({
+      user: PublicUserResponse,
+    }),
   }
 }
 
@@ -331,6 +482,9 @@ export type CircuitVersion = z.infer<
 export type CircuitWithVersion = z.infer<
   typeof wireCircuitResponses.CircuitWithVersionResponse
 >
+export type CircuitView = z.infer<
+  typeof wireCircuitResponses.CircuitViewResponse
+>
 export type CircuitEnvelope = z.infer<
   typeof wireCircuitResponses.CircuitEnvelope
 >
@@ -342,4 +496,11 @@ export type CircuitPage = z.infer<
 >
 export type VersionPage = z.infer<
   typeof wireCircuitResponses.VersionPageResponse
+>
+export type PublicUser = z.infer<typeof wireCircuitResponses.PublicUserResponse>
+export type GalleryPage = z.infer<
+  typeof wireCircuitResponses.GalleryPageResponse
+>
+export type UserCircuitsPage = z.infer<
+  typeof wireCircuitResponses.UserCircuitsResponse
 >

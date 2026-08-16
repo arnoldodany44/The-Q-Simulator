@@ -46,6 +46,7 @@ apps/api            Fastify 5 REST service                 → Railway
 packages/qsim       @qsim/core     — simulation engine, zero dependencies
 packages/schema     @qsim/schema   — circuit JSON contract, Zod validators
 packages/contract   @qsim/contract — REST wire contract, shared by web and api
+packages/qasm       @qsim/qasm     — OpenQASM 3, Qiskit and JSON serialisers
 packages/db         @qsim/db       — Prisma schema, migrations, client singleton
 packages/config     @qsim/config   — shared ESLint and TypeScript config
 ```
@@ -95,12 +96,13 @@ any drift. `pnpm --filter @qsim/db test` asserts that no committed migration
 contains a destructive statement or touches Supabase's `auth` schema.
 
 Because there is one database, no suite reaches it by default — `pnpm verify`
-runs entirely offline. Two opt-in suites exist for the questions only Postgres
-can answer, and both clean up after themselves:
+runs entirely offline. Three opt-in suites exist for the questions only Postgres
+can answer, and all three clean up after themselves:
 
 ```bash
 QSIM_DB_INTROSPECTION=1 pnpm --filter @qsim/db test   # read-only, after a migration
 QSIM_DB_INTEGRATION=1   pnpm --filter @qsim/db test   # writes, then deletes what it wrote
+QSIM_LIVE_DRIVE=1       pnpm --filter api test        # the whole feature set, end to end
 ```
 
 The second creates everything under two reserved identities and deletes those
@@ -108,7 +110,16 @@ two `User` rows afterwards, letting `ON DELETE CASCADE` remove the rest — so i
 can never touch a row it did not create. It earns its keep: it is what caught
 that Prisma 7's driver adapter reports a unique-constraint violation with no
 `meta.target` at all, which had silently disabled two retry paths written from
-the documentation (`packages/db/src/prisma-errors.ts`).
+the documentation (`packages/db/src/prisma-errors.ts`). It is also the only
+place the tag-replacement race is visible, because reproducing it needs more
+than one database connection and the pooler URL carries `connection_limit=1`.
+
+The third drives two people through publish, browse, star, fork, export and
+profile against the real database, through the real Fastify app. Its identities
+exist only in `public.User` and its bearer tokens are signed by a key pair
+generated in the test process: Supabase owns `auth.users` and nothing here may
+write to it, so the verifier, issuer, audience and `sub` checks are the
+production ones and only the signing key is local.
 
 ## Documentation
 

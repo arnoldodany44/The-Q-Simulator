@@ -76,6 +76,7 @@ import { ShareLink } from '../features/circuit-editor/ShareLink'
 import { useCircuitStore } from '../features/circuit-editor/useCircuitStore'
 import { useCircuitUrl } from '../features/circuit-editor/useCircuitUrl'
 import { useExample } from '../features/circuit-editor/useExample'
+import { ExportPanel } from '../features/export'
 import {
   SaveCircuitPanel,
   VersionHistoryPanel,
@@ -84,11 +85,21 @@ import {
   useUnsavedWork,
   useVersionSelection,
 } from '../features/circuit-storage'
+/*
+ * The two public actions on somebody else's circuit (M1.5b). They live in the
+ * gallery feature because that is where they are used most, and the editor is
+ * the *other* place a circuit is shown — the brief asks for a fork from a card
+ * and from an open circuit, and one implementation is what keeps those two the
+ * same action.
+ */
+import { ForkButton, ForkedFromNotice, StarButton } from '../features/gallery'
+import { useSession } from '../features/auth'
 import { useApiErrorMessage } from '../lib/api'
 
 export function EditorRoute() {
   const { t } = useTranslation(['editor', 'circuits', 'common'])
   const describeError = useApiErrorMessage()
+  const session = useSession()
   const { slug } = useParams<{ slug: string }>()
 
   const doc = useCircuitDocument({ slug: slug ?? null })
@@ -137,6 +148,15 @@ export function EditorRoute() {
       </header>
 
       <h2 className="section-heading">{t('editor:page.heading')}</h2>
+
+      {/*
+       * Above the title, because it is the answer to the question the title
+       * raises: the heading says the name of a circuit the reader was just
+       * looking at somewhere else, and this is what says the document under it
+       * is their own copy of it (M1.5b).
+       */}
+      <ForkedFromNotice />
+
       {doc.detail === null ? (
         <p>{t('editor:page.intro')}</p>
       ) : (
@@ -151,6 +171,14 @@ export function EditorRoute() {
       <div className="document-bar">
         <PresetPicker store={useCircuitStore} />
         <ShareLink url={url} />
+        {/*
+         * Beside the share control, because both answer "how do I get this
+         * circuit out of here" — one as a link back into this app, the other
+         * as a file for somewhere else (M1.7). It reads the document from the
+         * store rather than from `doc`, so it exports the circuit on screen
+         * including edits that have not been saved.
+         */}
+        <ExportPanel store={useCircuitStore} title={doc.detail?.title ?? ''} />
         <SaveCircuitPanel document={doc} carried={!url.tooLarge} />
         {/*
          * Only for a document that has a home. An unsaved circuit has no
@@ -164,6 +192,41 @@ export function EditorRoute() {
             selection={selection}
             onSelect={select}
           />
+        )}
+
+        {/*
+         * Star and fork, for a circuit that has a home (M1.5b). Both are
+         * addressed by *slug*, which is what makes them work on an UNLISTED
+         * circuit somebody was sent a link to — an id reaches only what a
+         * listing may show (`idAddressableCircuitFilter`).
+         *
+         * The fork is offered on somebody else's circuit and not on your own:
+         * forking your own is a duplicate rather than a fork, the API would
+         * happily do it, and the attribution sentence it lands on — "your copy
+         * of X, by you" — is a thing no reader needs to be told. The star is
+         * offered on both, because starring your own work is ordinary.
+         *
+         * The ownership test is a convenience and never a check: §11 puts
+         * authorisation on the server, and the point of hiding a control is
+         * that a button which can only produce a 403 is worse than no button.
+         */}
+        {doc.detail === null ? null : (
+          <div className="document-bar__social">
+            <StarButton
+              slug={doc.detail.slug}
+              circuitId={doc.detail.id}
+              starred={doc.starred}
+              starCount={doc.detail.starCount}
+            />
+            {doc.ownedBy(session.user?.id ?? null) ? null : (
+              <ForkButton
+                slug={doc.detail.slug}
+                title={doc.detail.title}
+                username={doc.detail.owner.username}
+                variant="primary"
+              />
+            )}
+          </div>
         )}
       </div>
 

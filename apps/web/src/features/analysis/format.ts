@@ -165,6 +165,33 @@ export function formatMagnitude(value: number, locale: string): string {
 }
 
 /**
+ * One coordinate of a Bloch vector, or its length: signed, four fixed
+ * decimals, and **zero when it rounds to zero**.
+ *
+ * That last clause is why this is not `formatMagnitude` under another name.
+ * An amplitude has a band below the printed precision that is still real
+ * physics — interference lives there — so `formatComponent` gives it a
+ * significant digit rather than rounding it away. A Bloch coordinate has the
+ * opposite shape: the value the reader is here for *is* exactly zero, because
+ * a zero vector is what entanglement looks like (§3.2), and the arithmetic
+ * that produces it is a difference of sums over 2ⁿ terms, so it arrives as
+ * −3e-17 as often as as 0. Printed through the amplitude rule that is
+ * `−0,0000` — a minus sign in front of nothing, in the column where the whole
+ * lesson is that the number is nothing.
+ *
+ * Rounding first and then formatting the rounded value is what removes it:
+ * −3e-17 rounds to −0, `zeroed` turns that into 0, and the column reads
+ * `0,0000` for every value the last digit cannot tell apart from zero — which
+ * is also the tolerance `readingOf` classifies with (`bloch.ts`), so the words
+ * beside these digits cannot contradict them.
+ */
+export function formatCoordinate(value: number, locale: string): string {
+  return amplitudeFormat(locale).format(
+    zeroed(roundTo(value, AMPLITUDE_DIGITS))
+  )
+}
+
+/**
  * A phase in radians, bare: `1,5708`. The unit belongs to the column header
  * in the amplitude table and to `formatPhaseReading` in the histogram, so it
  * is not baked in here.

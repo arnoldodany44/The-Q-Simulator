@@ -3,21 +3,47 @@ import {
   gateCount as circuitGateCount,
   type Circuit,
 } from '@qsim/schema'
-import { parseStoredCircuit, toCircuitJson } from './circuit-data.js'
+import {
+  parseStoredCircuit,
+  toCircuitJson,
+  toPreviewJson,
+} from './circuit-data.js'
+import { prismaAccountRepository, type AccountRepository } from './accounts.js'
+import {
+  prismaCollectionRepository,
+  type CollectionRepository,
+} from './collections.js'
+import {
+  cursorAfter,
+  galleryOrderBy,
+  galleryWhere,
+  type GalleryQuery,
+} from './gallery.js'
+import type { CursorPage, Page } from './pagination.js'
 import { Visibility } from './generated/prisma/client.js'
 import type { Prisma, PrismaClient } from './generated/prisma/client.js'
 import {
   circuitCardSelect,
   circuitDetailSelect,
   circuitVersionSummarySelect,
+  publicUserSelect,
+  toCircuitCard,
+  toCircuitDetail,
 } from './projections.js'
 import type {
   CircuitCard,
   CircuitDetail,
   CircuitVersionSummary,
+  PublicUser,
 } from './projections.js'
 import { violatedConstraintMentions } from './prisma-errors.js'
 import { generateCircuitSlug } from './slugs.js'
+import {
+  attachCircuitTags,
+  MAX_TAGS_PER_CIRCUIT,
+  readCircuitTagNames,
+  setCircuitTags,
+} from './tags.js'
 import { ensureUser } from './users.js'
 import type { SupabaseIdentity } from './users.js'
 import { circuitHandleFilter } from './visibility.js'
@@ -55,12 +81,26 @@ import type { ViewerId } from './visibility.js'
  * without a join (§7), which means a client that could set them would be a
  * client that could rank itself first — in the gallery today and on a
  * challenge leaderboard in Phase 3.
+ *
+ * `preview` joined them in M1.5b and is derived by the same rule at the same
+ * two statements, which is the point: `create` and `appendVersion` are the
+ * only places in the system where a document becomes a row, so anything
+ * derived from a document is derived exactly here or it is derived somewhere
+ * that can be forgotten. A client that could send its own thumbnail could
+ * draw a circuit other than the one it published.
  */
 
-/** A page of rows plus the total, which is what a pager needs to render. */
-export interface Page<T> {
-  readonly items: readonly T[]
-  readonly total: number
+/*
+ * The page shapes moved to `pagination.ts` when M1.9 gave collections their
+ * own listings; they are re-exported here so nothing that already imported
+ * them from this module has to change.
+ */
+export type { CursorPage, Page } from './pagination.js'
+
+/** What a star endpoint answers with: the new state, for this viewer. */
+export interface StarState {
+  readonly starred: boolean
+  readonly starCount: number
 }
 
 /** A version with its payload already through `parseCircuit`. */
@@ -94,6 +134,12 @@ export interface CreateCircuitInput {
   readonly message: string | null
   /** Set by a fork, for attribution. Never accepted from a request body. */
   readonly forkedFromId: string | null
+  /**
+   * Already normalised by `normalizeTagNames`. The canonical spelling is what
+   * makes `Tag.name @unique` a facet rather than a collection of near
+   * duplicates, so this is not a place to accept whatever a caller typed.
+   */
+  readonly tags?: readonly string[]
 }
 
 export interface UpdateCircuitInput {
@@ -107,6 +153,12 @@ export interface UpdateCircuitInput {
   readonly title?: string
   readonly description?: string | null
   readonly visibility?: Visibility
+  /**
+   * Replaces the whole set when present, and leaves it alone when absent —
+   * `[]` therefore means "remove every tag", which is a thing a person can
+   * ask for and `undefined` is not.
+   */
+  readonly tags?: readonly string[]
 }
 
 export interface AppendVersionInput {
@@ -127,7 +179,23 @@ export interface AppendVersionInput {
   readonly message: string | null
 }
 
-export interface CircuitRepository {
+/**
+ * Everything `apps/api` persists, behind one interface.
+ *
+ * It grew two more faces in M1.9 — collections and the account itself — and
+ * they are `extends` rather than new members for a deliberate reason: the API
+ * decorates exactly one repository onto the instance, and the route tests
+ * inject exactly one double. A second seam would mean a second in-memory
+ * implementation, and the value of the first one is that it evaluates the very
+ * `where` fragments production passes to Postgres. Two doubles is two places
+ * for a visibility rule to be modelled slightly differently, which is the one
+ * thing a double must never do.
+ *
+ * The pieces are written in their own modules — `collections.ts`,
+ * `accounts.ts` — and composed here.
+ */
+export interface CircuitRepository
+  extends CollectionRepository, AccountRepository {
   /**
    * The `public.User` row for a verified identity, created on first use.
    * Circuits carry a foreign key to it, so this has to happen before the
@@ -141,6 +209,73 @@ export interface CircuitRepository {
     skip: number
     take: number
   }): Promise<Page<CircuitCard>>
+
+  /**
+   * The gallery, and the profile listing that is the same query scoped to one
+   * author (§8). Both go through `galleryWhere`, which starts from
+   * `listableCircuitFilter` and can only narrow — there is no variant of this
+   * that takes a `where`, because a route that could pass one is a route that
+   * could pass the wrong one.
+   *
+   * `take` is the page size; one extra row is read internally to decide
+   * whether a next cursor exists.
+   */
+  listPublished(
+    input: GalleryQuery & { take: number }
+  ): Promise<CursorPage<CircuitCard>>
+
+  /**
+   * A user by their public handle, for `/users/:username/circuits`. The
+   * projection is `publicUserSelect`, so `email` cannot come back.
+   */
+  findUserByUsername(username: string): Promise<PublicUser | null>
+
+  /**
+   * How many of this author's circuits this viewer may list — the number a
+   * profile page shows beside their name (M1.9).
+   *
+   * It goes through `galleryWhere` like the listing itself, and that is the
+   * whole reason it is a repository method rather than a `count` somebody
+   * writes in a route: an aggregate is a listing. A count assembled from its
+   * own `where` would answer "how many circuits does this person have",
+   * including the private ones, in a single integer that looks far too small
+   * to be a leak.
+   */
+  countPublished(query: GalleryQuery): Promise<number>
+
+  /**
+   * Stars a circuit, idempotently: a second call by the same user is not a
+   * second star and does not move the count.
+   *
+   * The caller must already have established that this viewer may *read* the
+   * circuit — pass an id that came back from `findReadable`.
+   */
+  star(input: { userId: string; circuitId: string }): Promise<StarState>
+
+  /** Removes a star, idempotently. Unstarring twice is not a negative count. */
+  unstar(input: { userId: string; circuitId: string }): Promise<StarState>
+
+  /** Whether this viewer has already starred this circuit. */
+  hasStarred(input: { userId: string; circuitId: string }): Promise<boolean>
+
+  /**
+   * Which of these circuits this viewer has starred — the listing's version of
+   * `hasStarred` (M1.5b).
+   *
+   * Called with the ids a listing has *already returned*, which is what makes
+   * it safe to answer without a visibility filter of its own: every id in the
+   * question came back through `galleryWhere`, and the answer is scoped to the
+   * caller's own `Star` rows. It cannot report a star on a circuit the viewer
+   * may not see, because such a circuit is never in the question.
+   *
+   * One indexed read over the composite primary key `(userId, circuitId)`,
+   * rather than one lookup per card. `apps/api` skips it entirely for an
+   * anonymous caller, who has no stars to have.
+   */
+  starredAmong(input: {
+    userId: string
+    circuitIds: readonly string[]
+  }): Promise<string[]>
 
   /**
    * One circuit by slug or id, with the §11 filter applied in the query.
@@ -273,6 +408,23 @@ export class CircuitNotWritableError extends Error {
   }
 }
 
+/**
+ * Raised when a circuit that was readable a statement ago is not there any
+ * more — the owner deleted it while somebody was starring it.
+ *
+ * Its own class rather than a bare `null` return because the caller has
+ * nothing sensible to do with "starred a circuit that does not exist": the
+ * API maps it to 404, which is what the very next request would answer.
+ */
+export class CircuitGoneError extends Error {
+  readonly code = 'CIRCUIT_GONE'
+
+  constructor(readonly circuitId: string) {
+    super(`Circuit ${circuitId} no longer exists`)
+    this.name = 'CircuitGoneError'
+  }
+}
+
 /** How many fresh slugs to try before treating a collision as a real fault. */
 export const MAX_SLUG_ATTEMPTS = 5
 
@@ -391,6 +543,26 @@ type VersionRow = Prisma.CircuitVersionGetPayload<{
   select: typeof versionRowSelect
 }>
 
+/**
+ * The circuit's current star count, or a refusal if it is gone.
+ *
+ * Read inside the star transaction rather than trusted from the caller's
+ * earlier `findReadable`: the owner may have deleted the circuit in between,
+ * and answering with a count for a row that no longer exists would be a lie
+ * the client caches.
+ */
+async function readStarCount(
+  tx: Prisma.TransactionClient,
+  circuitId: string
+): Promise<number> {
+  const row = await tx.circuit.findUnique({
+    where: { id: circuitId },
+    select: { starCount: true },
+  })
+  if (row === null) throw new CircuitGoneError(circuitId)
+  return row.starCount
+}
+
 function toStoredVersion(row: VersionRow): StoredVersion {
   // Every read of `data` goes through `parseCircuit`. A row written months
   // ago by an older build is exactly the payload that must not reach the
@@ -435,11 +607,14 @@ export function prismaCircuitRepository(
     // impossible circuits should never cost a transaction.
     const json = toCircuitJson(input.data)
     const metrics = metricsOf(input.data)
+    const preview = toPreviewJson(input.data)
+
+    const tags = input.tags ?? []
 
     for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS; attempt += 1) {
       try {
         return await prisma.$transaction(async (tx) => {
-          const circuit = await tx.circuit.create({
+          const row = await tx.circuit.create({
             data: {
               ownerId: input.ownerId,
               title: input.title,
@@ -447,19 +622,30 @@ export function prismaCircuitRepository(
               visibility: input.visibility,
               slug: generateCircuitSlug(),
               forkedFromId: input.forkedFromId,
+              preview,
               ...metrics,
             },
             select: circuitDetailSelect,
           })
           const version = await tx.circuitVersion.create({
             data: {
-              circuitId: circuit.id,
+              circuitId: row.id,
               versionNum: 1,
               data: json,
               message: input.message,
             },
             select: versionRowSelect,
           })
+          /*
+           * In the same transaction as the circuit, so a tag can never point
+           * at a circuit that was not created — and so a failure to tag takes
+           * the circuit with it rather than leaving a half-filed row.
+           */
+          await attachCircuitTags(tx, row.id, tags)
+          const circuit: CircuitDetail = {
+            ...toCircuitDetail(row),
+            tags: await readCircuitTagNames(tx, row.id),
+          }
           return { circuit, version: toStoredVersion(version) }
         }, TRANSACTION_OPTIONS)
       } catch (error) {
@@ -471,10 +657,18 @@ export function prismaCircuitRepository(
   }
 
   return {
+    /*
+     * Composed rather than reimplemented. Collections and the account itself
+     * are their own modules with their own arguments written down; this file
+     * stays about circuits.
+     */
+    ...prismaCollectionRepository(prisma),
+    ...prismaAccountRepository(prisma),
+
     ensureOwner: (identity) => ensureUser(prisma, identity),
 
     async listOwned({ ownerId, skip, take }) {
-      const [items, total] = await prisma.$transaction([
+      const [rows, total] = await prisma.$transaction([
         prisma.circuit.findMany({
           where: { ownerId },
           orderBy: { updatedAt: 'desc' },
@@ -484,10 +678,45 @@ export function prismaCircuitRepository(
         }),
         prisma.circuit.count({ where: { ownerId } }),
       ])
-      return { items, total }
+      return { items: rows.map(toCircuitCard), total }
     },
 
-    findReadable(handle, viewerId) {
+    async listPublished({ take, ...query }) {
+      /*
+       * One row more than asked for, which is how "is there a next page"
+       * is answered without a second query — and without a COUNT over a
+       * filtered, searched table on every request.
+       */
+      const rows = await prisma.circuit.findMany({
+        where: galleryWhere(query),
+        orderBy: galleryOrderBy(query.sort),
+        take: take + 1,
+        select: circuitCardSelect,
+      })
+
+      const items = rows.slice(0, take).map(toCircuitCard)
+      const last = items.at(-1)
+      const nextCursor =
+        rows.length > take && last !== undefined
+          ? cursorAfter(last, query.sort)
+          : null
+      return { items, nextCursor }
+    },
+
+    countPublished(query) {
+      // The same `where` the listing uses, and no other. See the note on the
+      // interface: an aggregate is a listing.
+      return prisma.circuit.count({ where: galleryWhere(query) })
+    },
+
+    findUserByUsername(username) {
+      return prisma.user.findUnique({
+        where: { username },
+        select: publicUserSelect,
+      })
+    },
+
+    async findReadable(handle, viewerId) {
       /*
        * The handle is a slug or the circuit's id, and both are matched here
        * because §8 addresses the same circuit both ways — `GET /circuits/
@@ -499,36 +728,153 @@ export function prismaCircuitRepository(
        * an id is not a credential and has been published by this API in the
        * past. `circuitHandleFilter` holds that argument in full.
        */
-      return prisma.circuit.findFirst({
+      const row = await prisma.circuit.findFirst({
         where: circuitHandleFilter(handle, viewerId),
         select: circuitDetailSelect,
       })
+      return row === null ? null : toCircuitDetail(row)
     },
 
     create: insertCircuit,
 
-    async update({ id, ownerId, ...changes }) {
-      const { count } = await prisma.circuit.updateMany({
-        where: { id, ownerId },
-        data: changes,
-      })
-      if (count === 0) return null
-      return prisma.circuit.findUnique({
-        where: { id },
-        select: circuitDetailSelect,
-      })
+    async update({ id, ownerId, tags, ...changes }) {
+      return prisma.$transaction(async (tx) => {
+        const { count } = await tx.circuit.updateMany({
+          where: { id, ownerId },
+          data: changes,
+        })
+        if (count === 0) return null
+        // `undefined` leaves the tags alone; `[]` clears them. Both are
+        // things a PATCH can mean and they are not the same request.
+        if (tags !== undefined) await setCircuitTags(tx, id, tags)
+
+        const row = await tx.circuit.findUnique({
+          where: { id },
+          select: circuitDetailSelect,
+        })
+        return row === null ? null : toCircuitDetail(row)
+      }, TRANSACTION_OPTIONS)
     },
 
     async remove({ id, ownerId }) {
-      const { count } = await prisma.circuit.deleteMany({
-        where: { id, ownerId },
+      return prisma.$transaction(async (tx) => {
+        const { count } = await tx.circuit.deleteMany({
+          where: { id, ownerId },
+        })
+        if (count === 0) return false
+
+        /*
+         * `CollectionItem.circuitId` carries no foreign key (§7), so nothing
+         * in Postgres removes the memberships of a circuit that has just been
+         * deleted — including the ones in *other people's* collections, which
+         * is why this is not scoped to the owner. Left behind, each one is a
+         * row naming a circuit that no longer exists, and
+         * `readCollectionItems` would count it as withheld forever: a
+         * permanent "there is something here you are not allowed to see"
+         * about nothing at all.
+         *
+         * In the same transaction as the delete, so the two cannot disagree.
+         */
+        await tx.collectionItem.deleteMany({ where: { circuitId: id } })
+        return true
+      }, TRANSACTION_OPTIONS)
+    },
+
+    /*
+     * ── Stars, and why there is no read-modify-write here ─────────────────
+     *
+     * `Circuit.starCount` is denormalised (§7) so the gallery can sort
+     * without joining `Star`, which means there are two facts that must agree
+     * and no database constraint that makes them. The obvious implementation
+     * — "is it starred? no? then insert and set count = count + 1" — has a
+     * window between the question and the answer, and two clicks that land in
+     * that window produce one star row and two increments. The count is then
+     * permanently wrong and nothing ever notices.
+     *
+     * So the row decides, not the reader. `createMany({ skipDuplicates })` is
+     * `INSERT … ON CONFLICT DO NOTHING` against the composite primary key
+     * `(userId, circuitId)`: exactly one of two concurrent inserts reports a
+     * row, and the increment is conditional on *that* report rather than on
+     * anything read earlier. The increment itself is `SET starCount =
+     * starCount + 1`, computed by Postgres under the row lock, so it cannot
+     * lose an update either. Both statements share one transaction, so a
+     * crash between them cannot leave a star with no count or the reverse.
+     */
+    star({ userId, circuitId }) {
+      return prisma.$transaction(async (tx) => {
+        const { count } = await tx.star.createMany({
+          data: [{ userId, circuitId }],
+          skipDuplicates: true,
+        })
+        // Already starred. Idempotent: the answer is the current state, and
+        // the count is untouched.
+        if (count === 0) {
+          return {
+            starred: true,
+            starCount: await readStarCount(tx, circuitId),
+          }
+        }
+
+        const circuit = await tx.circuit.update({
+          where: { id: circuitId },
+          data: { starCount: { increment: 1 } },
+          select: { starCount: true },
+        })
+        return { starred: true, starCount: circuit.starCount }
+      }, TRANSACTION_OPTIONS)
+    },
+
+    unstar({ userId, circuitId }) {
+      return prisma.$transaction(async (tx) => {
+        const { count } = await tx.star.deleteMany({
+          where: { userId, circuitId },
+        })
+        if (count > 0) {
+          /*
+           * `updateMany` with `starCount > 0` rather than `update`, so the
+           * counter has a floor it cannot go under. It should never need one
+           * — but `Star` rows cascade away when a `User` is deleted, and that
+           * delete does not decrement anything, so a future account deletion
+           * leaves counts that are too high. Too high is a cosmetic error;
+           * negative is a number no interface knows how to draw.
+           */
+          await tx.circuit.updateMany({
+            where: { id: circuitId, starCount: { gt: 0 } },
+            data: { starCount: { decrement: 1 } },
+          })
+        }
+
+        return {
+          starred: false,
+          starCount: await readStarCount(tx, circuitId),
+        }
+      }, TRANSACTION_OPTIONS)
+    },
+
+    async hasStarred({ userId, circuitId }) {
+      const row = await prisma.star.findUnique({
+        where: { userId_circuitId: { userId, circuitId } },
+        select: { userId: true },
       })
-      return count > 0
+      return row !== null
+    },
+
+    async starredAmong({ userId, circuitIds }) {
+      // `IN ()` is not valid SQL and Prisma would send it; an empty page has
+      // no stars to report anyway, so the round trip is skipped rather than
+      // guarded downstream.
+      if (circuitIds.length === 0) return []
+      const rows = await prisma.star.findMany({
+        where: { userId, circuitId: { in: [...circuitIds] } },
+        select: { circuitId: true },
+      })
+      return rows.map((row) => row.circuitId)
     },
 
     async appendVersion({ circuitId, ownerId, data, message }) {
       const json = toCircuitJson(data)
       const metrics = metricsOf(data)
+      const preview = toPreviewJson(data)
 
       for (let attempt = 1; attempt <= MAX_VERSION_ATTEMPTS; attempt += 1) {
         try {
@@ -558,7 +904,10 @@ export function prismaCircuitRepository(
              */
             const { count } = await tx.circuit.updateMany({
               where: { id: circuitId, ownerId },
-              data: metrics,
+              // The thumbnail moves with the counters, in the same statement:
+              // a card showing yesterday's diagram beside today's gate count
+              // is two claims about one circuit that cannot both be true.
+              data: { ...metrics, preview },
             })
             if (count === 0) throw new CircuitNotWritableError(circuitId)
             return toStoredVersion(row)
@@ -621,6 +970,13 @@ export function prismaCircuitRepository(
  * circuit is not publishing one, and the alternative — inheriting PUBLIC —
  * would put an unfinished experiment in the gallery the moment somebody
  * pressed a button labelled "fork".
+ *
+ * The tags come across with it (M1.5). They describe what the circuit *is* —
+ * `grover`, `teleportation` — and a fork is the same circuit until its new
+ * owner changes it, so dropping them would file every fork under nothing.
+ * They are already canonical, having been normalised when the source was
+ * written, and they cost nothing to carry: the copy is PRIVATE, so it appears
+ * in no tag facet until its owner publishes it.
  */
 export async function forkCircuit(
   repository: CircuitRepository,
@@ -642,5 +998,15 @@ export async function forkCircuit(
     data: latest.data,
     message: input.message ?? null,
     forkedFromId: input.source.id,
+    /*
+     * Bounded here as well as in `attachCircuitTags`, and the two are not the
+     * same guard. This one is a *copy* of somebody else's row, so it is the
+     * one path where the number of tags is not something the caller chose and
+     * no request schema has bounded: a source row that somehow carries more
+     * than the cap would otherwise make every fork of it a 500. The write path
+     * refuses, this path declines to ask — and the source is the authority on
+     * its own first `MAX_TAGS_PER_CIRCUIT` tags, which is what a card shows.
+     */
+    tags: input.source.tags.slice(0, MAX_TAGS_PER_CIRCUIT),
   })
 }

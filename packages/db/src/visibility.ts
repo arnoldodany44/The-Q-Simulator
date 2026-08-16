@@ -111,3 +111,89 @@ export function canEditCircuit(
 ): boolean {
   return viewerId !== null && circuit.ownerId === viewerId
 }
+
+/*
+ * ── Collections (M1.9) ────────────────────────────────────────────────────
+ *
+ * The same three rules over a different table, written as their own fragments
+ * rather than reused generically. A `where` fragment is typed against the
+ * model it filters, and a shared helper that produced `{ visibility }` for
+ * "whatever row this is" would be a helper that could be applied to the wrong
+ * one and still compile.
+ *
+ * What a collection's visibility governs is the *collection*, never its
+ * contents. A PUBLIC collection holding a PRIVATE circuit publishes the
+ * collection and not the circuit: the items are read through
+ * `listableCircuitFilter` like every other listing (see `collections.ts`), so
+ * being inside a public group can never be a way to see something that would
+ * otherwise be refused. That is the one rule this pair of models exists to get
+ * right, and it is deliberately not expressible here — a filter over
+ * `Collection` cannot say anything about a `Circuit`.
+ */
+
+/**
+ * Collections that may appear in a listing — a profile page, the owner's own
+ * index. PUBLIC for everyone, plus the viewer's own whatever their visibility.
+ *
+ * UNLISTED is absent for the same reason it is absent from
+ * `listableCircuitFilter`: a listing is discovery, and unlisted means
+ * reachable by whoever holds the link.
+ */
+export function listableCollectionFilter(
+  viewerId: ViewerId
+): Prisma.CollectionWhereInput {
+  if (viewerId === null) return { visibility: Visibility.PUBLIC }
+  return { OR: [{ visibility: Visibility.PUBLIC }, { ownerId: viewerId }] }
+}
+
+/**
+ * The complete `where` for "the collection this id names, if this viewer may
+ * open it".
+ *
+ * ── Why an id reaches an UNLISTED collection when it does not reach an
+ * UNLISTED circuit ────────────────────────────────────────────────────────
+ *
+ * `idAddressableCircuitFilter` refuses UNLISTED, and the argument written
+ * there is specific: the API *published* circuit ids to people who could not
+ * read the circuit those ids named — `forkedFromId` rode out in every card —
+ * so an id had escaped to callers who were never given one deliberately.
+ *
+ * Neither half of that applies to a collection. It has no slug, so its id is
+ * the only handle it has and "reachable by whoever holds the link" would
+ * otherwise mean nothing at all; and no response anywhere in this API carries
+ * a collection id belonging to a collection the reader may not list — there is
+ * no `forkedFromId` equivalent, and `CollectionItem` never travels as a
+ * handle. The entropy is there for it: `@default(cuid(2))` is a hash of
+ * randomness with no timestamp and no counter in it, in the same class as the
+ * `nanoid` slug §11 sizes at 126 bits, and unlike the cuid v1 the id argument
+ * was originally written about.
+ *
+ * If a collection id ever starts appearing in a response beside a row the
+ * viewer cannot see, this decision has to be revisited — the same way the
+ * circuit one was.
+ */
+export function collectionHandleFilter(
+  id: string,
+  viewerId: ViewerId
+): Prisma.CollectionWhereInput {
+  const shared: Prisma.CollectionWhereInput[] = [
+    { visibility: Visibility.PUBLIC },
+    { visibility: Visibility.UNLISTED },
+  ]
+  return {
+    AND: [
+      { id },
+      viewerId === null
+        ? { OR: shared }
+        : { OR: [...shared, { ownerId: viewerId }] },
+    ],
+  }
+}
+
+/** Write access to a collection. Its visibility is irrelevant, as ever. */
+export function canEditCollection(
+  collection: { ownerId: string },
+  viewerId: ViewerId
+): boolean {
+  return viewerId !== null && collection.ownerId === viewerId
+}

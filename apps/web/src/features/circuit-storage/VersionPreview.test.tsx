@@ -146,6 +146,9 @@ function latestResponse(versionNum: number, circuit: Circuit) {
   return {
     circuit: { ...circuitDetailPayload, slug: SLUG, owner: detail.owner },
     version: versionResponse(versionNum, circuit).version,
+    // The viewer's own star, in the envelope from M1.5b. Irrelevant to a
+    // restore and required for the response to parse.
+    starred: false,
   }
 }
 
@@ -168,6 +171,7 @@ function boundView(
     detail,
     base: INITIAL_BASE,
     dirty: false,
+    starred: false,
     error: null,
     openedWithDraft: false,
     ownedBy: (userId) => userId === OWNER,

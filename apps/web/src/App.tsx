@@ -62,10 +62,32 @@ import {
  * the entry chunk — undoing M0.9b's split for the sake of one string.
  */
 import { CIRCUIT_ROUTE_PATH } from './features/circuit-storage/paths'
+/*
+ * Same reason as the line above: `features/gallery/paths` imports nothing, so
+ * the entry chunk takes two path templates from it without acquiring React
+ * Query, the thumbnail renderer and the star wiring (M0.9b).
+ */
+import { GALLERY_PATH, PROFILE_ROUTE_PATH } from './features/gallery/paths'
+/*
+ * Same reason again (M0.9b): both of these modules import nothing, so the
+ * entry chunk takes four path templates without acquiring the collection
+ * forms, the settings screen or the identicon.
+ */
+import {
+  COLLECTIONS_PATH,
+  COLLECTION_ROUTE_PATH,
+} from './features/collections/paths'
+import {
+  PROFILE_ALIAS_ROUTE_PATH,
+  SETTINGS_PATH,
+} from './features/profile/paths'
 import {
   AUTH_NAMESPACES,
   CIRCUITS_NAMESPACES,
+  COLLECTIONS_NAMESPACES,
   EDITOR_NAMESPACES,
+  GALLERY_NAMESPACES,
+  SETTINGS_NAMESPACES,
   loadNamespaces,
 } from './i18n'
 import { LandingRoute } from './routes/landing'
@@ -139,6 +161,75 @@ const CircuitsRoute = lazy(async () => {
   return { default: module.CircuitsRoute }
 })
 
+/*
+ * The two public listings (M1.5b), lazy like every route but the landing.
+ *
+ * They are anonymous — `GET /gallery` is `auth: 'optional'` — so neither is
+ * behind `RequireSession`, and that is the point rather than an omission: the
+ * gallery is the front door, and §11 decides what a viewer may see inside the
+ * query rather than at the door.
+ */
+const GalleryRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/gallery'),
+    loadNamespaces(GALLERY_NAMESPACES),
+  ])
+  return { default: module.GalleryRoute }
+})
+
+const ProfileRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/profile'),
+    // Both, because M1.9 put the author's public collections on this page and
+    // the cards there speak the collections vocabulary.
+    loadNamespaces([...GALLERY_NAMESPACES, ...COLLECTIONS_NAMESPACES]),
+  ])
+  return { default: module.ProfileRoute }
+})
+
+/*
+ * The three screens M1.9 added, lazy like every route but the landing.
+ *
+ * `/collections/:id` is deliberately *not* behind `RequireSession`, for the
+ * same reason the gallery is not: `GET /collections/:id` is `auth: 'optional'`,
+ * which is what makes a public collection something you can send somebody and
+ * an unlisted one a link that works. `/collections` is the caller's own and is
+ * guarded — which spares an anonymous visitor a round trip ending in a 401
+ * they cannot read, and decides nothing (§11).
+ *
+ * `/settings` is guarded too, and the guard is *inside* the route rather than
+ * around it. Deleting an account is the one screen that stops needing a
+ * session halfway through: the last thing it renders is the report of what was
+ * destroyed, for somebody who by then has no account at all. With the guard
+ * out here, signing out tore that report down and redirected to /sign-in — the
+ * confirmation was on screen for about a tenth of a second, too short for a
+ * live region to be announced. See `routes/settings.tsx`.
+ */
+const SettingsRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/settings'),
+    loadNamespaces(SETTINGS_NAMESPACES),
+  ])
+  return { default: module.SettingsRoute }
+})
+
+const CollectionsRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/collections'),
+    loadNamespaces(COLLECTIONS_NAMESPACES),
+  ])
+  return { default: module.CollectionsRoute }
+})
+
+const CollectionRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/collection'),
+    // The collection page draws gallery cards, so it needs their words too.
+    loadNamespaces([...COLLECTIONS_NAMESPACES, ...GALLERY_NAMESPACES]),
+  ])
+  return { default: module.CollectionRoute }
+})
+
 /**
  * Only fetched when a provider actually sent the user back with a failure,
  * which for most sessions is never.
@@ -208,6 +299,23 @@ export function AppRoutes() {
           <Route path={CIRCUIT_ROUTE_PATH} element={<EditorRoute />} />
 
           {/*
+           * Deliberately not guarded. Both listings answer an anonymous
+           * caller, which is what makes the gallery a way *in* to the product
+           * rather than a page you have to have signed up to see.
+           */}
+          <Route path={GALLERY_PATH} element={<GalleryRoute />} />
+          <Route path={PROFILE_ROUTE_PATH} element={<ProfileRoute />} />
+          {/*
+           * The long spelling §8 gives the API's own profile route, rendering
+           * the same page rather than redirecting to the short one: a redirect
+           * would make a pasted link change shape in the address bar for no
+           * reason the reader can see. `/u/:username` stays canonical because
+           * it is what fifty cards a page already point at.
+           */}
+          <Route path={PROFILE_ALIAS_ROUTE_PATH} element={<ProfileRoute />} />
+          <Route path={COLLECTION_ROUTE_PATH} element={<CollectionRoute />} />
+
+          {/*
            * Three of the four account screens are behind the mirror guard: a
            * user who is already signed in has no business being shown a login
            * form, and `RedirectWhenSignedIn` also takes them back to wherever
@@ -258,6 +366,16 @@ export function AppRoutes() {
               </RequireSession>
             }
           />
+          <Route
+            path={COLLECTIONS_PATH}
+            element={
+              <RequireSession>
+                <CollectionsRoute />
+              </RequireSession>
+            }
+          />
+          {/* Guarded inside the route, not here — see the note above. */}
+          <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
         </Routes>
       </Suspense>
     </>

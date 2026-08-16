@@ -1,0 +1,76 @@
+{
+  "title": "Galería",
+  "lead": "Circuitos que otras personas han publicado. Abre uno para leerlo, marca con estrella los que te gusten y bifurca cualquiera para hacerlo tuyo.",
+  "filters": {
+    "search": {
+      "label": "Buscar",
+      "hint": "Busca en títulos y descripciones. Al menos {{least}} caracteres.",
+      "submit": "Buscar",
+      "clear": "Borrar la búsqueda",
+      "tooShort": "Una búsqueda necesita al menos {{least}} caracteres."
+    },
+    "sort": {
+      "label": "Orden",
+      "recent": "Más recientes primero",
+      "stars": "Con más estrellas primero"
+    },
+    "tag": {
+      "active": "Mostrando solo circuitos con la etiqueta",
+      "clear": "Volver a mostrar todas las etiquetas"
+    }
+  },
+  "listing": {
+    "label": "Circuitos publicados",
+    "loading": "Cargando la galería…",
+    "offline": "Estás sin conexión, así que la galería aún no se ha pedido. Se cargará en cuanto vuelva la conexión.",
+    "retry": "Reintentar",
+    "shown": "Circuitos mostrados: {{total}}.",
+    "end": "Ya no hay más.",
+    "more": "Mostrar más",
+    "loadingMore": "Cargando más…"
+  },
+  "card": {
+    "author": "Publicado por",
+    "tags": "Etiquetas"
+  },
+  "star": {
+    "add": "Marcar este circuito con estrella",
+    "remove": "Quitar tu estrella",
+    "signIn": "Inicia sesión para marcar este circuito con estrella"
+  },
+  "fork": {
+    "action": "Bifurcar",
+    "working": "Bifurcando…"
+  },
+  "forked": {
+    "heading": "Esta es tu copia",
+    "body": "Bifurcado de «{{title}}», de {{author}}. Es privado, te pertenece y el original queda intacto.",
+    "dismiss": "Entendido"
+  },
+  "empty": {
+    "gallery": {
+      "heading": "Todavía no se ha publicado nada",
+      "body": "La galería muestra los circuitos que sus dueños han hecho públicos. Nadie lo ha hecho aún: el primero podría ser el tuyo.",
+      "action": "Crear el primer circuito"
+    },
+    "filtered": {
+      "heading": "Aquí no hay nada que coincida",
+      "bySearch": "Ningún circuito publicado tiene eso en su título ni en su descripción.",
+      "byTag": "Nadie ha publicado todavía un circuito con esa etiqueta.",
+      "clear": "Mostrar la galería completa"
+    },
+    "author": {
+      "heading": "Aquí todavía no hay nada que mostrar.",
+      "body": "Esta cuenta no ha publicado ningún circuito. Un circuito privado solo aparece para quien es su dueño."
+    }
+  },
+  "profile": {
+    "lead": "Circuitos publicados por {{author}}.",
+    "listingLabel": "Circuitos de esta persona",
+    "unknown": "No existe ninguna cuenta con ese nombre.",
+    "toGallery": "Volver a la galería",
+    "joined": "Se unió",
+    "circuits": "Circuitos",
+    "collections": "Colecciones"
+  }
+}

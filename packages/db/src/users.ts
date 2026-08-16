@@ -116,6 +116,19 @@ export class UsernameUnavailableError extends Error {
 
 const MIN_USERNAME_LENGTH = 3
 const MAX_USERNAME_LENGTH = 32
+
+/**
+ * Shape of a username as it may appear in a URL — `/users/:username/circuits`
+ * (§8).
+ *
+ * It is the alphabet `baseUsernameFrom` folds to plus the suffix's, and it is
+ * validated at the edge for the same reason a circuit handle is: a lookup is
+ * an indexed read, and a path segment nobody could have been issued should
+ * never become one. It does not decide what exists — the unique index does.
+ */
+export const USERNAME_PATTERN = new RegExp(
+  `^[a-z0-9_-]{${String(MIN_USERNAME_LENGTH)},${String(MAX_USERNAME_LENGTH)}}$`
+)
 /** Leaves room for `-` plus `SUFFIX_LENGTH` characters inside the maximum. */
 const MAX_BASE_USERNAME_LENGTH = MAX_USERNAME_LENGTH - 5
 const SUFFIX_LENGTH = 4
@@ -237,6 +250,17 @@ export function uniqueConflictField(error: unknown): UserUniqueField | null {
 }
 
 /**
+ * A provider's name claim as it may be stored: trimmed, and `null` when
+ * nothing survives the trim. See the call site in `ensureUser`.
+ */
+function normalizeClaimedName(
+  claimed: string | null | undefined
+): string | null {
+  const trimmed = (claimed ?? '').trim()
+  return trimmed === '' ? null : trimmed
+}
+
+/**
  * Returns the `public.User` row for a verified identity, creating it on the
  * first authenticated request. Idempotent, and safe to call concurrently.
  *
@@ -261,7 +285,20 @@ export async function ensureUser(
    * collisions are common rather than rare, and starting from the suffixed
    * form removes a guaranteed wasted insert for every second Ada.
    */
-  const base = baseUsernameFrom(identity.displayName ?? null)
+  /*
+   * The claim, trimmed, with "nothing but spaces" treated as "no name".
+   *
+   * `user_metadata` is writable from any browser through `auth.updateUser`
+   * (see `verify.ts`), so `full_name` is a value a user supplies rather than
+   * one a provider vouches for — and it arrived here verbatim. A blank one was
+   * stored as `""`, and the public profile's only name heading rendered with no
+   * text in it at all. A repair rather than a refusal, unlike `PATCH /me`,
+   * because the alternative is refusing to create an account at all over a
+   * claim nobody deliberately sent.
+   */
+  const displayName = normalizeClaimedName(identity.displayName)
+
+  const base = baseUsernameFrom(displayName)
   let username = withUsernameSuffix(base, randomSuffix())
 
   for (let attempt = 1; attempt <= MAX_USERNAME_ATTEMPTS; attempt += 1) {
@@ -271,7 +308,7 @@ export async function ensureUser(
           id: identity.id,
           email: identity.email,
           username,
-          displayName: identity.displayName ?? null,
+          displayName,
           avatarUrl: identity.avatarUrl ?? null,
         },
       })

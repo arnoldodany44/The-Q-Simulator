@@ -10,7 +10,7 @@
     "contents": "Contenu du circuit, fil par fil et instant par instant.",
     "summary": "Qubits : {{qubits}}. Colonnes : {{columns}}. Opérations : {{gates}}.",
     "readOnly": "Lecture seule sur petit écran. Faites défiler pour parcourir le circuit.",
-    "tooManyColumns": "Ce circuit va jusqu'à la colonne {{total}}, et le schéma en dessine les {{drawn}} premières. Les {{hidden}} colonnes suivantes sont dans le document et dans la simulation, mais pas dans le dessin.",
+    "tooManyColumns": "Ce circuit va jusqu’à la colonne {{total}}, et le schéma en dessine les {{drawn}} premières. Les {{hidden}} colonnes suivantes sont dans le document et dans la simulation, mais pas dans le dessin.",
     "wireHeader": "Fil",
     "column": "Colonne {{index}}",
     "classicalRegister_one": "registre classique, {{count}} bit",
@@ -25,7 +25,7 @@
       "barrier": "barrière",
       "reset": "réinitialisation",
       "measuredInto": "mesurée vers {{clbit}}",
-      "conditional": "ne s'exécute que si {{clbit}} vaut {{value}}",
+      "conditional": "ne s’exécute que si {{clbit}} vaut {{value}}",
       "classicalWrite": "reçoit la mesure de {{qubits}}",
       "classicalRead": "lue comme condition, {{clbit}} vaut {{value}}"
     }
@@ -47,39 +47,39 @@
       "summary": "Deux fils en superposition : quatre résultats, tous aussi probables."
     },
     "bell": {
-      "summary": "Deux qubits intriqués. Aucun des deux n'a plus d'état propre : seule la paire en a un."
+      "summary": "Deux qubits intriqués. Aucun des deux n’a plus d’état propre : seule la paire en a un."
     },
     "ghz": {
       "summary": "La même intrication à trois qubits : que des zéros ou que des uns, jamais rien entre les deux."
     },
     "interference": {
       "name": "Interférence",
-      "summary": "Un qubit, deux chemins. La phase décide s'ils s'additionnent ou s'annulent."
+      "summary": "Un qubit, deux chemins. La phase décide s’ils s’additionnent ou s’annulent."
     },
     "deutschJozsa": {
-      "summary": "Une seule exécution tranche une question qu'une procédure classique ne résout qu'en deux évaluations."
+      "summary": "Une seule exécution tranche une question qu’une procédure classique ne résout qu’en deux évaluations."
     },
     "teleportation": {
       "name": "Téléportation",
-      "summary": "Un état passe sur un autre qubit, porté par l'intrication et deux bits classiques."
+      "summary": "Un état passe sur un autre qubit, porté par l’intrication et deux bits classiques."
     }
   },
   "share": {
     "heading": "Partager",
-    "hint": "Le circuit entier voyage dans le lien. Rien n'est stocké sur un serveur.",
+    "hint": "Le circuit entier voyage dans le lien. Rien n’est stocké sur un serveur.",
     "field": "Lien vers ce circuit",
     "copy": "Copier le lien",
     "copied": "Lien copié.",
-    "failed": "Le lien n'a pas pu être copié. Sélectionnez le champ et copiez-le vous-même.",
+    "failed": "Le lien n’a pas pu être copié. Sélectionnez le champ et copiez-le vous-même.",
     "tooLarge": "Ce circuit est trop grand pour tenir dans un lien.",
     "dismiss": "Ignorer",
     "rejected": {
       "empty": "Ce lien ne contient aucun circuit.",
       "too-long": "Le circuit de ce lien est plus long que ce que cet éditeur accepte de lire.",
       "not-base64": "Ce lien a été abîmé en chemin : il en manque une partie, ou elle a été réécrite.",
-      "not-deflate": "Ce lien est abîmé et n'a pas pu être décompressé.",
+      "not-deflate": "Ce lien est abîmé et n’a pas pu être décompressé.",
       "too-large": "Le circuit de ce lien est bien plus grand que ce que cet éditeur peut ouvrir.",
-      "not-json": "Ce lien s'est décompressé en quelque chose qui n'est pas un circuit.",
+      "not-json": "Ce lien s’est décompressé en quelque chose qui n’est pas un circuit.",
       "not-a-circuit": "Le circuit de ce lien ne correspond pas au format que cet éditeur comprend."
     }
   },
@@ -95,13 +95,13 @@
   "placement": {
     "pickTarget": "attend un autre qubit cible dans cette colonne. Déplacez le curseur et appuyez sur Entrée.",
     "pickControl": "attend son qubit de contrôle dans cette colonne. Déplacez le curseur et appuyez sur Entrée.",
-    "no-gate-armed": "Choisissez d'abord une porte, puis appuyez sur Entrée dans une case.",
+    "no-gate-armed": "Choisissez d’abord une porte, puis appuyez sur Entrée dans une case.",
     "other-column": "Le reste de la porte doit tenir dans la même colonne.",
     "qubit-already-used": "Cette porte utilise déjà ce qubit.",
-    "not-enough-qubits": "Cette porte demande plus de fils que le circuit n'en a. Ajoutez d'abord un qubit.",
-    "classical-row": "Le registre classique est en lecture seule. Une mesure l'atteint depuis son propre qubit.",
-    "nothing-here": "Il n'y a rien à supprimer ici.",
-    "read-only": "L'éditeur est en lecture seule sur petit écran.",
+    "not-enough-qubits": "Cette porte demande plus de fils que le circuit n’en a. Ajoutez d’abord un qubit.",
+    "classical-row": "Le registre classique est en lecture seule. Une mesure l’atteint depuis son propre qubit.",
+    "nothing-here": "Il n’y a rien à supprimer ici.",
+    "read-only": "L’éditeur est en lecture seule sur petit écran.",
     "cancelled-by-register-edit": "La porte en cours de placement a été annulée : le qubit sur lequel elle se trouvait a changé.",
     "no-free-clbit": "Tous les bits classiques sont déjà écrits dans cette colonne. Ajoutez-en un au registre classique, ou utilisez une autre colonne."
   },
@@ -118,7 +118,7 @@
     "undone": "Action annulée.",
     "redone": "Action rétablie.",
     "gapsClosed": "Colonnes resserrées.",
-    "noGaps": "Il n'y avait aucune colonne à resserrer.",
+    "noGaps": "Il n’y avait aucune colonne à resserrer.",
     "qubitAdded": "Qubit {{label}} ajouté.",
     "qubitRemoved": "Fil {{label}} supprimé.",
     "qubitRemovedWithGates_one": "Fil {{label}} supprimé, avec {{count}} porte.",
@@ -129,13 +129,13 @@
   "parameters": {
     "title": "Paramètres",
     "none": "Sélectionnez une porte paramétrée pour en changer les angles.",
-    "slider": "Curseur d'angle",
+    "slider": "Curseur d’angle",
     "field": "Angle en radians",
     "symbolic": "Piloté par le paramètre du circuit"
   },
   "timeline": {
     "heading": "Chronologie",
-    "hint": "La barre fige le circuit à un instant donné, et le panneau ci-dessous décrit l'état à cet endroit. Les flèches avancent d'une colonne, Origine et Fin sautent aux extrémités, et Espace lance la lecture.",
+    "hint": "La barre fige le circuit à un instant donné, et le panneau ci-dessous décrit l’état à cet endroit. Les flèches avancent d’une colonne, Origine et Fin sautent aux extrémités, et Espace lance la lecture.",
     "position": "Instant",
     "play": "Lire",
     "pause": "Pause",
@@ -158,7 +158,7 @@
   },
   "shortcuts": {
     "title": "Raccourcis clavier",
-    "note": "Tout l'éditeur fonctionne sans souris.",
+    "note": "Tout l’éditeur fonctionne sans souris.",
     "keys": {
       "arrows": "Flèches",
       "home": "Origine",
@@ -182,14 +182,14 @@
     "redo": "Rétablir",
     "copy": "Copier la sélection",
     "paste": "Coller au curseur",
-    "timelineStep": "Déplacer la barre de la chronologie d'une colonne, ou jusqu'à une extrémité",
+    "timelineStep": "Déplacer la barre de la chronologie d’une colonne, ou jusqu’à une extrémité",
     "timelinePlay": "Lancer ou suspendre la lecture de la chronologie, la barre ayant le focus"
   },
   "rejection": {
     "shape": "Ce fichier ne correspond pas au format de circuit.",
     "unknown-gate": "Cette porte ne figure pas dans le catalogue.",
     "arity-mismatch": "Cette porte agit sur un autre nombre de qubits.",
-    "control-count-mismatch": "Cette porte n'accepte pas ce nombre de contrôles.",
+    "control-count-mismatch": "Cette porte n’accepte pas ce nombre de contrôles.",
     "param-count-mismatch": "Cette porte prend un autre nombre de paramètres.",
     "clbit-target-mismatch": "Cette porte écrit dans un autre nombre de bits classiques.",
     "qubit-out-of-range": "Ce qubit est en dehors du circuit.",
@@ -197,18 +197,18 @@
     "target-control-overlap": "Une porte ne peut pas être contrôlée par un qubit sur lequel elle agit.",
     "repeated-qubit": "Une porte ne peut pas utiliser deux fois le même qubit.",
     "column-conflict": "Une autre porte occupe déjà cette case.",
-    "unknown-parameter": "Ce paramètre n'est pas déclaré dans le circuit.",
+    "unknown-parameter": "Ce paramètre n’est pas déclaré dans le circuit.",
     "duplicate-operation-id": "Deux opérations portent le même identifiant.",
-    "duplicate-parameter": "Ce paramètre est déclaré plus d'une fois.",
+    "duplicate-parameter": "Ce paramètre est déclaré plus d’une fois.",
     "qubit-label-count": "Le circuit demande un nom par qubit.",
     "custom-gate-cycle": "Une porte personnalisée ne peut pas se contenir elle-même.",
-    "operation-not-found": "Cette porte n'est plus dans le circuit.",
-    "control-not-found": "Cette porte n'a pas de contrôle sur ce qubit.",
-    "empty-selection": "Sélectionnez d'abord au moins une porte.",
-    "empty-clipboard": "Il n'y a rien à coller.",
+    "operation-not-found": "Cette porte n’est plus dans le circuit.",
+    "control-not-found": "Cette porte n’a pas de contrôle sur ce qubit.",
+    "empty-selection": "Sélectionnez d’abord au moins une porte.",
+    "empty-clipboard": "Il n’y a rien à coller.",
     "register-limit": "Le circuit a atteint sa limite de qubits ou de bits classiques.",
-    "nothing-to-undo": "Il n'y a plus rien à annuler.",
-    "nothing-to-redo": "Il n'y a plus rien à rétablir.",
+    "nothing-to-undo": "Il n’y a plus rien à annuler.",
+    "nothing-to-redo": "Il n’y a plus rien à rétablir.",
     "clbit-in-use": "Une autre opération de cette colonne écrit déjà dans ce bit classique."
   }
 }

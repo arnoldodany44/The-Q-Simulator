@@ -1,0 +1,76 @@
+{
+  "title": "Gallery",
+  "lead": "Circuits people have published. Open one to read it, star what you like, and fork anything to make it yours.",
+  "filters": {
+    "search": {
+      "label": "Search",
+      "hint": "Looks in titles and descriptions. At least {{least}} characters.",
+      "submit": "Search",
+      "clear": "Clear the search",
+      "tooShort": "A search needs at least {{least}} characters."
+    },
+    "sort": {
+      "label": "Order",
+      "recent": "Newest first",
+      "stars": "Most starred first"
+    },
+    "tag": {
+      "active": "Showing only circuits tagged",
+      "clear": "Show every tag again"
+    }
+  },
+  "listing": {
+    "label": "Published circuits",
+    "loading": "Loading the gallery…",
+    "offline": "You are offline, so the gallery has not been asked for yet. It will load as soon as the connection is back.",
+    "retry": "Try again",
+    "shown": "Circuits shown: {{total}}.",
+    "end": "That is all of them.",
+    "more": "Show more",
+    "loadingMore": "Loading more…"
+  },
+  "card": {
+    "author": "Published by",
+    "tags": "Tags"
+  },
+  "star": {
+    "add": "Star this circuit",
+    "remove": "Remove your star",
+    "signIn": "Sign in to star this circuit"
+  },
+  "fork": {
+    "action": "Fork",
+    "working": "Forking…"
+  },
+  "forked": {
+    "heading": "This is your copy",
+    "body": "Forked from “{{title}}” by {{author}}. It is private, it belongs to you, and the original is untouched.",
+    "dismiss": "Got it"
+  },
+  "empty": {
+    "gallery": {
+      "heading": "Nothing has been published yet",
+      "body": "The gallery shows circuits whose owners made them public. Nobody has done that yet — the first one could be yours.",
+      "action": "Build the first circuit"
+    },
+    "filtered": {
+      "heading": "Nothing here matches",
+      "bySearch": "No published circuit has that in its title or description.",
+      "byTag": "Nobody has published a circuit with that tag yet.",
+      "clear": "Show the whole gallery"
+    },
+    "author": {
+      "heading": "Nothing to show here yet.",
+      "body": "This account has published no circuits. A private circuit appears only to the person who owns it."
+    }
+  },
+  "profile": {
+    "lead": "Circuits published by {{author}}.",
+    "listingLabel": "This author’s circuits",
+    "unknown": "There is no account with that name.",
+    "toGallery": "Back to the gallery",
+    "joined": "Joined",
+    "circuits": "Circuits",
+    "collections": "Collections"
+  }
+}

@@ -16,6 +16,7 @@ import { circuitKeys } from './queryKeys.js'
 import {
   TEST_BASE_URL,
   circuitDetailPayload,
+  circuitViewPayload,
   circuitWithVersionPayload,
   errorResponse,
   jsonResponse,
@@ -92,9 +93,7 @@ describe('useCircuit', () => {
   })
 
   it('fetches once there is one', async () => {
-    const { transport, wrapper } = harness([
-      jsonResponse(circuitWithVersionPayload),
-    ])
+    const { transport, wrapper } = harness([jsonResponse(circuitViewPayload)])
 
     const { result } = renderHook(() => useCircuit('abc'), { wrapper })
 
@@ -164,10 +163,7 @@ describe('useDeleteCircuit', () => {
       [new Response(null, { status: 204 })],
       queryClient
     )
-    queryClient.setQueryData(
-      circuitKeys.detail('abc'),
-      circuitWithVersionPayload
-    )
+    queryClient.setQueryData(circuitKeys.detail('abc'), circuitViewPayload)
     queryClient.setQueryData(circuitKeys.versionList('abc'), emptyPage)
 
     const { result } = renderHook(() => useDeleteCircuit(), { wrapper })

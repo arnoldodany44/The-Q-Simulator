@@ -621,6 +621,30 @@ body {
   font-size: 13px;
 }
 
+/*
+ * The angle under a parametrised gate. Quiet, because the gate's own symbol is
+ * what a reader scans for — but present, because without it `Rz(π/2)` and
+ * `Rz(0,1235)` are the same drawing, and the exported SVG of two different
+ * circuits was the same file.
+ */
+.qsim-box__param {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+/*
+ * The `i` that separates an iSWAP from a SWAP. A mark, never a shade: §10 and
+ * `GateNode`'s own rule about negative controls — a distinction carried only
+ * by colour is no distinction on a bad monitor, in grayscale, or for a reader
+ * who cannot see it.
+ */
+.qsim-swap__mark {
+  fill: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 .qsim-meter {
   fill: none;
   stroke: var(--text);
@@ -1754,6 +1778,165 @@ body {
 }
 
 /* ------------------------------------------------------------------ *
+ * Bloch spheres (M1.6) — §3.2, §5.5
+ *
+ * Two layers over one box: a WebGL canvas that three.js draws the spheres
+ * into, and an SVG of labels on top of it. Both are `aria-hidden`; the table
+ * below them is the rendering that carries the meaning, which is why it is
+ * visible here rather than `.visually-hidden` like the histogram's — an
+ * arrow in a projection is not a length anyone can compare by eye, and a
+ * low-vision reader who does not use a screen reader has nothing else.
+ *
+ * The canvas is drawn at its natural size and then allowed to shrink: the
+ * renderer sizes the backing store in device pixels and never touches the
+ * element's style (`setSize(w, h, false)`), so `width: 100%` on a box capped
+ * at the grid's own width scales the picture down on a narrow screen and
+ * never up past its resolution. The overlay is the same box, so a label
+ * stays on its axis at every size.
+ * ------------------------------------------------------------------ */
+
+.bloch {
+  margin: 1rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--chart-grid);
+}
+
+.bloch__caption {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.bloch__title {
+  display: block;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.bloch__disclosure {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.bloch__stage {
+  position: relative;
+  margin: 0.5rem auto 0;
+  width: 100%;
+}
+
+.bloch__canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/*
+ * Exactly over the canvas, and transparent to the pointer: there is nothing
+ * to click here, and a label that swallowed a drag would be a scrubber that
+ * stopped working over one corner of the panel.
+ */
+.bloch__labels {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.bloch__pole,
+.bloch__axis,
+.bloch__wire {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  fill: var(--text-muted);
+}
+
+.bloch__pole {
+  fill: var(--text);
+}
+
+.bloch__wire {
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+}
+
+.bloch__pending,
+.bloch__unavailable,
+.bloch__note {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.bloch__viewport {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.bloch__grid {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--text-data);
+}
+
+.bloch__grid th,
+.bloch__grid td {
+  padding: 0.2rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.bloch__grid thead th {
+  border-bottom: 1px solid var(--chart-grid);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.bloch__grid thead th:first-child,
+.bloch__grid thead th:last-child {
+  font-family: var(--font-body);
+  text-align: left;
+}
+
+.bloch__wire-name {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-regular);
+  color: var(--text);
+}
+
+.bloch__number {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/*
+ * The length is the reading (§5.5), so it is the one number in the row that
+ * is not muted by association with its neighbours. Weight rather than hue:
+ * colour is never the only carrier, and the word beside it says the same
+ * thing in full.
+ */
+.bloch__number--length {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.bloch__row:nth-child(even) {
+  background: var(--bg-elevated);
+}
+
+.bloch__reading {
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
  * Document commands: examples and the share link (M0.9)
  *
  * They sit above the editor card rather than inside it because they act on
@@ -1772,7 +1955,8 @@ body {
 .preset-picker,
 .share-link,
 .save-panel,
-.history-panel {
+.history-panel,
+.export-panel {
   background: var(--bg-panel);
   border: 1px solid var(--wire);
   border-radius: 0.5rem;
@@ -1782,7 +1966,8 @@ body {
 .preset-picker__heading,
 .share-link__heading,
 .save-panel__heading,
-.history-panel__heading {
+.history-panel__heading,
+.export-panel__heading {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-data);
@@ -1791,7 +1976,8 @@ body {
 
 .preset-picker__hint,
 .share-link__hint,
-.history-panel__hint {
+.history-panel__hint,
+.export-panel__hint {
   margin: 0.25rem 0 0;
   font-size: var(--text-caption);
   color: var(--text-muted);
@@ -1838,11 +2024,82 @@ body {
  * would shove the canvas the reader is about to look at.
  */
 .preset-picker__status,
-.share-link__status {
+.share-link__status,
+.export-panel__status {
   margin: 0.5rem 0 0;
   min-height: 1.25rem;
   font-size: var(--text-caption);
   color: var(--text-muted);
+}
+
+/* ---- export panel (M1.7) ---- */
+
+/*
+ * One row per format: the button, and under it the sentence saying what that
+ * format is for. The sentence is visible rather than hidden inside the button
+ * because "which of these five do I want" is a real question for a reader who
+ * does not already know Qiskit — and five labels alone answer it only for the
+ * people who did not need the panel.
+ */
+.export-panel__formats {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.export-panel__format {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, auto) 1fr;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+/* Sized like the preset chips: 2.25rem clears WCAG 2.2 SC 2.5.8 with room. */
+.export-panel__button {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.export-panel__button:hover:enabled {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/*
+ * Disabled while another export is being prepared. The cursor and the reduced
+ * contrast are both secondary: `disabled` is what a screen reader announces
+ * and what stops the press, so nothing here is the only carrier of the state.
+ */
+.export-panel__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.export-panel__description {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/*
+ * Below 30rem the two columns become one: a format name and a sentence side
+ * by side leave about twelve characters for the sentence on a phone.
+ */
+@media (max-width: 30rem) {
+  .export-panel__format {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
 }
 
 .share-link__row {
@@ -3404,4 +3661,619 @@ body {
 
 .circuit-diff__change-detail {
   color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * The public gallery (M1.5b)
+ *
+ * A card is a three-part grid — thumbnail, body, actions — that collapses to
+ * one column on a narrow viewport. `auto-fit` and `flex-wrap` do the work
+ * wherever they can, so the layout survives 320 CSS px and 200% zoom (WCAG
+ * 2.2 SC 1.4.10 and 1.4.4) without a breakpoint per element.
+ * ------------------------------------------------------------------ */
+
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 1.5rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.gallery-search {
+  flex: 1 1 18rem;
+}
+
+.gallery-search__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.gallery-search__row .field__input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.gallery-search__row button,
+.gallery-facet button {
+  font: inherit;
+  font-family: var(--font-display);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  /* 0.5rem of padding on a 1rem line box clears the 24px target of SC 2.5.8. */
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.gallery-search__row button:hover,
+.gallery-facet button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.gallery-sort {
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.9rem 0.7rem;
+  margin: 0;
+}
+
+.gallery-sort legend {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  padding: 0 0.35rem;
+}
+
+.gallery-sort__choice {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  /* A generous row, so the label is part of the target and not only the dot. */
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+
+.gallery-facet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: var(--text-caption);
+}
+
+.gallery-facet__label {
+  color: var(--text-muted);
+}
+
+/* ---- the list ---- */
+
+.gallery-list {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.gallery-card {
+  display: grid;
+  /*
+   * The thumbnail is a fixed column and the body takes the rest; the actions
+   * sit at the end. `minmax(0, 1fr)` on the middle track is what stops a long
+   * unbroken title from widening the grid past the page.
+   */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: start;
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1rem;
+}
+
+@media (max-width: 40rem) {
+  .gallery-card {
+    /* One column on a phone, in reading order: picture, words, actions. */
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gallery-card__figure {
+  display: flex;
+  align-items: center;
+}
+
+.circuit-thumbnail {
+  display: block;
+  width: 11rem;
+  max-width: 100%;
+  height: auto;
+  background: var(--bg-deep);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+}
+
+/*
+ * A circuit stored before the thumbnail column existed. Holds the same space
+ * so a listing does not look ragged where it is merely older, and carries no
+ * mark that could be read as "this circuit is empty".
+ */
+.circuit-thumbnail--absent {
+  width: 11rem;
+  height: 4rem;
+  opacity: 0.5;
+}
+
+.circuit-thumbnail__label {
+  fill: var(--text);
+  font-family: var(--font-mono);
+  font-size: 7px;
+}
+
+.circuit-thumbnail__more {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.gallery-card__title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+  /* A user-typed title with no break points must not widen the page. */
+  overflow-wrap: anywhere;
+}
+
+.gallery-card__title a {
+  color: var(--text);
+  text-decoration-color: var(--wire);
+}
+
+.gallery-card__title a:hover {
+  color: var(--accent);
+  text-decoration-color: currentcolor;
+}
+
+.gallery-card__byline,
+.gallery-card__visibility {
+  margin: 0 0 0.35rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.gallery-card__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(6rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+}
+
+.gallery-card__meta dt {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.gallery-card__meta dd {
+  margin: 0.1rem 0 0;
+  font-size: var(--text-body);
+}
+
+.gallery-card__tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+
+.tag-chip {
+  display: inline-block;
+  font: inherit;
+  font-size: var(--text-caption);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-radius: 999px;
+  /* Padding chosen so the chip clears 24px in height at the caption size. */
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.tag-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.tag-chip--static {
+  cursor: default;
+}
+
+.tag-chip--static:hover {
+  color: var(--text-muted);
+  border-color: var(--wire);
+}
+
+.gallery-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ---- star ---- */
+
+.star-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 999px;
+  /* 24px minimum target (SC 2.5.8) at the body size. */
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.star-button:hover,
+.star-button--on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.star-button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Holds the control's space while the stored session is still being read. */
+.star-button--pending {
+  display: inline-block;
+  width: 4.5rem;
+  height: 2.1rem;
+  border-color: transparent;
+}
+
+.star-shape {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  /*
+   * Outlined when this viewer has not starred it, filled when they have. The
+   * difference is shape, never shade — see the header of StarButton.tsx.
+   */
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.star-shape--filled {
+  fill: currentcolor;
+}
+
+.star-button__error,
+.fork-button__error,
+.gallery-more__error {
+  flex-basis: 100%;
+  margin: 0.35rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text);
+}
+
+/* ---- fork ---- */
+
+.fork-button {
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.fork-button:hover:not([aria-disabled='true']) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fork-button--primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fork-button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/*
+ * The sentence a fork lands on. A block with its own edge rather than a tint,
+ * for the reason VersionPreview's banner is one: a reader who misses it edits
+ * the wrong document.
+ */
+.forked-notice {
+  background: var(--bg-panel);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.25rem;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+
+/*
+ * The notice is the landing place of a fork and takes focus on arrival, so it
+ * has to *show* that it has it — the same rule `.provider-return` follows for
+ * the same reason: a sighted keyboard user needs to see where the next Tab
+ * will continue from.
+ */
+.forked-notice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.forked-notice__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--accent);
+}
+
+.forked-notice p {
+  margin: 0;
+}
+
+/* ---- the pager that is a button ---- */
+
+.gallery-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.gallery-more__status {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/* The star and fork controls where the editor's document bar shows them. */
+.document-bar__social {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ==========================================================================
+   Profiles, collections and settings — M1.9
+   ========================================================================== */
+
+/* ---- the picture ---- */
+
+.avatar {
+  /*
+   * Rounded, and sized by the `width`/`height` attributes the component sets
+   * rather than here: a provider's image can be any aspect ratio, and
+   * `object-fit: cover` is what stops a wide one from becoming an oval.
+   */
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-elevated);
+  /* The same 3:1 edge every other bordered surface owes (WCAG 1.4.11). */
+  border: 1px solid var(--wire);
+  flex: none;
+}
+
+/* ---- the profile header ---- */
+
+.profile-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.profile-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+}
+
+.profile-header__meta div {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.profile-header__meta dt {
+  color: var(--text-muted);
+}
+
+.profile-header__meta dd {
+  margin: 0;
+}
+
+/* ---- collections ---- */
+
+.collection-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.collection-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1rem;
+}
+
+.collection-card__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+  /* A user-typed title with no break points must not widen the page. */
+  overflow-wrap: anywhere;
+}
+
+.collection-card__title a {
+  color: var(--text);
+  text-decoration-color: var(--wire);
+}
+
+.collection-card__title a:hover {
+  color: var(--accent);
+  text-decoration-color: currentcolor;
+}
+
+.collection-card__visibility {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  /*
+   * A word, not a colour. §10: colour is never the only carrier of meaning,
+   * and "this one is private" is exactly the kind of fact a badge is tempted
+   * to say with a hue alone.
+   */
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.collection-card__description {
+  margin: 0.4rem 0 0;
+  color: var(--text-muted);
+}
+
+.collection-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+}
+
+.collection-card__meta div {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.collection-card__meta dt {
+  color: var(--text-muted);
+}
+
+.collection-card__meta dd {
+  margin: 0;
+}
+
+.collection-form,
+.collection-add {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+}
+
+.collection-page__byline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  font-size: var(--text-caption);
+}
+
+.collection-page__byline .collection-card__visibility {
+  margin: 0;
+}
+
+.collection-page__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.collection-page__summary {
+  margin: 1rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/* ---- settings ---- */
+
+.settings-section {
+  margin-top: 1.75rem;
+  padding: 1rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+}
+
+.settings-section h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: var(--text-lead);
+}
+
+.settings-section__note {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.settings-form {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.75rem;
+}
+
+.settings-avatar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/*
+ * The destructive section is bordered in the phase-zero hue, which is the
+ * palette's red. It is never the only signal: the heading says "delete", the
+ * control is behind a disclosure, and it asks the person to type their own
+ * handle (§10 — colour carries nothing on its own).
+ */
+.settings-section--danger {
+  border-color: hsl(0 85% 66%);
+}
+
+.page__cta--danger {
+  border-color: hsl(0 85% 66%);
+  color: hsl(0 85% 66%);
+}
+
+.page__cta--danger:hover:not([aria-disabled='true']) {
+  background: hsl(0 85% 66% / 0.12);
 }

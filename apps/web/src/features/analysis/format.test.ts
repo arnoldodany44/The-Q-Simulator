@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   formatAmplitude,
+  formatCoordinate,
   formatCount,
   formatDegrees,
   formatMagnitude,
@@ -203,5 +204,48 @@ describe('a signed difference of probabilities', () => {
     expect(formatProbabilityDelta(0.5, 'fr').slice(1)).toBe(
       formatProbability(0.5, 'fr')
     )
+  })
+})
+
+describe('a Bloch coordinate', () => {
+  it('keeps four decimals, so a column of them lines up', () => {
+    expect(formatCoordinate(1, 'en')).toBe('1.0000')
+    expect(formatCoordinate(0.5, 'en')).toBe('0.5000')
+    expect(formatCoordinate(Math.SQRT1_2, 'en')).toBe('0.7071')
+  })
+
+  it('keeps the sign of a genuinely negative component', () => {
+    // |1⟩ is at rz = −1, and a table that dropped the sign would put it at
+    // the north pole beside |0⟩.
+    expect(formatCoordinate(-1, 'en')).toBe('-1.0000')
+    expect(formatCoordinate(-0.5, 'fr')).toBe('-0,5000')
+  })
+
+  it('prints residue as a plain zero, with no sign in front of it', () => {
+    /*
+     * The reason this function exists. A component of an entangled qubit is a
+     * difference of sums over 2ⁿ terms, so it arrives as −0 or as −3e-17 as
+     * readily as as 0 — and the amplitude rule prints those as `-0.0000`, a
+     * minus sign in front of nothing, in the column whose whole message is
+     * that the number is nothing.
+     */
+    expect(formatCoordinate(-0, 'en')).toBe('0.0000')
+    expect(formatCoordinate(-3e-17, 'en')).toBe('0.0000')
+    expect(formatCoordinate(-1e-9, 'fr')).toBe('0,0000')
+    expect(formatCoordinate(0, 'en')).toBe('0.0000')
+  })
+
+  it('rounds to zero exactly where the reading does', () => {
+    // `readingOf` calls anything within 5e-5 of zero "the centre". Below that
+    // threshold the number must print as zero, or the word and the digits in
+    // one row would contradict each other.
+    expect(formatCoordinate(4.9e-5, 'en')).toBe('0.0000')
+    expect(formatCoordinate(5.1e-5, 'en')).toBe('0.0001')
+  })
+
+  it('writes the decimal separator of the reader', () => {
+    expect(formatCoordinate(0.7071, 'fr')).toBe('0,7071')
+    expect(formatCoordinate(0.7071, 'es')).toBe('0,7071')
+    expect(formatCoordinate(0.7071, 'en')).toBe('0.7071')
   })
 })

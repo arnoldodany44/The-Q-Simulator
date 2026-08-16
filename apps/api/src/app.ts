@@ -49,7 +49,10 @@ import {
 import type { ZodTypeProvider } from './plugins/validation.js'
 import type { JwksCache } from './auth/jwks.js'
 import { circuitRoutes } from './routes/circuits.js'
+import { collectionRoutes } from './routes/collections.js'
+import { galleryRoutes } from './routes/gallery.js'
 import { healthRoutes } from './routes/health.js'
+import { userRoutes } from './routes/users.js'
 
 /*
  * `API_PREFIX` comes from `@qsim/contract` rather than being a literal here:
@@ -273,6 +276,9 @@ export async function buildApp(options: BuildAppOptions) {
    */
   await app.register(healthRoutes)
   await app.register(circuitRoutes, { prefix: API_PREFIX, env })
+  await app.register(galleryRoutes, { prefix: API_PREFIX })
+  await app.register(collectionRoutes, { prefix: API_PREFIX, env })
+  await app.register(userRoutes, { prefix: API_PREFIX, env })
 
   for (const warning of configurationWarnings(env)) {
     app.log.warn({ configuration: true }, warning)

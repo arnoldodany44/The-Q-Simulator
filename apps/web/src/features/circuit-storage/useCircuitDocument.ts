@@ -111,6 +111,15 @@ export interface CircuitDocumentView {
   readonly detail: CircuitDetail | null
   /** The version the editor descends from, or `null` for an unsaved document. */
   readonly base: DocumentBase | null
+  /**
+   * Whether this viewer has starred the open circuit (M1.5b).
+   *
+   * From the response envelope rather than from the circuit: it is a property
+   * of the pair (circuit, viewer), which is why only `GET /circuits/:id`
+   * answers it. `false` for an anonymous reader and for an unsaved document,
+   * both of which have no star to have.
+   */
+  readonly starred: boolean
   /** The editor holds something other than `base.circuit`. */
   readonly dirty: boolean
   /** Whatever the fetch failed with, for `useApiErrorMessage`. */
@@ -262,6 +271,10 @@ export function useCircuitDocument({
     paused: status === 'loading' && query.fetchStatus === 'paused',
     detail,
     base: boundBase,
+    // Only while the arrived circuit is the one on screen: a star read from a
+    // response for a *different* circuit would draw the wrong state on the
+    // one the reader is looking at.
+    starred: bound && (arrived?.starred ?? false),
     dirty,
     error: query.error,
     openedWithDraft,

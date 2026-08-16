@@ -94,6 +94,24 @@ model Circuit {
   forkedFromId String?
   starCount    Int        @default(0)
   viewCount    Int        @default(0)
+  /// The gallery card's thumbnail — @qsim/schema's `CircuitPreview`, derived
+  /// from the head version by `previewOf` on every write, exactly as
+  /// gateCount and depth are (M1.5b).
+  ///
+  /// Denormalised for the same reason those are, and the reason is sharper
+  /// here: the gallery is anonymous, it lists up to fifty circuits, and
+  /// `CircuitVersion.data` is capped at 256 KiB — so joining the head version
+  /// to draw fifty thumbnails would put up to 12 MB behind one request on the
+  /// product's front page. A preview is a few hundred bytes, bounded by
+  /// PREVIEW_MAX_QUBITS × PREVIEW_MAX_COLUMNS, and rides in the card's own
+  /// row.
+  ///
+  /// Nullable, and it stays nullable: a row written before this column
+  /// existed has no thumbnail, and a card that cannot draw one shows the
+  /// counters it already has rather than failing. Always read it through
+  /// `safeParsePreview`, which answers null for anything it cannot read —
+  /// a picture is never worth a 500.
+  preview      Json?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -111,6 +129,34 @@ model Circuit {
   // needs a join or a sort of the whole table.
   @@index([visibility, starCount])
   @@index([ownerId, updatedAt])
+  // ── The gallery's keyset indexes (M1.5) ────────────────────────────────
+  //
+  // The two above are §7's and are kept because §7 asks for them; these two
+  // are what the gallery's *pagination* actually needs. Cursor pagination
+  // orders by the whole tie-break tuple — (starCount, createdAt, id) or
+  // (createdAt, id) — and an index that stops at `starCount` leaves Postgres
+  // sorting every row that shares a star count, which on a gallery is most
+  // of them, since most circuits have none.
+  //
+  // `sort: Desc` matches the ORDER BY rather than relying on a backward
+  // scan. Both are equally fast here; spelling it out means the index reads
+  // the way the query does.
+  @@index([visibility, starCount(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
+  @@index([visibility, createdAt(sort: Desc), id(sort: Desc)])
+  // ── Search (M1.5) ──────────────────────────────────────────────────────
+  //
+  // Trigram GIN, which is what makes `ILIKE '%term%'` an index lookup
+  // instead of a sequential scan of every circuit in the database. Both
+  // columns are indexed because the search is `title OR description`, and an
+  // OR with one indexed side is a scan of the whole table anyway.
+  //
+  // Why trigrams and not `tsvector`: see the argument in `src/gallery.ts`.
+  // The short of it is that this corpus is trilingual (D2) and a text-search
+  // configuration has to pick one language, while trigrams have no opinion
+  // about language — and that a person typing "grov" into a search box
+  // expects Grover, which a lexeme index cannot give them.
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "Circuit_title_trgm_idx")
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "Circuit_description_trgm_idx")
 }
 
 /// Immutable history. A save appends a version; it never rewrites one.
@@ -230,15 +276,35 @@ model ChallengeSubmission {
 
 // ─── Curation ──────────────────────────────────────────────────────────────
 
+/// A curated group of circuits (§3.4), with a visibility of its own.
+///
+/// Its visibility governs the *collection* and nothing inside it. A PUBLIC
+/// collection that holds a PRIVATE circuit does not publish that circuit: the
+/// items are read through `listableCircuitFilter` like every other listing, so
+/// a stranger sees only the ones they could already have seen, and the rest are
+/// withheld and counted. See `src/collections.ts`.
 model Collection {
   id          String     @id @default(cuid(2))
   ownerId     String     @db.Uuid
   title       String
   description String?
   visibility  Visibility @default(PRIVATE)
+  /// M1.9. §7 gives Collection no timestamps, and a listing needs a total
+  /// order it can page through: with neither a timestamp nor a sortable key,
+  /// `ORDER BY` has nothing to say and two requests for the same page may
+  /// disagree about which rows are on it. `updatedAt` is also the only honest
+  /// answer to "what changed recently" on a profile page.
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   owner User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   items CollectionItem[]
+
+  /// The owner's own listing and a profile's public one are the same query
+  /// with one more predicate — filter on `ownerId` (and, for a stranger,
+  /// `visibility`), order by `updatedAt`. Without this index every profile
+  /// page sorts every collection in the database.
+  @@index([ownerId, updatedAt])
 }
 
 model CollectionItem {
@@ -249,6 +315,13 @@ model CollectionItem {
   collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
 
   @@id([collectionId, circuitId])
+  /// `circuitId` deliberately carries no foreign key (§7), so nothing in
+  /// Postgres removes these rows when the circuit they name is deleted — the
+  /// application does, in `remove` and in `deleteAccount`. Both of those are
+  /// deletes *by circuitId*, and a composite primary key cannot be probed by
+  /// its second column, so without this index every circuit deletion is a
+  /// sequential scan of the join table.
+  @@index([circuitId])
 }
 
 model Star {
@@ -288,6 +361,11 @@ model CircuitTag {
   tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([circuitId, tagId])
+  // The primary key answers "which tags does this circuit have"; the gallery
+  // asks the opposite question — "which circuits carry this tag" — and a
+  // composite key cannot be probed by its second column. Without this, every
+  // `?tag=` request is a sequential scan of the join table.
+  @@index([tagId])
 }
 
 /// Only the hash is stored, and it is unique so a lookup by presented key is

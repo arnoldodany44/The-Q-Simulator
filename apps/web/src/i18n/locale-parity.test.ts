@@ -78,6 +78,40 @@ describe('locale parity', () => {
     }
   })
 
+  /*
+   * One apostrophe, everywhere.
+   *
+   * U+2019 is the apostrophe of French and of English typography; U+0027 is
+   * the typewriter substitute a keyboard produces. Mixing them is not a matter
+   * of taste once both are on screen at once, and both *were*: the French
+   * landing page rendered fifteen elisions with U+0027 ("s'exécute",
+   * "l'éditeur", "d'un") beside one with U+2019 ("d'autres", from
+   * `cta.gallery`) — one file, one page, two glyphs. Across the French
+   * catalogs it was 223 against 41.
+   *
+   * The M1.5b and M1.9 catalogs got it right and the earlier ones did not,
+   * which is exactly the shape of a rule nothing checks. This is the sibling
+   * of the assertion above about French high punctuation, for the same reason:
+   * a typographic convention that is only a convention drifts one commit at a
+   * time.
+   *
+   * Spanish is included and simply has none, which is the correct answer for
+   * it — the assertion is "never the typewriter glyph", not "always some
+   * apostrophe".
+   */
+  it.each(SUPPORTED_LANGUAGES)(
+    'never uses the typewriter apostrophe in "%s"',
+    (language) => {
+      for (const namespace of NAMESPACES) {
+        const catalog = JSON.stringify(readCatalog(language, namespace))
+        expect(
+          catalog.match(/'/g) ?? [],
+          `${language}/${namespace}.json needs U+2019, not U+0027`
+        ).toEqual([])
+      }
+    }
+  )
+
   it.each(NAMESPACES)(
     'has identical keys across all languages in "%s"',
     (namespace) => {

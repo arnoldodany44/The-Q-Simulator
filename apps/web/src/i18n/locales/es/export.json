@@ -1,0 +1,30 @@
+{
+  "heading": "Exportar",
+  "hint": "Cada formato se genera aquí, en esta pestaña. No se sube nada para crear un archivo.",
+  "action": "Descargar como {{format}}",
+  "formats": {
+    "qasm3": "El formato de intercambio. Qiskit y la mayoría de las herramientas de hardware lo leen; una compuerta sin equivalente allí se escribe como una descomposición exacta, con un comentario que lo dice.",
+    "qiskit": "Python para un cuaderno, con las importaciones, los registros y un comentario que nombra su origen.",
+    "json": "El formato nativo. La única exportación que no pierde nada, y la que conviene guardar si quieres volver a abrir este circuito aquí.",
+    "svg": "El diagrama como gráfico vectorial. Autocontenido: el archivo lleva sus propios colores y no pide ninguna tipografía que no tenga.",
+    "png": "El diagrama como imagen, dibujado al doble de su tamaño en pantalla para que se vea nítido en una diapositiva o en una incidencia."
+  },
+  "status": {
+    "working": "Preparando el archivo {{format}}…",
+    "offered": "{{filename}} se entregó a tu navegador."
+  },
+  "failure": {
+    "too-large": "Este circuito es demasiado ancho para convertirlo en imagen. La exportación a SVG no tiene ese límite.",
+    "unknown": "No se pudo crear ese archivo."
+  },
+  "diagram": {
+    "title": "Circuito cuántico: {{title}}",
+    "untitled": "Circuito cuántico",
+    "description": "Diagrama del circuito: {{qubits}}, {{gates}}, {{depth}}.",
+    "qubits_one": "{{value}} cúbit",
+    "qubits_other": "{{value}} cúbits",
+    "gates_one": "{{value}} compuerta",
+    "gates_other": "{{value}} compuertas",
+    "depth": "profundidad {{value}}"
+  }
+}

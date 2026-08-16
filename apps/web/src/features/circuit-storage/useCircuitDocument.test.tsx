@@ -50,6 +50,10 @@ function payload(circuit: Circuit, versionNum = 1) {
   return {
     circuit: circuitDetailPayload,
     version: { ...versionPayload, versionNum, circuit },
+    // `GET /circuits/:id` answers the viewer's own star beside the document
+    // from M1.5b. Nothing in this file reads it; the response would not parse
+    // without it.
+    starred: false,
   }
 }
 

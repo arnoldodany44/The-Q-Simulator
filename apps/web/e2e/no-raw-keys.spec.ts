@@ -57,10 +57,47 @@ async function rawKeysOn(page: Page): Promise<string[]> {
  * exists for. `/update-password` renders its expired-link explanation when
  * there is no recovery session, which is still a page made entirely of
  * translated strings. `/circuits` is behind a session and redirects here.
+ *
+ * The two public listings (M1.5b) are here for the same code-splitting reason
+ * and answer anonymously by design. This suite runs Vite alone, with no API
+ * behind it, so both settle into their failure state — which is the point:
+ * a listing that cannot load is still a page made entirely of translated
+ * strings, and it is the state hardest to remember to translate. `/u/:username`
+ * is exercised with a handle nobody holds, whose "no such account" sentence is
+ * itself part of the surface.
+ *
+ * M1.9 adds four. `/users/:username` is the long spelling of a profile, which
+ * renders the same route rather than redirecting, so it is worth opening
+ * separately — a route table entry pointing at the wrong element would look
+ * fine until somebody pasted an API link. `/collections/:id` is anonymous like
+ * the gallery and settles into its "no such collection" sentence, which is
+ * itself part of the surface. `/collections`, `/circuits` and `/settings` are
+ * behind `RequireSession`, so what they render here is the guard's own screen;
+ * they are in the list anyway, because the thing being asserted is that *every
+ * address in the route table* renders words in every language, and a guard
+ * that rendered a key would be exactly as broken as a page that did.
+ *
+ * `/c/:slug` is the most namespace-dense address in the product and was the one
+ * missing from this list. It is **not** interchangeable with `/new`: only the
+ * slug form loads a saved document, and only it renders the version-history
+ * panel, the save-conflict copy, the fork attribution notice, the star control
+ * and the Bloch table — the surfaces carrying `circuits`, `gallery` and
+ * `export`, every one of which is code-split away from the shell. That is
+ * exactly the arrangement this file exists to catch. With no API behind this
+ * suite it settles into its failure state, which is the state hardest to
+ * remember to translate.
  */
 const ROUTES = [
   '/',
   '/new',
+  '/c/nobody12345',
+  '/gallery',
+  '/u/nobody',
+  '/users/nobody',
+  '/circuits',
+  '/collections',
+  '/collections/nobody12345',
+  '/settings',
   '/sign-in',
   '/sign-up',
   '/reset-password',

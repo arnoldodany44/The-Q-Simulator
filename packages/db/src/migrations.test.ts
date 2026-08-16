@@ -129,6 +129,25 @@ describe('the migration folder', () => {
    * closed it for the fifteen tables of §7; this keeps the sixteenth from
    * arriving unlocked.
    */
+  /**
+   * An extension installed into `public` would be a door beside the one the
+   * lockdown migration closed: Supabase serves `public` over PostgREST, and
+   * functions there become RPC endpoints reachable with the publishable key.
+   * `pg_trgm` goes in `extensions`, where Supabase already puts them.
+   */
+  it('installs every extension outside the schema PostgREST publishes', () => {
+    const offending: string[] = []
+    for (const migration of migrations) {
+      for (const line of statementLines(migration.sql)) {
+        if (!/\bCREATE\s+EXTENSION\b/i.test(line)) continue
+        if (!/\bWITH\s+SCHEMA\s+"?extensions"?/i.test(line)) {
+          offending.push(`${migration.name}: ${line}`)
+        }
+      }
+    }
+    expect(offending).toEqual([])
+  })
+
   it('locks down every table it creates, in the same migration', () => {
     const unlocked: string[] = []
     for (const migration of migrations) {

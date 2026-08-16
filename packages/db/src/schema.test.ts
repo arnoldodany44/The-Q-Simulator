@@ -190,6 +190,40 @@ describe('the datamodel of §7', () => {
     expect(circuit).toContain('@@index([ownerId, updatedAt])')
   })
 
+  it('indexes the whole tuple the gallery cursor compares (M1.5)', () => {
+    /*
+     * A cursor orders by the entire tie-break tuple, so an index that stops
+     * at `starCount` leaves Postgres sorting every row that shares a star
+     * count — which, since most circuits have none, is most of the gallery,
+     * on every page, on an unauthenticated route.
+     */
+    const circuit = block('model', 'Circuit')
+    expect(circuit).toContain(
+      '@@index([visibility, starCount(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])'
+    )
+    expect(circuit).toContain(
+      '@@index([visibility, createdAt(sort: Desc), id(sort: Desc)])'
+    )
+  })
+
+  it('indexes title and description for trigram search, not for equality', () => {
+    // A B-tree cannot serve `ILIKE '%grov%'` at all. Without GIN over
+    // trigrams the gallery's search is a sequential scan of the table.
+    const circuit = block('model', 'Circuit')
+    expect(circuit).toMatch(
+      /@@index\(\[title\(ops: raw\("gin_trgm_ops"\)\)\], type: Gin/
+    )
+    expect(circuit).toMatch(
+      /@@index\(\[description\(ops: raw\("gin_trgm_ops"\)\)\], type: Gin/
+    )
+  })
+
+  it('indexes the tag join by tag, which its primary key cannot', () => {
+    // The key is (circuitId, tagId) and a composite key is not probeable by
+    // its second column, so `?tag=` would scan the join table without this.
+    expect(block('model', 'CircuitTag')).toContain('@@index([tagId])')
+  })
+
   it('keeps the remaining §7 indexes and unique constraints', () => {
     expect(block('model', 'CircuitVersion')).toContain(
       '@@unique([circuitId, versionNum])'
@@ -201,6 +235,29 @@ describe('the datamodel of §7', () => {
     expect(block('model', 'ChallengeSubmission')).toContain(
       '@@index([challengeId, passed, gateCount])'
     )
+  })
+
+  it('gives a collection the timestamps its listing orders by (M1.9)', () => {
+    /*
+     * §7 gives Collection no dates. Without one, `ORDER BY` has nothing to
+     * say and two requests for the same page of a profile may disagree about
+     * which rows are on it.
+     */
+    expect(field('Collection', 'createdAt')).toContain('@default(now())')
+    expect(field('Collection', 'updatedAt')).toContain('@updatedAt')
+    expect(block('model', 'Collection')).toContain(
+      '@@index([ownerId, updatedAt])'
+    )
+  })
+
+  it('indexes CollectionItem by the column with no foreign key (M1.9)', () => {
+    /*
+     * `circuitId` is one of the four columns §7 deliberately leaves without a
+     * key, so the application deletes these rows itself — by circuitId, which
+     * the composite primary key cannot be probed by. Without this index every
+     * circuit deletion scans the join table.
+     */
+    expect(block('model', 'CollectionItem')).toContain('@@index([circuitId])')
   })
 
   it('defaults circuits and collections to PRIVATE', () => {

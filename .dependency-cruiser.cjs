@@ -161,6 +161,37 @@ module.exports = {
       },
     },
     {
+      name: 'qasm-depends-only-on-schema',
+      severity: 'error',
+      comment:
+        'Per §12.3 the qasm package may reach for packages/schema and nothing ' +
+        'else in the workspace. In particular not packages/qsim: the exporters ' +
+        'must be readable as a translation of the *document*, and an exporter ' +
+        'that could run the circuit would sooner or later export a state ' +
+        'rather than a circuit. Its own tests are exempt and do import the ' +
+        'engine on purpose — verification/qiskit-agreement.test.ts compares ' +
+        'the emitted program against what @qsim/core computes, which is the ' +
+        'whole point of the package, and test files are excluded from the ' +
+        'build by tsconfig.build.json.',
+      from: {
+        path: '^packages/qasm/src/',
+        pathNot: '\\.test\\.ts$',
+      },
+      to: { path: '^packages/(?!qasm/|schema/)' },
+    },
+    {
+      name: 'qasm-touches-no-environment',
+      severity: 'error',
+      comment:
+        'The serialisers run in the browser, in the API and in a worker alike ' +
+        '(§12.3 rule 2), so they may not reach for a Node builtin or for the ' +
+        'DOM. This is also what keeps the split with apps/web honest: the SVG ' +
+        'and PNG exports need the canvas components and therefore live there, ' +
+        'while everything that is pure text lives here.',
+      from: { path: '^packages/qasm/src/' },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
       name: 'slugs-are-minted-where-rows-are-written',
       severity: 'error',
       comment:

@@ -150,6 +150,25 @@ export const ERROR_DEFINITIONS = {
     status: 409,
     message: 'Another account already holds this email address.',
   },
+  /**
+   * The username in a settings change belongs to another account. Decided by
+   * `User_username_key` rather than by a prior lookup, so two simultaneous
+   * claims cannot both succeed — see `accounts.ts` in @qsim/db for why there
+   * is no "is this available?" endpoint beside it.
+   */
+  USERNAME_TAKEN: {
+    status: 409,
+    message: 'That username belongs to another account.',
+  },
+  /**
+   * The collection already holds `MAX_COLLECTION_ITEMS`. A 409 rather than a
+   * 400: nothing about the request was malformed, the resource is simply in a
+   * state that refuses it, and the client's move is to remove something.
+   */
+  COLLECTION_FULL: {
+    status: 409,
+    message: 'This collection already holds the maximum number of circuits.',
+  },
   /** Every generated username candidate was taken. Retryable. */
   USERNAME_UNAVAILABLE: {
     status: 503,
@@ -266,6 +285,16 @@ const DOMAIN_ERROR_CODES: Record<string, ErrorCode> = {
   VERSION_CONFLICT: 'VERSION_CONFLICT',
   USER_EMAIL_ALREADY_LINKED: 'USER_EMAIL_ALREADY_LINKED',
   USERNAME_UNAVAILABLE: 'USERNAME_UNAVAILABLE',
+  USERNAME_TAKEN: 'USERNAME_TAKEN',
+  COLLECTION_FULL: 'COLLECTION_FULL',
+  /*
+   * `addCollectionItem` matched no collection for this owner. Unreachable
+   * through the routes, which resolve the collection and check ownership
+   * first; if it ever is reached the caller is racing a delete or asking about
+   * somebody else's collection, and 404 answers both — 403 would confirm the
+   * row exists.
+   */
+  COLLECTION_NOT_WRITABLE: 'NOT_FOUND',
   /*
    * `MissingVersionError` used to be deliberately absent, on the reading that
    * a circuit with no versions means the data is inconsistent. That reading
@@ -285,6 +314,12 @@ const DOMAIN_ERROR_CODES: Record<string, ErrorCode> = {
    * theirs, and 404 is the answer to both — 403 would confirm the row exists.
    */
   CIRCUIT_NOT_WRITABLE: 'NOT_FOUND',
+  /*
+   * A star landed on a circuit its owner deleted in the meantime. Nothing is
+   * broken — the caller lost a race — and 404 is what the next request would
+   * say, so calling it a 500 would put an ordinary race in the error budget.
+   */
+  CIRCUIT_GONE: 'NOT_FOUND',
 }
 
 /**

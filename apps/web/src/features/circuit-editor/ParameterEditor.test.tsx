@@ -74,7 +74,7 @@ const HALF_PI = Math.PI / 2
 const LABELS: Record<Language, { slider: string; field: string }> = {
   en: { slider: 'Angle slider', field: 'Angle in radians' },
   es: { slider: 'Deslizador de ángulo', field: 'Ángulo en radianes' },
-  fr: { slider: "Curseur d'angle", field: 'Angle en radians' },
+  fr: { slider: 'Curseur d’angle', field: 'Angle en radians' },
 }
 
 describe('the two controls', () => {

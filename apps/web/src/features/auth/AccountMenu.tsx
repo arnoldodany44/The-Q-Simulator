@@ -44,6 +44,13 @@ import {
   useSession,
   useSessionActions,
 } from './SessionContext.js'
+/*
+ * From the leaf modules, which import nothing: this component is rendered by
+ * the shell on every page, and reaching for either feature's barrel would pull
+ * the collection forms and the settings screen into the entry chunk (M0.9b).
+ */
+import { COLLECTIONS_PATH } from '../collections/paths.js'
+import { SETTINGS_PATH } from '../profile/paths.js'
 import { CIRCUITS_PATH, SIGN_IN_PATH } from './paths.js'
 
 export function AccountMenu() {
@@ -147,6 +154,26 @@ export function AccountMenu() {
                 }}
               >
                 {t('account.circuits')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                to={COLLECTIONS_PATH}
+                onClick={() => {
+                  setOpen(false)
+                }}
+              >
+                {t('account.collections')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                to={SETTINGS_PATH}
+                onClick={() => {
+                  setOpen(false)
+                }}
+              >
+                {t('account.settings')}
               </Link>
             </li>
             <li>

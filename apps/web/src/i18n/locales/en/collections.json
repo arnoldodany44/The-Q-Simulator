@@ -1,0 +1,64 @@
+{
+  "title": "Your collections",
+  "lead": "Group circuits under one title — an algorithm family, a lesson, a set of experiments.",
+  "loading": "Loading collections…",
+  "offline": "Waiting for the network. Your collections will appear when the connection is back.",
+  "retry": "Try again",
+  "listing": "Collections",
+  "unknown": "There is no collection at that address, or it is not shared with you.",
+  "toGallery": "Back to the gallery",
+  "create": {
+    "open": "New collection",
+    "submit": "Create collection"
+  },
+  "empty": {
+    "heading": "No collections yet.",
+    "body": "A collection is a list of circuits you can keep to yourself or share as one page."
+  },
+  "pager": {
+    "label": "Collection pages",
+    "previous": "Previous",
+    "next": "Next",
+    "position": "Page {{page}} of {{pages}} — {{total}} collections"
+  },
+  "card": {
+    "items": "Circuits",
+    "updated": "Updated"
+  },
+  "form": {
+    "title": "Title",
+    "description": "Description",
+    "visibility": "Visibility",
+    "visibilityNote": "This setting covers the collection itself. Every circuit inside keeps its own: a public collection never publishes a private circuit — it simply does not show it.",
+    "saving": "Saving…"
+  },
+  "edit": {
+    "open": "Edit",
+    "cancel": "Stop editing",
+    "save": "Save collection",
+    "delete": "Delete collection",
+    "deleting": "Deleting…"
+  },
+  "add": {
+    "label": "Add one of your circuits",
+    "placeholder": "Choose a circuit",
+    "submit": "Add to collection",
+    "adding": "Adding…",
+    "loading": "Loading your circuits…",
+    "none": "Every circuit you have saved is already in this collection."
+  },
+  "page": {
+    "curator": "collected by",
+    "shown_one": "Showing {{shown}} of {{total}} circuit.",
+    "shown_other": "Showing {{shown}} of {{total}} circuits.",
+    "withheld_one": "{{value}} is not visible to you.",
+    "withheld_other": "{{value}} are not visible to you.",
+    "empty": "Nothing in this collection is visible to you.",
+    "emptyOwner": "Add one of your circuits above.",
+    "remove": "Remove {{title}} from this collection"
+  },
+  "profile": {
+    "heading": "Collections",
+    "listing": "This author’s collections"
+  }
+}

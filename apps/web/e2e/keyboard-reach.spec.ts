@@ -37,6 +37,7 @@ import {
   tabToGrid,
   toolbarButton,
   watchPointerInput,
+  wireHeader,
 } from './support/editor'
 
 /** The disclosure that documents the keyboard map — itself pointer-only once. */
@@ -105,15 +106,15 @@ test.describe('the controls around the canvas answer the keyboard', () => {
   test('Enter and Space work the wire controls', async ({ page }) => {
     await watchPointerInput(page)
     await openEditor(page)
-    await expect(page.getByRole('rowheader', { name: 'q2' })).toBeVisible()
+    await expect(wireHeader(page, 'q2')).toBeVisible()
 
     await rowButton(page, 'Insert a qubit below q0').focus()
     await page.keyboard.press('Enter')
-    await expect(page.getByRole('rowheader', { name: 'q3' })).toBeVisible()
+    await expect(wireHeader(page, 'q3')).toBeVisible()
 
     await rowButton(page, 'Remove qubit q3').focus()
     await page.keyboard.press(' ')
-    await expect(page.getByRole('rowheader', { name: 'q3' })).toHaveCount(0)
+    await expect(wireHeader(page, 'q3')).toHaveCount(0)
 
     expect(await pointerInputSeen(page)).toEqual([])
   })
@@ -152,7 +153,7 @@ test.describe('the controls around the canvas answer the keyboard', () => {
 
     await rowButton(page, 'Insert a qubit below q2').focus()
     await page.keyboard.press('Enter')
-    await expect(page.getByRole('rowheader', { name: 'q3' })).toBeVisible()
+    await expect(wireHeader(page, 'q3')).toBeVisible()
 
     await tabToGrid(page)
     for (let step = 0; step < 3; step += 1) {
@@ -409,9 +410,13 @@ test.describe('the classical register row', () => {
       await page.keyboard.press('ArrowDown')
     }
 
-    const register = page.getByRole('row').filter({
-      has: page.getByRole('rowheader', { name: /classical register/ }),
-    })
+    // Scoped to the grid like every other row locator here: the analysis
+    // panel's Bloch table is on the same page and names its rows the same way.
+    const register = grid(page)
+      .getByRole('row')
+      .filter({
+        has: page.getByRole('rowheader', { name: /classical register/ }),
+      })
     const recorded = register.getByRole('gridcell').first()
     await expect(recorded).toBeFocused()
     await expect(recorded).toHaveAccessibleName(

@@ -44,6 +44,28 @@
       "mixedPhase": "Several phases"
     }
   },
+  "bloch": {
+    "heading": "Bloch spheres",
+    "caption": {
+      "product_one": "The register’s one qubit reaches the surface of its sphere, so it has a state of its own.",
+      "product_other": "All {{total}} qubits reach the surface of their spheres, so none of them is entangled with another.",
+      "entangled_one": "One qubit of {{total}} falls short of the surface. A shortened arrow is what entanglement looks like here.",
+      "entangled_other": "{{shortened}} qubits of {{total}} fall short of the surface. A shortened arrow is what entanglement looks like here."
+    },
+    "note": "Every arrow is drawn at its true length. A qubit entangled with the rest of the register has no state of its own, so its arrow shrinks — and for either half of a Bell pair it collapses to the centre of the sphere.",
+    "loading": "Drawing the spheres…",
+    "unavailable": "This browser could not open a 3D view, so the spheres are not drawn. The table below carries the same reading.",
+    "table": {
+      "caption": "One row per qubit: the three components of its Bloch vector, the length of that vector, and what that length says about the qubit.",
+      "qubit": "Qubit",
+      "reading": "Reading"
+    },
+    "reading": {
+      "pure": "On the surface: a state of its own",
+      "shortened": "Short: partly entangled",
+      "centre": "At the centre: no state of its own"
+    }
+  },
   "counts": {
     "heading": "Measured counts",
     "intro_one": "This circuit measures before it ends, so it has no single final state. It was run {{shots}} times, and the classical register read the same value every time.",

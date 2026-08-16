@@ -76,11 +76,25 @@ export function grid(page: Page): Locator {
  * A wire's row, found by its own name rather than by position. Wire names
  * are notation and identical in all three languages, so this is the one
  * anchor on the canvas that survives a language switch.
+ *
+ * Scoped to the grid, and that is not decoration. M1.6 put a Bloch table on
+ * the same page whose rows are also named `q0`, `q1`, `q2` — so an unscoped
+ * `getByRole('row')` matches two elements as soon as the first simulation
+ * settles, and every assertion built on it becomes a race against the worker.
+ * The circuit canvas is the only `role="grid"` on the page; the analysis panel
+ * is a `table`.
  */
 export function wireRow(page: Page, qubit: number): Locator {
-  return page.getByRole('row').filter({
-    has: page.getByRole('rowheader', { name: `q${qubit}`, exact: true }),
-  })
+  return grid(page)
+    .getByRole('row')
+    .filter({
+      has: page.getByRole('rowheader', { name: `q${qubit}`, exact: true }),
+    })
+}
+
+/** A wire's name cell on the canvas — the grid's, never the Bloch table's. */
+export function wireHeader(page: Page, name: string): Locator {
+  return grid(page).getByRole('rowheader', { name, exact: true })
 }
 
 /** The cell where a wire meets a moment. */

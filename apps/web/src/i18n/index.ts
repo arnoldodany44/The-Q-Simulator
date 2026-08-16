@@ -64,11 +64,15 @@ export const NAMESPACES = [
   'analysis',
   'auth',
   'circuits',
+  'collections',
   'common',
   'editor',
   'errors',
+  'export',
+  'gallery',
   'gates',
   'landing',
+  'settings',
   'simulation',
 ] as const
 
@@ -230,6 +234,24 @@ export const EDITOR_NAMESPACES = [
    * which half it belongs to.
    */
   'circuits',
+  /*
+   * `gallery` from M1.5b, for the two controls the editor shares with a
+   * gallery card: the star and the fork. They are one implementation on
+   * purpose — the brief asks for a fork from a card *and* from an open
+   * circuit, and two would be two behaviours wearing one word — so their
+   * words travel with them rather than being copied into `editor`.
+   */
+  'gallery',
+  /*
+   * `export` from M1.7. Its own namespace rather than a block inside `editor`
+   * because it is a vocabulary about *files* — five format names, what each
+   * one is good for, what the browser was handed — and it travels with the
+   * export panel wherever that goes next (a gallery card, an embed). It also
+   * carries the two strings that end up *inside* a downloaded SVG, its
+   * `<title>` and `<desc>`, which is the one place in this app where a catalog
+   * string leaves the page it was rendered on.
+   */
+  'export',
 ] as const
 
 /**
@@ -253,6 +275,45 @@ export const AUTH_NAMESPACES = ['auth'] as const
  * carries, so the only thing waiting on this chunk is the page's own copy.
  */
 export const CIRCUITS_NAMESPACES = ['circuits'] as const
+
+/**
+ * What the public listings need, fetched alongside their own chunk (M1.5b).
+ *
+ * Two namespaces rather than one: `gallery` is this feature's own vocabulary —
+ * browsing, starring, forking, the empty states — and `circuits` is the one
+ * every card borrows for the words that describe a *saved circuit* as such: the
+ * qubit, gate and depth labels, and the three visibility names. Duplicating
+ * those into a second catalog would mean deciding twice per string which half
+ * it belongs to, and would let the same figure be labelled two ways on two
+ * screens.
+ *
+ * Deferred rather than added to the shell for the same reason the editor's are:
+ * the landing page is the door, and a reader who bounces off it never
+ * downloads a gallery they did not open.
+ */
+export const GALLERY_NAMESPACES = ['gallery', 'circuits'] as const
+
+/**
+ * What the collection screens need, fetched alongside their own chunks
+ * (M1.9).
+ *
+ * `circuits` travels with it for the same reason it travels with `gallery`:
+ * the three visibility names and the qubit/gate/depth labels describe a saved
+ * circuit as such, and a collection page draws gallery cards made of exactly
+ * those words. Copying them into a third catalog would mean deciding twice per
+ * string which half it belongs to, and would let one figure be labelled two
+ * ways on two screens.
+ */
+export const COLLECTIONS_NAMESPACES = ['collections', 'circuits'] as const
+
+/**
+ * What the settings screen needs (M1.9).
+ *
+ * Deferred like every other account screen: most visits never open it. The
+ * failures it can show are already covered by `errors`, which the shell
+ * carries, so nothing waits on this chunk but the page's own copy.
+ */
+export const SETTINGS_NAMESPACES = ['settings'] as const
 
 /**
  * Adds catalogs for one language, reporting rather than rejecting.

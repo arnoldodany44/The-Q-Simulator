@@ -152,6 +152,20 @@ catalog:
   # Routing (§9: React Router in declarative mode)
   react-router: 8.3.0
 
+  # 3D (§9: "three.js only for the Bloch spheres and the Q-sphere, loaded with
+  # `lazy()` so the initial bundle does not pay for it"). M1.6 is the first
+  # user: one WebGL canvas for the whole grid of spheres.
+  #
+  # It has zero runtime dependencies of its own, which is what makes the split
+  # chunk a clean one — the editor's chunk grows by nothing and the sphere
+  # chunk carries exactly this. It ships no type declarations either (no
+  # `types` field, no `.d.ts` beside `build/three.module.js`), so `@types/three`
+  # is a requirement rather than a convenience; DefinitelyTyped versions it in
+  # step with the library, which is why the two numbers below track each other
+  # and must be bumped together.
+  three: 0.185.1
+  '@types/three': 0.185.4
+
   # Testing
   vitest: 4.1.10
   '@vitest/coverage-v8': 4.1.10

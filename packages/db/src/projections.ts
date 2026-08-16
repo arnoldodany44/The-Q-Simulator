@@ -1,4 +1,7 @@
+import type { CircuitPreview } from '@qsim/schema'
+import { parseStoredPreview } from './circuit-data.js'
 import type { Prisma } from './generated/prisma/client.js'
+import { MAX_TAGS_PER_CIRCUIT } from './tags.js'
 
 /**
  * Column projections, paired with the type they produce.
@@ -39,14 +42,60 @@ export const circuitCardSelect = {
    * us this.
    */
   forkedFromId: true,
+  /*
+   * The thumbnail (M1.5b). Selected here rather than joined from the head
+   * version, which is the whole reason the column exists: a listing of fifty
+   * circuits drawing fifty diagrams would otherwise read fifty documents of up
+   * to 256 KiB each. See the note on `Circuit.preview` in schema.prisma.
+   *
+   * It carries no visibility question. Unlike `forkedFromId` it is not a
+   * handle to another row — it is a lossy drawing of *this* circuit, derived
+   * from the same document the rest of this projection describes.
+   */
+  preview: true,
   createdAt: true,
   updatedAt: true,
   owner: { select: { id: true, username: true, avatarUrl: true } },
+  /*
+   * The gallery filters by tag (§8), so a card that could not show its tags
+   * would be a facet nobody can see they are inside. Unlike `forkedFromId` a
+   * tag is a property of *this* circuit — it carries no handle to a row with a
+   * different visibility, so there is nothing here to leak.
+   *
+   * `take` states the bound in the query rather than assuming it. It used to
+   * say only that "the join is bounded by MAX_TAGS_PER_CIRCUIT", which was a
+   * claim about a constant nothing enforced: concurrent replacements really
+   * did leave 32 rows on one circuit, and every card in a fifty-row listing
+   * would have read and serialised all of them. `setCircuitTags` now holds the
+   * bound on the write side; this is what keeps a listing cheap even for a row
+   * written before it did.
+   */
+  tags: {
+    select: { tag: { select: { name: true } } },
+    take: MAX_TAGS_PER_CIRCUIT,
+  },
 } satisfies Prisma.CircuitSelect
 
-export type CircuitCard = Prisma.CircuitGetPayload<{
+/** What the query returns, with the join table still visible in the shape. */
+export type CircuitCardRow = Prisma.CircuitGetPayload<{
   select: typeof circuitCardSelect
 }>
+
+/**
+ * A card as everything above the repository wants it: tags as plain names, and
+ * the thumbnail already through its parser rather than as the `JsonValue`
+ * Prisma has to call it.
+ *
+ * Both conversions happen here rather than in a route because both
+ * implementations of the repository — Prisma and the in-memory one the API
+ * tests drive — have to produce the same shape, and a mapping done twice is a
+ * mapping that will one day differ.
+ */
+export interface CircuitCard extends Omit<CircuitCardRow, 'tags' | 'preview'> {
+  readonly tags: string[]
+  /** `null` for a row written before M1.5b, and for one that will not parse. */
+  readonly preview: CircuitPreview | null
+}
 
 /**
  * One circuit on its own page: the card plus the two columns a listing has
@@ -64,9 +113,42 @@ export const circuitDetailSelect = {
   description: true,
 } satisfies Prisma.CircuitSelect
 
-export type CircuitDetail = Prisma.CircuitGetPayload<{
+export type CircuitDetailRow = Prisma.CircuitGetPayload<{
   select: typeof circuitDetailSelect
 }>
+
+export interface CircuitDetail extends Omit<
+  CircuitDetailRow,
+  'tags' | 'preview'
+> {
+  readonly tags: string[]
+  readonly preview: CircuitPreview | null
+}
+
+/**
+ * Sorted, so two requests for the same circuit never disagree about the order
+ * of its tags — which would otherwise show up as a flickering card and as an
+ * intermittent test.
+ */
+function tagNames(row: { tags: { tag: { name: string } }[] }): string[] {
+  return row.tags.map((entry) => entry.tag.name).sort()
+}
+
+export function toCircuitCard(row: CircuitCardRow): CircuitCard {
+  return {
+    ...row,
+    tags: tagNames(row),
+    preview: parseStoredPreview(row.preview),
+  }
+}
+
+export function toCircuitDetail(row: CircuitDetailRow): CircuitDetail {
+  return {
+    ...row,
+    tags: tagNames(row),
+    preview: parseStoredPreview(row.preview),
+  }
+}
 
 /**
  * The public face of a user: what a profile page and a circuit byline show.
@@ -84,6 +166,53 @@ export const publicUserSelect = {
 export type PublicUser = Prisma.UserGetPayload<{
   select: typeof publicUserSelect
 }>
+
+/**
+ * A collection as a listing shows it — M1.9.
+ *
+ * `ownerId` is present for the same reason it is on `circuitDetailSelect` and
+ * absent from `circuitCardSelect`: it is the input to `canEditCollection`, and
+ * every route that decides whether the caller may write needs it in hand.
+ * Unlike a circuit card, a collection card is never long enough for that to
+ * cost anything, and a listing that had to re-read the row to find out who
+ * owns it would be a second query per card.
+ *
+ * `_count.items` is the *stored* number of items, which is not the number a
+ * stranger will be shown: the items themselves go through
+ * `listableCircuitFilter`, so the two differ exactly when a collection holds
+ * something the viewer may not see. Both numbers are reported, and the
+ * difference between them is the withheld count — see `collections.ts`.
+ */
+export const collectionCardSelect = {
+  id: true,
+  ownerId: true,
+  title: true,
+  description: true,
+  visibility: true,
+  createdAt: true,
+  updatedAt: true,
+  owner: { select: { id: true, username: true, avatarUrl: true } },
+  _count: { select: { items: true } },
+} satisfies Prisma.CollectionSelect
+
+export type CollectionCardRow = Prisma.CollectionGetPayload<{
+  select: typeof collectionCardSelect
+}>
+
+/** A card with the join-table shape flattened into one number. */
+export interface CollectionCard extends Omit<CollectionCardRow, '_count'> {
+  /**
+   * How many items the collection holds, counted in the database and
+   * therefore including the ones this viewer may not see. It is a count and
+   * never a handle: it names no circuit, so it cannot be a way to reach one.
+   */
+  readonly itemCount: number
+}
+
+export function toCollectionCard(row: CollectionCardRow): CollectionCard {
+  const { _count, ...rest } = row
+  return { ...rest, itemCount: _count.items }
+}
 
 /**
  * A version as the history sidebar lists it: metadata only. `data` is the

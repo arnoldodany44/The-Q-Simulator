@@ -89,6 +89,7 @@ function view(
     detail: null,
     base: null,
     dirty: true,
+    starred: false,
     error: null,
     openedWithDraft: false,
     ownedBy: () => false,
@@ -324,6 +325,7 @@ describe('saving a second version', () => {
         jsonResponse({
           circuit: { ...circuitDetailPayload, slug: SLUG },
           version: { ...versionPayload, versionNum: 1, circuit: base },
+          starred: false,
         }),
         jsonResponse(
           {
@@ -379,6 +381,7 @@ describe('saving a second version', () => {
         jsonResponse({
           circuit: { ...circuitDetailPayload, slug: SLUG },
           version: { ...versionPayload, versionNum: 1, circuit: base },
+          starred: false,
         }),
         jsonResponse({
           circuit: { ...circuitDetailPayload, title: 'Renamed' },
@@ -432,6 +435,7 @@ describe('when somebody else saved first', () => {
             versionNum: 3,
             circuit: emptyCircuit(9),
           },
+          starred: false,
         }),
         jsonResponse(
           {
@@ -528,6 +532,7 @@ describe('a race the pre-flight could not close', () => {
         jsonResponse({
           circuit: { ...circuitDetailPayload, slug: SLUG },
           version: { ...versionPayload, versionNum: 1, circuit: base },
+          starred: false,
         }),
         // Somebody wrote version 2 in the milliseconds after the read, so this
         // save became version 3 rather than version 2.
@@ -567,6 +572,7 @@ describe('when the answer changes between the paint and the click', () => {
         jsonResponse({
           circuit: { ...circuitDetailPayload, slug: SLUG },
           version: { ...versionPayload, versionNum: 1, circuit: base },
+          starred: false,
         }),
         errorResponse('FORBIDDEN', 403),
       ],

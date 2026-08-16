@@ -1,0 +1,43 @@
+-- The gallery card's thumbnail — milestone M1.5b, specification §3.4.
+--
+-- Nothing here reads, writes, moves or drops a single row. It adds one
+-- nullable column.
+--
+-- ── Why the picture is denormalised onto Circuit ──────────────────────────
+--
+-- A gallery card draws a small diagram of the circuit it advertises, and the
+-- card's projection is metadata and counters — deliberately, because a
+-- listing of fifty circuits must not carry fifty documents. The document
+-- lives in `CircuitVersion.data`, which @qsim/db caps at 256 KiB. Joining the
+-- head version into the gallery query to draw those fifty thumbnails would
+-- therefore put up to 12 MB behind a single anonymous request, on the front
+-- page of the product, over a pooler whose connection budget is one. The
+-- other obvious answer — one `GET /circuits/:id` per card — is worse: fifty
+-- round trips, fifty full payloads and fifty visibility checks for a picture
+-- 200 pixels wide.
+--
+-- So the thumbnail is derived on write and stored beside the counters it
+-- belongs with. That is the same trade `gateCount`, `depth` and `starCount`
+-- already make on this table and for the same stated reason (§7): the gallery
+-- sorts and paginates without joining CircuitVersion. `previewOf` in
+-- @qsim/schema bounds it — at most PREVIEW_MAX_QUBITS × PREVIEW_MAX_COLUMNS
+-- operations, no parameters, no labels — so a preview is a few hundred bytes
+-- whatever the circuit behind it weighs.
+--
+-- ── Why it is nullable, and stays nullable ────────────────────────────────
+--
+-- A row written before this column existed has no thumbnail, and there is no
+-- backfill in this file because a data migration cannot compute one: the
+-- value is the output of a TypeScript function over a JSON document, not an
+-- expression Postgres can evaluate. The application handles the absence —
+-- `safeParsePreview` answers null for a value it cannot read, and the card
+-- falls back to the counters it already has — which is the same tolerance a
+-- preview needs anyway for a row written by an older build. A picture is
+-- never worth a failed request.
+--
+-- Every write path fills it from here on: `create` and `appendVersion` in
+-- @qsim/db compute it beside `metricsOf`, which are the only two statements
+-- in the system that put a document into a row.
+
+-- AlterTable
+ALTER TABLE "Circuit" ADD COLUMN     "preview" JSONB;

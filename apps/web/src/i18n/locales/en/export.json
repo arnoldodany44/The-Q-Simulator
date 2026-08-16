@@ -1,0 +1,30 @@
+{
+  "heading": "Export",
+  "hint": "Every format is built here, in this tab. Nothing is uploaded to make a file.",
+  "action": "Download as {{format}}",
+  "formats": {
+    "qasm3": "The interchange format. Qiskit and most hardware toolchains read it; a gate with no equivalent there is written out as an exact decomposition, with a comment saying so.",
+    "qiskit": "Python for a notebook, with the imports, the registers and a comment naming where it came from.",
+    "json": "The native format. The only export that loses nothing, and the one to keep if you want to open this circuit here again.",
+    "svg": "The diagram as vector art. Self-contained: the file carries its own colours and asks for no font it does not have.",
+    "png": "The diagram as an image, drawn at twice its size on screen so it stays sharp in a slide or an issue."
+  },
+  "status": {
+    "working": "Preparing the {{format}} file…",
+    "offered": "{{filename}} was handed to your browser."
+  },
+  "failure": {
+    "too-large": "This circuit is too wide to turn into an image. The SVG export has no such limit.",
+    "unknown": "That file could not be created."
+  },
+  "diagram": {
+    "title": "Quantum circuit: {{title}}",
+    "untitled": "Quantum circuit",
+    "description": "Circuit diagram: {{qubits}}, {{gates}}, {{depth}}.",
+    "qubits_one": "{{value}} qubit",
+    "qubits_other": "{{value}} qubits",
+    "gates_one": "{{value}} gate",
+    "gates_other": "{{value}} gates",
+    "depth": "depth {{value}}"
+  }
+}

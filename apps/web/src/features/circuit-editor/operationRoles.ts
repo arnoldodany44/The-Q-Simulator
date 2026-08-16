@@ -24,7 +24,19 @@ import {
   type ParamValue,
 } from '@qsim/schema'
 
+import { gateSymbol, targetShape } from './gateGlyphs'
 import { defaultQubitLabel } from './useCircuitStore'
+
+/*
+ * The glyph table moved to `gateGlyphs.ts` in M1.5b and is re-exported here so
+ * that every existing caller is untouched — and so that there is still exactly
+ * one table. It had to move because this module reaches `useCircuitStore`,
+ * which builds the document store at module scope: a bundler cannot shake that
+ * away, so the gallery's thumbnail would have carried Zustand and the whole
+ * undo history to find out whether a `cx` is drawn as a plus. See that file.
+ */
+export { boxLabel, gateSymbol, paramLabel, targetShape } from './gateGlyphs'
+export type { TargetShape } from './gateGlyphs'
 
 /** What a wire does for an operation, from that wire's point of view. */
 export type WireRole = 'target' | 'control' | 'negative-control'
@@ -44,51 +56,6 @@ export function roleOnQubit(
     }
   }
   return operation.targets.includes(qubit) ? 'target' : null
-}
-
-/**
- * The glyph drawn on a *target* wire. Everything not listed is a labelled
- * box, which is the right default: the catalog is open (custom gates land
- * here too) and a box with a symbol in it is never wrong, only plain.
- */
-export type TargetShape = 'box' | 'plus' | 'cross' | 'meter' | 'barrier'
-
-const TARGET_SHAPES: Readonly<Record<string, TargetShape>> = {
-  cx: 'plus',
-  ccx: 'plus',
-  swap: 'cross',
-  iswap: 'cross',
-  cswap: 'cross',
-  measure: 'meter',
-  barrier: 'barrier',
-}
-
-export function targetShape(gate: string): TargetShape {
-  return TARGET_SHAPES[gate] ?? 'box'
-}
-
-/**
- * Gates the contract stores as "a one-qubit gate plus a control" are drawn
- * with the *base* gate in the box: a `cz` is a Z box joined to a control
- * dot. Labelling that box `CZ` would read as a controlled-controlled-Z,
- * because the dot already says "controlled".
- */
-const BOX_LABELS: Readonly<Record<string, string>> = {
-  cz: 'Z',
-  crz: 'Rz',
-  cp: 'P',
-}
-
-/** The catalog symbol, a custom gate's own symbol, or the raw gate name. */
-export function gateSymbol(gate: string, circuit?: Circuit): string {
-  const meta = lookupGate(gate)
-  if (meta !== undefined) return meta.symbol
-  return circuit?.customGates?.[gate]?.symbol ?? gate
-}
-
-/** The text drawn inside a gate box. */
-export function boxLabel(gate: string, circuit?: Circuit): string {
-  return BOX_LABELS[gate] ?? gateSymbol(gate, circuit)
 }
 
 /** Display name of a wire: the user's own label, or `q0` when unnamed. */

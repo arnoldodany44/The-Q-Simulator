@@ -1,0 +1,64 @@
+{
+  "title": "Vos collections",
+  "lead": "Regroupez des circuits sous un même titre : une famille d’algorithmes, une leçon, une série d’expériences.",
+  "loading": "Chargement des collections…",
+  "offline": "En attente du réseau. Vos collections apparaîtront au retour de la connexion.",
+  "retry": "Réessayer",
+  "listing": "Collections",
+  "unknown": "Il n’y a aucune collection à cette adresse, ou elle ne vous est pas partagée.",
+  "toGallery": "Retour à la galerie",
+  "create": {
+    "open": "Nouvelle collection",
+    "submit": "Créer la collection"
+  },
+  "empty": {
+    "heading": "Aucune collection pour l’instant.",
+    "body": "Une collection est une liste de circuits que vous pouvez garder pour vous ou partager comme une seule page."
+  },
+  "pager": {
+    "label": "Pages de collections",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "position": "Page {{page}} sur {{pages}} — {{total}} collections"
+  },
+  "card": {
+    "items": "Circuits",
+    "updated": "Mise à jour"
+  },
+  "form": {
+    "title": "Titre",
+    "description": "Description",
+    "visibility": "Visibilité",
+    "visibilityNote": "Ce réglage concerne la collection elle-même. Chaque circuit garde la sienne : une collection publique ne publie jamais un circuit privé, elle ne l’affiche simplement pas.",
+    "saving": "Enregistrement…"
+  },
+  "edit": {
+    "open": "Modifier",
+    "cancel": "Arrêter la modification",
+    "save": "Enregistrer la collection",
+    "delete": "Supprimer la collection",
+    "deleting": "Suppression…"
+  },
+  "add": {
+    "label": "Ajouter un de vos circuits",
+    "placeholder": "Choisissez un circuit",
+    "submit": "Ajouter à la collection",
+    "adding": "Ajout…",
+    "loading": "Chargement de vos circuits…",
+    "none": "Tous les circuits que vous avez enregistrés sont déjà dans cette collection."
+  },
+  "page": {
+    "curator": "réuni par",
+    "shown_one": "Affichage de {{shown}} circuit sur {{total}}.",
+    "shown_other": "Affichage de {{shown}} circuits sur {{total}}.",
+    "withheld_one": "{{value}} ne vous est pas visible.",
+    "withheld_other": "{{value}} ne vous sont pas visibles.",
+    "empty": "Rien dans cette collection ne vous est visible.",
+    "emptyOwner": "Ajoutez ci-dessus un de vos circuits.",
+    "remove": "Retirer {{title}} de cette collection"
+  },
+  "profile": {
+    "heading": "Collections",
+    "listing": "Collections de cet auteur"
+  }
+}

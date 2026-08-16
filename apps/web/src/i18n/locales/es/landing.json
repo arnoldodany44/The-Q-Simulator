@@ -4,6 +4,7 @@
   "cta": {
     "editor": "Abrir el editor",
     "examples": "Empezar con un ejemplo",
+    "gallery": "Ver lo que otros han creado",
     "note": "El editor se abre con seis circuitos de ejemplo al lado, listos para ejecutarlos y para desarmarlos."
   },
   "demo": {

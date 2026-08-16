@@ -1137,7 +1137,7 @@ describe('decision D2 reaches the editor’s own messages', () => {
     expect(status(view.container)).toBe('Action annulée.')
     press('z', { ctrlKey: true })
     press('z', { ctrlKey: true })
-    expect(status(view.container)).toBe("Il n'y a plus rien à annuler.")
+    expect(status(view.container)).toBe('Il n’y a plus rien à annuler.')
   })
 
   it('counts in the language’s own plural, singular included', () => {

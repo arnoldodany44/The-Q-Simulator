@@ -11,6 +11,7 @@
  *   - `gates.ts`    the gate catalog: arity, parameters, category, symbol
  *   - `validate.ts` the rules a shape cannot express, and the parse entry points
  *   - `helpers.ts`  pure functions over a circuit
+ *   - `preview.ts`  the bounded thumbnail a gallery card draws
  *   - `text.ts`     what a string must not contain to be storable at all
  *
  * Start at `parseCircuit` for untrusted input, `validateCircuit` for a
@@ -83,3 +84,13 @@ export {
   qubitsOf,
   resolveParams,
 } from './helpers.js'
+
+export {
+  CircuitPreviewSchema,
+  PREVIEW_MAX_COLUMNS,
+  PREVIEW_MAX_QUBITS,
+  PreviewOperationSchema,
+  previewOf,
+  safeParsePreview,
+} from './preview.js'
+export type { CircuitPreview, PreviewOperation } from './preview.js'

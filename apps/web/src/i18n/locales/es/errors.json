@@ -20,5 +20,7 @@
   "NETWORK_UNREACHABLE": "No se pudo contactar al servidor. Revisa tu conexión.",
   "RESPONSE_MALFORMED": "El servidor envió una respuesta inesperada. Recarga la página.",
   "SESSION_UNAVAILABLE": "No se pudo leer tu sesión. Vuelve a iniciar sesión.",
-  "UNKNOWN": "Algo salió mal."
+  "UNKNOWN": "Algo salió mal.",
+  "USERNAME_TAKEN": "Ese identificador pertenece a otra cuenta. Prueba con otro.",
+  "COLLECTION_FULL": "Esta colección está llena. Quita un circuito antes de añadir otro."
 }

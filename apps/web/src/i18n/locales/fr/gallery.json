@@ -1,0 +1,76 @@
+{
+  "title": "Galerie",
+  "lead": "Des circuits que d’autres ont publiés. Ouvrez-en un pour le lire, ajoutez une étoile à ceux que vous aimez et bifurquez n’importe lequel pour vous l’approprier.",
+  "filters": {
+    "search": {
+      "label": "Rechercher",
+      "hint": "Cherche dans les titres et les descriptions. Au moins {{least}} caractères.",
+      "submit": "Rechercher",
+      "clear": "Effacer la recherche",
+      "tooShort": "Une recherche demande au moins {{least}} caractères."
+    },
+    "sort": {
+      "label": "Ordre",
+      "recent": "Les plus récents d’abord",
+      "stars": "Les plus étoilés d’abord"
+    },
+    "tag": {
+      "active": "N’affiche que les circuits portant l’étiquette",
+      "clear": "Réafficher toutes les étiquettes"
+    }
+  },
+  "listing": {
+    "label": "Circuits publiés",
+    "loading": "Chargement de la galerie…",
+    "offline": "Vous êtes hors ligne, la galerie n’a donc pas encore été demandée. Elle se chargera dès le retour de la connexion.",
+    "retry": "Réessayer",
+    "shown": "Circuits affichés : {{total}}.",
+    "end": "Il n’y en a pas d’autres.",
+    "more": "Afficher plus",
+    "loadingMore": "Chargement…"
+  },
+  "card": {
+    "author": "Publié par",
+    "tags": "Étiquettes"
+  },
+  "star": {
+    "add": "Ajouter une étoile à ce circuit",
+    "remove": "Retirer votre étoile",
+    "signIn": "Connectez-vous pour étoiler ce circuit"
+  },
+  "fork": {
+    "action": "Bifurquer",
+    "working": "Bifurcation…"
+  },
+  "forked": {
+    "heading": "Ceci est votre copie",
+    "body": "Bifurqué de « {{title}} », de {{author}}. Il est privé, il vous appartient, et l’original reste intact.",
+    "dismiss": "C’est noté"
+  },
+  "empty": {
+    "gallery": {
+      "heading": "Rien n’a encore été publié",
+      "body": "La galerie montre les circuits que leurs propriétaires ont rendus publics. Personne ne l’a encore fait : le premier pourrait être le vôtre.",
+      "action": "Créer le premier circuit"
+    },
+    "filtered": {
+      "heading": "Rien ici ne correspond",
+      "bySearch": "Aucun circuit publié n’a cela dans son titre ni dans sa description.",
+      "byTag": "Personne n’a encore publié de circuit portant cette étiquette.",
+      "clear": "Afficher toute la galerie"
+    },
+    "author": {
+      "heading": "Il n’y a encore rien à montrer ici.",
+      "body": "Ce compte n’a publié aucun circuit. Un circuit privé n’apparaît que pour la personne à qui il appartient."
+    }
+  },
+  "profile": {
+    "lead": "Circuits publiés par {{author}}.",
+    "listingLabel": "Les circuits de cette personne",
+    "unknown": "Il n’existe aucun compte portant ce nom.",
+    "toGallery": "Retour à la galerie",
+    "joined": "Inscrit le",
+    "circuits": "Circuits",
+    "collections": "Collections"
+  }
+}

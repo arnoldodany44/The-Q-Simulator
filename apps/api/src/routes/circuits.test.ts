@@ -52,8 +52,15 @@ interface CardBody {
   qubitCount: number
   gateCount: number
   depth: number
+  starCount: number
+  tags: string[]
   description?: string | null
   owner: { id: string; username: string; avatarUrl: string | null }
+}
+
+interface StarBody {
+  starred: boolean
+  starCount: number
 }
 
 interface VersionBody {
@@ -147,6 +154,7 @@ async function createCircuit(
     visibility?: 'PRIVATE' | 'UNLISTED' | 'PUBLIC'
     circuit?: CircuitInput
     description?: string
+    tags?: string[]
   } = {}
 ): Promise<CircuitWithVersionBody> {
   const response = await h.app.inject({
@@ -160,6 +168,7 @@ async function createCircuit(
       ...(overrides.description === undefined
         ? {}
         : { description: overrides.description }),
+      ...(overrides.tags === undefined ? {} : { tags: overrides.tags }),
     },
   })
   expect(response.statusCode).toBe(201)
@@ -1509,6 +1518,339 @@ describe('the identity a write is attributed to', () => {
     expect(response.json<CircuitWithVersionBody>().circuit.owner.id).toBe(
       OWNER_ID
     )
+    await h.app.close()
+  })
+})
+
+describe('POST and DELETE /circuits/:id/star', () => {
+  /**
+   * The star routes, and the property they exist to hold: `Circuit.starCount`
+   * is denormalised (§7) so the gallery can sort without joining `Star`, which
+   * means there are two facts that must agree and no constraint that makes
+   * them agree. Every assertion below is about the two staying together.
+   */
+  async function star(
+    h: Harness,
+    id: string,
+    headers = h.stranger,
+    method: 'POST' | 'DELETE' = 'POST'
+  ) {
+    return h.app.inject({ method, url: `${BASE}/${id}/star`, headers })
+  }
+
+  it('stars a public circuit and answers with the new state', async () => {
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+
+    const response = await star(h, created.circuit.id)
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json<StarBody>()).toEqual({ starred: true, starCount: 1 })
+    await h.app.close()
+  })
+
+  it('is idempotent: a second POST is not a second star', async () => {
+    // The count is what a card renders, and the row is what "did I star
+    // this" reads. A double click must not make them disagree for ever.
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+
+    await star(h, created.circuit.id)
+    const again = await star(h, created.circuit.id)
+
+    expect(again.json<StarBody>()).toEqual({ starred: true, starCount: 1 })
+    expect(h.repository.allStars(created.circuit.id)).toHaveLength(1)
+    await h.app.close()
+  })
+
+  it('keeps one star when two requests overlap', async () => {
+    /*
+     * The concurrency case, driven through the hook that opens the window
+     * between "is it starred" and "write the star". In production the insert
+     * is `ON CONFLICT DO NOTHING`, decided inside one statement; the
+     * in-memory repository models that by keeping its write synchronous, so
+     * what this exercises is that the *route* does not smuggle a
+     * read-modify-write around it.
+     */
+    // An array rather than a nullable binding: the second request is started
+    // inside a callback, and a `let` assigned only there reads as `null` to
+    // the type checker for the rest of the function.
+    const overlapping: Promise<unknown>[] = []
+
+    const h = await harness({
+      beforeStarWrite: (circuitId) => {
+        if (overlapping.length > 0) return
+        overlapping.push(
+          h.app.inject({
+            method: 'POST',
+            url: `${BASE}/${circuitId}/star`,
+            headers: h.stranger,
+          })
+        )
+      },
+    })
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+
+    const first = await star(h, created.circuit.id)
+    await Promise.all(overlapping)
+
+    // Without this the test could pass because the window never opened,
+    // which is the shape of a concurrency test that tests nothing.
+    expect(overlapping).toHaveLength(1)
+    expect(first.statusCode).toBe(200)
+    expect(h.repository.allStars(created.circuit.id)).toHaveLength(1)
+    expect(
+      h.repository.allCircuits().find((row) => row.id === created.circuit.id)
+        ?.starCount
+    ).toBe(1)
+    await h.app.close()
+  })
+
+  it('unstars, and unstarring twice does not go negative', async () => {
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+    await star(h, created.circuit.id)
+
+    const first = await star(h, created.circuit.id, h.stranger, 'DELETE')
+    const second = await star(h, created.circuit.id, h.stranger, 'DELETE')
+
+    expect(first.json<StarBody>()).toEqual({ starred: false, starCount: 0 })
+    expect(second.json<StarBody>()).toEqual({ starred: false, starCount: 0 })
+    expect(h.repository.allStars(created.circuit.id)).toHaveLength(0)
+    await h.app.close()
+  })
+
+  it('counts two different people as two stars', async () => {
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+
+    await star(h, created.circuit.id, h.stranger)
+    const byOwner = await star(h, created.circuit.id, h.owner)
+
+    expect(byOwner.json<StarBody>().starCount).toBe(2)
+    await h.app.close()
+  })
+
+  it('refuses to star a circuit the caller cannot read', async () => {
+    /*
+     * "You cannot star what you cannot see", verified in the query rather
+     * than intended: somebody else's PRIVATE circuit is a 404 here exactly as
+     * it is on GET, and 404 rather than 403 because 403 would confirm the id
+     * exists.
+     */
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PRIVATE' })
+
+    const response = await star(h, created.circuit.id)
+
+    expect(response.statusCode).toBe(404)
+    expect(response.json<ErrorBody>().error.code).toBe('NOT_FOUND')
+    expect(h.repository.allStars()).toHaveLength(0)
+    await h.app.close()
+  })
+
+  it('lets somebody holding an unlisted slug star it', async () => {
+    // Holding the slug is what UNLISTED means by "may read", and a star does
+    // not put it in any listing.
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'UNLISTED' })
+
+    const response = await star(h, created.circuit.slug)
+
+    expect(response.statusCode).toBe(200)
+    await h.app.close()
+  })
+
+  it('refuses an anonymous star', async () => {
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+
+    const response = await h.app.inject({
+      method: 'POST',
+      url: `${BASE}/${created.circuit.id}/star`,
+    })
+
+    expect(response.statusCode).toBe(401)
+    await h.app.close()
+  })
+
+  it('creates the public.User row for someone whose first write is a star', async () => {
+    /*
+     * `Star.userId` is a foreign key onto `public.User`, and a reader who has
+     * never saved a circuit has no row there. Without `ensureOwner` on this
+     * route the very first star of every new account would fail on the
+     * constraint, with nothing in the response to say why. The stranger in
+     * this harness has never written anything.
+     */
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+
+    const response = await star(h, created.circuit.id)
+
+    expect(response.statusCode).toBe(200)
+    expect(h.repository.allStars(created.circuit.id)[0]?.userId).toBe(
+      STRANGER_ID
+    )
+    await h.app.close()
+  })
+
+  it('tells a reader whether they have already starred it', async () => {
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+
+    const before = await h.app.inject({
+      method: 'GET',
+      url: `${BASE}/${created.circuit.slug}`,
+      headers: h.stranger,
+    })
+    await star(h, created.circuit.id)
+    const after = await h.app.inject({
+      method: 'GET',
+      url: `${BASE}/${created.circuit.slug}`,
+      headers: h.stranger,
+    })
+    const anonymous = await h.app.inject({
+      method: 'GET',
+      url: `${BASE}/${created.circuit.slug}`,
+    })
+
+    expect(before.json<{ starred: boolean }>().starred).toBe(false)
+    expect(after.json<{ starred: boolean }>().starred).toBe(true)
+    // Nobody's star, rather than somebody else's.
+    expect(anonymous.json<{ starred: boolean }>().starred).toBe(false)
+    await h.app.close()
+  })
+
+  it('shows the count to everyone and the star to its owner alone', async () => {
+    const h = await harness()
+    const created = await createCircuit(h, { visibility: 'PUBLIC' })
+    await star(h, created.circuit.id)
+
+    const asOwner = await h.app.inject({
+      method: 'GET',
+      url: `${BASE}/${created.circuit.slug}`,
+      headers: h.owner,
+    })
+
+    const body = asOwner.json<{ starred: boolean; circuit: CardBody }>()
+    expect(body.circuit.starCount).toBe(1)
+    // The owner has not starred it; the stranger has.
+    expect(body.starred).toBe(false)
+    await h.app.close()
+  })
+})
+
+describe('tags', () => {
+  it('stores a canonical spelling and gives it back on the card', async () => {
+    const h = await harness()
+
+    const created = await createCircuit(h, {
+      tags: ['  Deutsch–Jozsa ', 'Grover', 'grover'],
+    })
+
+    // Normalised, deduplicated, sorted.
+    expect(created.circuit.tags).toEqual(['deutsch-jozsa', 'grover'])
+    await h.app.close()
+  })
+
+  it('refuses a tag that survives normalisation as nothing', async () => {
+    // Dropping it silently would mean a request whose tags did not happen,
+    // which is worse than a request that failed.
+    const h = await harness()
+
+    const response = await h.app.inject({
+      method: 'POST',
+      url: BASE,
+      headers: h.owner,
+      body: { title: 'Tagged', circuit: bell(), tags: ['bell', '---'] },
+    })
+
+    expect(response.statusCode).toBe(400)
+    const body = response.json<ErrorBody>()
+    expect(body.error.code).toBe('VALIDATION_FAILED')
+    expect(body.error.details).toEqual([
+      { path: 'body.tags.1', code: 'invalid_tag' },
+    ])
+    await h.app.close()
+  })
+
+  it('refuses more tags than a circuit may carry', async () => {
+    const h = await harness()
+
+    const response = await h.app.inject({
+      method: 'POST',
+      url: BASE,
+      headers: h.owner,
+      body: {
+        title: 'Tagged',
+        circuit: bell(),
+        tags: Array.from({ length: 20 }, (_, index) => `tag-${String(index)}`),
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+    await h.app.close()
+  })
+
+  it('replaces the whole set on a patch, and clears it with an empty one', async () => {
+    const h = await harness()
+    const created = await createCircuit(h, { tags: ['bell', 'entanglement'] })
+
+    const replaced = await h.app.inject({
+      method: 'PATCH',
+      url: `${BASE}/${created.circuit.id}`,
+      headers: h.owner,
+      body: { tags: ['ghz'] },
+    })
+    expect(replaced.json<{ circuit: CardBody }>().circuit.tags).toEqual(['ghz'])
+
+    const cleared = await h.app.inject({
+      method: 'PATCH',
+      url: `${BASE}/${created.circuit.id}`,
+      headers: h.owner,
+      body: { tags: [] },
+    })
+    expect(cleared.json<{ circuit: CardBody }>().circuit.tags).toEqual([])
+    await h.app.close()
+  })
+
+  it('leaves the tags alone when a patch does not mention them', async () => {
+    // `undefined` and `[]` are different requests, and a route that spread
+    // the body wholesale would make them the same one.
+    const h = await harness()
+    const created = await createCircuit(h, { tags: ['bell'] })
+
+    const renamed = await h.app.inject({
+      method: 'PATCH',
+      url: `${BASE}/${created.circuit.id}`,
+      headers: h.owner,
+      body: { title: 'Renamed' },
+    })
+
+    expect(renamed.json<{ circuit: CardBody }>().circuit.tags).toEqual(['bell'])
+    await h.app.close()
+  })
+
+  it('carries the tags across a fork', async () => {
+    // They describe what the circuit is, and a fork is the same circuit until
+    // its new owner changes it.
+    const h = await harness()
+    const created = await createCircuit(h, {
+      visibility: 'PUBLIC',
+      tags: ['grover'],
+    })
+
+    const forked = await h.app.inject({
+      method: 'POST',
+      url: `${BASE}/${created.circuit.id}/fork`,
+      headers: h.stranger,
+    })
+
+    expect(forked.statusCode).toBe(201)
+    const body = forked.json<CircuitWithVersionBody>()
+    expect(body.circuit.tags).toEqual(['grover'])
+    // And a fork of a public circuit is still not itself published.
+    expect(body.circuit.visibility).toBe('PRIVATE')
     await h.app.close()
   })
 })

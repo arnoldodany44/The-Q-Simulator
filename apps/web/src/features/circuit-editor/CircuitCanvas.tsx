@@ -69,19 +69,14 @@ import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
 import { Notation } from '../../components/Notation'
-import { GateNode } from './GateNode'
+import { CircuitPlot } from './CircuitPlot'
 import {
   DndCell,
   PlainCell,
   ReadonlyCell,
   type GridCellProps,
 } from './GridCell'
-import {
-  ClassicalRowHeader,
-  ClassicalWire,
-  QubitRowHeader,
-  QubitWire,
-} from './QubitWire'
+import { ClassicalRowHeader, QubitRowHeader } from './QubitWire'
 import {
   DEFAULT_METRICS,
   MIN_COLUMNS,
@@ -219,6 +214,7 @@ export function CircuitCanvas({
   const size = gridSizeOf(circuit, minColumns)
   const width = plotWidth(size, metrics)
   const height = plotHeight(size, metrics)
+  // For the ARIA grid below; the plot builds its own from the same prop.
   const selected = new Set(selection)
   /*
    * A document can name a column far past anything the canvas can draw — the
@@ -365,31 +361,18 @@ export function CircuitCanvas({
               </g>
             )}
 
-            <g className="qsim-wires">
-              {range(circuit.qubits).map((qubit) => (
-                <QubitWire
-                  key={qubit}
-                  qubit={qubit}
-                  width={width}
-                  metrics={metrics}
-                />
-              ))}
-              {size.clbits > 0 ? (
-                <ClassicalWire size={size} width={width} metrics={metrics} />
-              ) : null}
-            </g>
-            <g className="qsim-operations">
-              {circuit.operations.map((operation) => (
-                <GateNode
-                  key={operation.id}
-                  circuit={circuit}
-                  operation={operation}
-                  size={size}
-                  metrics={metrics}
-                  selected={selected.has(operation.id)}
-                />
-              ))}
-            </g>
+            {/*
+             * The diagram, shared with the SVG and PNG exports (M1.7) so that
+             * a downloaded file and the canvas cannot drift apart. See
+             * `CircuitPlot.tsx`.
+             */}
+            <CircuitPlot
+              circuit={circuit}
+              size={size}
+              width={width}
+              metrics={metrics}
+              selection={selection}
+            />
           </svg>
 
           <CircuitGrid

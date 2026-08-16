@@ -93,6 +93,13 @@ La selección es por probabilidad, pero **el orden de dibujo es por estado base*
 3. **El deslizador es logarítmico**: dieciséis paradas en progresión 1-2-5 por década, de 1 a 100 000. En una escala lineal todo el rango interesante —los primeros cientos de tiros, donde la muestra visiblemente discrepa— ocupa el primer medio por ciento de la barra, y la lección es justamente que el error cae como 1/√N.
 4. **Una pista, dos marcas.** La barra es lo medido y la marca es donde la teoría dice que va; lo que el lector mira es la _distancia_ entre las dos, y esa distancia cerrándose. Dos barras lado a lado convertirían eso en una comparación de largos. Junto a la tabla se imprime el error típico, 1/(2√N), que es la desviación estándar de una frecuencia observada en su valor máximo (p = ½): con eso el lector puede verificar la regla en el siguiente arrastre en vez de adivinarla.
 
+**Las esferas de Bloch (decidido en M1.6).** Cuatro decisiones, y las cuatro son visibles para quien mira el panel. La matemática vive en `packages/qsim/src/metrics.ts` (§5.5); `apps/web/src/features/analysis/bloch.ts` y `BlochScene.tsx` son la autoridad sobre lo que se dibuja.
+
+1. **La flecha se dibuja con su longitud, nunca normalizada.** Es la decisión que no admite alternativa, porque la longitud _es_ la lectura. Una flecha de largo unitario pasara lo que pasara borraría la única cantidad que enseña el entrelazamiento, y encima afirmaría una dirección concreta para un qubit que no tiene ninguna.
+2. **Un solo lienzo para toda la rejilla, no uno por qubit.** Los navegadores limitan el número de contextos WebGL vivos —Chrome alrededor de dieciséis— y matan el más viejo en silencio al crear uno nuevo, así que un registro de veinte qubits dibujaría sus últimas dieciséis esferas y dejaría las cuatro primeras en blanco. No hay tope de esferas y no hace falta: un registro tiene 2ⁿ estados base pero exactamente n qubits, de modo que lo que obligó al tope de barras del histograma aquí no existe.
+3. **La tabla numérica es la representación accesible, y se ve.** El lienzo es `aria-hidden` igual que el del circuito, y los números al lado llevan el significado — pero a diferencia de la tabla del histograma esta no se esconde: una flecha en una proyección no es una longitud que nadie pueda comparar a ojo, y quien tiene baja visión sin lector de pantalla no tendría entonces ninguna representación. De ahí se sigue lo demás: como los números _son_ la representación, el dibujo puede fallar sin llevarse nada. Sin WebGL, con el contexto denegado, o perdido a mitad de sesión, el panel lo dice en una frase y conserva todos los datos. Las etiquetas de los ejes y de los polos `|0⟩`/`|1⟩` son SVG encima del lienzo y no texturas dentro de él, porque `Notation` es la única vía sancionada para la notación invariante (§1.1) y una textura no lo es.
+4. **La escena gira despacio sobre el eje z, y con `prefers-reduced-motion` no gira.** Una esfera ortográfica quieta es ambigua: una flecha que se aleja del lector y otra que se le acerca se proyectan sobre la misma recta. El giro resuelve eso y no lleva información propia — a diferencia de los fasores, cuyo ángulo _era_ el dato (§10), aquí el dato es la dirección y la longitud, y un solo fotograma las dice enteras. Girar sobre z tiene además una consecuencia útil: `|0⟩` y `|1⟩` quedan clavados arriba y abajo de su esfera a cualquier azimut, así que solo las etiquetas de x e y siguen a la cámara.
+
 ### 3.3 Modo ruido
 
 Simulación con matriz de densidad y canales de Kraus:
@@ -387,6 +394,7 @@ model Circuit {
   forkedFromId   String?
   starCount      Int         @default(0)
   viewCount      Int         @default(0)
+  preview        Json?       // miniatura del diagrama, derivada al escribir (M1.5b)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -583,6 +591,7 @@ Notas de diseño:
 
 - El circuito vive en `CircuitVersion.data` como JSON, no normalizado en tablas de compuertas. Normalizarlo no aporta nada (nunca se consulta por compuerta individual) y complicaría enormemente lecturas y escrituras.
 - `Circuit` guarda métricas denormalizadas (`gateCount`, `depth`, `starCount`) para poder ordenar la galería sin joins costosos.
+- **Ajuste M1.5b**: `Circuit.preview` guarda, por la misma razón, la miniatura que dibuja cada tarjeta de la galería — una versión acotada del circuito (unos pocos hilos y columnas, sin parámetros ni etiquetas) derivada por `previewOf` en las dos únicas escrituras que guardan un documento. Sin ella, pintar cincuenta miniaturas obligaría a leer cincuenta `CircuitVersion.data` de hasta 256 KiB cada uno en la ruta anónima más visitada del producto. Es anulable y se lee siempre con `safeParsePreview`: una imagen jamás vale un 500.
 - `HardwareCredential` guarda el token cifrado en `Bytes`, nunca en texto plano, y jamás se devuelve por la API.
 - **Ajuste por Supabase Auth**: como la autenticación la maneja Supabase, los modelos `Account` y el campo `passwordHash` de `User` **se eliminan** — Supabase ya los cubre en su esquema `auth`. `User.id` deja de ser `cuid()` y pasa a ser el UUID que emite Supabase (`@id @db.Uuid`), y la fila se crea al primer login mediante un trigger en Postgres sobre `auth.users` o desde el backend en el primer request autenticado. Prisma solo administra el esquema `public`; nunca toca `auth`.
 
@@ -622,9 +631,69 @@ DELETE /circuits/:id/star
 **Galería**
 
 ```
-GET    /gallery?sort=stars|recent&tag=&q=&page=
-GET    /users/:username/circuits
+GET    /gallery?sort=stars|recent&tag=&q=&cursor=&limit=
+GET    /users/:username/circuits?sort=&tag=&q=&cursor=&limit=
 ```
+
+Dos ajustes frente a lo escrito arriba, ambos de M1.5:
+
+- `?page=` es `?cursor=`. El orden por omisión es una columna que otras
+  personas cambian mientras alguien lee, y un `OFFSET` sobre un orden que se
+  mueve repite o salta filas sin que el cliente pueda notarlo. El argumento
+  completo está en `GalleryCursor` (`packages/db/src/gallery.ts`).
+- La respuesta es `{ items, nextCursor, limit, starred }`. `starred` son los
+  ids de _esta página_ que quien consulta ha marcado con estrella, vacío para
+  una llamada anónima: es una propiedad del par (circuito, espectador), no del
+  circuito, así que viaja en el sobre y no en la tarjeta — la misma razón por
+  la que `GET /circuits/:id` responde `{ circuit, version, starred }`.
+
+**Cuenta, perfiles y colecciones** (M1.9; §8 original no los enumeraba)
+
+```
+GET    /me                        # la fila del propio usuario
+PATCH  /me                        # displayName, username, avatar
+DELETE /me                        # destructivo, confirmado con el username
+GET    /users/:username           # perfil público: usuario y dos conteos
+GET    /users/:username/collections?page=&perPage=
+
+GET    /collections               # las mías
+POST   /collections
+GET    /collections/:id           # la colección y lo que este espectador ve
+PATCH  /collections/:id
+DELETE /collections/:id
+POST   /collections/:id/items     # { circuit: <slug o id> }
+DELETE /collections/:id/items/:circuitId
+GET    /circuits/:id/collections  # cuáles de MIS colecciones lo contienen
+```
+
+Cuatro decisiones de M1.9, escritas aquí para que el documento y el código no
+se contradigan:
+
+- **La visibilidad de una colección gobierna la colección, nunca su
+  contenido.** Los ítems se leen con `listableCircuitFilter` y el espectador
+  de la petición, igual que cualquier otro listado: una colección PÚBLICA que
+  contiene un circuito PRIVADO no lo publica. La respuesta es
+  `{ collection, items, withheldItemCount, starred }` — `withheldItemCount` es
+  cuántos ítems se ocultaron, y es un número y jamás un identificador. Sin él,
+  una colección de cinco que muestra dos sería indistinguible de una de dos, y
+  eso es una mentira sobre el trabajo de alguien. Consecuencia deliberada: un
+  circuito UNLISTED dentro de una colección pública tampoco se muestra —
+  «reachable by whoever holds the link» y un listado es descubrimiento.
+- **Un conteo es un listado.** `circuitCount` y `collectionCount` del perfil
+  pasan por los mismos filtros que las listas correspondientes, así que el
+  número que ve un extraño es el número de tarjetas que obtendría paginando
+  hasta el final.
+- **`GET /me` responde con `publicUserSelect`**, sin `email`. No existe una
+  segunda proyección de `User` en el sistema: quien consulta ya conoce su
+  propia dirección — es un claim del token con el que se autenticó.
+- **No hay endpoint de disponibilidad de username.** El índice único decide en
+  la escritura (`USERNAME_TAKEN`, 409); un endpoint de consulta sería un
+  oráculo barato y scriptable sobre toda la tabla. Y `DELETE /me` destruye
+  todas las filas de `public` de esa persona, incluidos los huérfanos que
+  ninguna clave foránea alcanza (§7 deja cuatro columnas sin FK a propósito),
+  pero **no** la identidad en `auth.users`: eso exigiría la service-role key en
+  el proceso, una credencial que este servicio deliberadamente nunca ha tenido
+  (§11 solo verifica JWT contra un JWKS público).
 
 **Simulación**
 

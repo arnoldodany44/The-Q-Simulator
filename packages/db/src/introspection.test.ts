@@ -112,11 +112,53 @@ describe.skipIf(!enabled)('the deployed schema', () => {
     )
     expect(indexes).toEqual([
       'ChallengeSubmission_challengeId_passed_gateCount_idx',
+      // The gallery's keyset orderings (M1.5): the whole tie-break tuple,
+      // because a cursor compares the whole tuple.
+      'CircuitTag_tagId_idx',
+      'Circuit_description_trgm_idx',
       'Circuit_ownerId_updatedAt_idx',
+      'Circuit_title_trgm_idx',
+      'Circuit_visibility_createdAt_id_idx',
+      'Circuit_visibility_starCount_createdAt_id_idx',
       'Circuit_visibility_starCount_idx',
+      // M1.9: the collection listings, and the sweep of the join column that
+      // has no foreign key behind it.
+      'CollectionItem_circuitId_idx',
+      'Collection_ownerId_updatedAt_idx',
       'HardwareJob_userId_status_idx',
       'SimulationRun_userId_createdAt_idx',
     ])
+  })
+
+  it('backs the gallery search with a trigram index rather than a scan', async () => {
+    /*
+     * The index type is the whole point: a plain B-tree cannot serve
+     * `ILIKE '%grov%'` at all, so without GIN over trigrams the gallery's
+     * search — an unauthenticated route — is a sequential scan of every
+     * circuit in the database.
+     */
+    const definitions = await names(
+      `select indexdef as name from pg_indexes
+       where schemaname = 'public' and indexname like '%_trgm_idx'`
+    )
+    expect(definitions).toHaveLength(2)
+    for (const definition of definitions) {
+      expect(definition).toContain('USING gin')
+      expect(definition).toContain('gin_trgm_ops')
+    }
+  })
+
+  it('keeps pg_trgm out of the schema PostgREST publishes', async () => {
+    // Supabase serves `public` over PostgREST, and functions there become RPC
+    // endpoints. The previous migration exists to keep anonymous callers out
+    // of that schema; installing an extension into it would reopen a door
+    // beside the one that was closed.
+    const schemas = await names(
+      `select n.nspname as name from pg_extension e
+       join pg_namespace n on n.oid = e.extnamespace
+       where e.extname = 'pg_trgm'`
+    )
+    expect(schemas).toEqual(['extensions'])
   })
 
   it('carries the unique constraints ensureUser depends on', async () => {

@@ -1,0 +1,43 @@
+{
+  "title": "Settings",
+  "lead": "Your name, your handle, your picture, and the language this browser shows.",
+  "loading": "Loading your account…",
+  "profile": {
+    "heading": "Profile",
+    "signedInAs": "Signed in as {{email}}. The address belongs to your sign-in method and is changed there.",
+    "displayName": "Display name",
+    "displayNameHint": "Shown above your circuits. Leave it empty to be known by your handle alone.",
+    "username": "Handle",
+    "usernameHint": "Your public address. Changing it moves your profile page, and every link anyone has to it.",
+    "usernameShape": "Lowercase letters, digits, hyphens and underscores, from 3 to 32 characters.",
+    "viewPublic": "See your public profile",
+    "avatar": "Picture",
+    "avatarGenerated": "Draw one from my account",
+    "avatarProvider": "Use the picture from the account I signed in with",
+    "avatarHint": "There is no upload yet. The drawn picture is derived from your account, so it is always available and it is never anybody else’s file.",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Your profile is saved.",
+    "collections": "Your collections"
+  },
+  "language": {
+    "heading": "Language",
+    "note": "The language is remembered in this browser rather than on your account, so it stays the one you picked here whether you are signed in or not."
+  },
+  "danger": {
+    "heading": "Delete your account",
+    "body": "This removes your circuits, every version of them, your collections and your stars. It cannot be undone.",
+    "identityNote": "Your sign-in method itself is kept by the provider you signed in with, so signing in again gives you a new, empty account rather than this one back.",
+    "reveal": "Delete my account…",
+    "confirmLabel": "Type {{username}} to confirm",
+    "confirm": "Delete my account permanently",
+    "deleting": "Deleting…",
+    "doneHeading": "Your account is gone",
+    "doneBody": "Removed {{circuits}} and {{collections}}.",
+    "doneCircuits_one": "{{value}} circuit",
+    "doneCircuits_other": "{{value}} circuits",
+    "doneCollections_one": "{{value}} collection",
+    "doneCollections_other": "{{value}} collections",
+    "doneHome": "Back to the start"
+  }
+}

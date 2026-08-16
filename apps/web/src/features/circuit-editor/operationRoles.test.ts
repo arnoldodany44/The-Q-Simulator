@@ -3,6 +3,7 @@ import {
   GATE_IDS,
   lookupGate,
   type Operation,
+  type ParamValue,
 } from '@qsim/schema'
 import { describe, expect, it } from 'vitest'
 
@@ -13,6 +14,7 @@ import {
   describeQubitCell,
   formatParams,
   gateSymbol,
+  paramLabel,
   qubitLabel,
   registerOperationsAt,
   roleOnQubit,
@@ -84,6 +86,43 @@ describe('shapes and labels', () => {
     expect(targetShape('cswap')).toBe('cross')
     expect(targetShape('measure')).toBe('meter')
     expect(targetShape('barrier')).toBe('barrier')
+  })
+
+  it('does not draw iSWAP as a plain SWAP', () => {
+    // They are different unitaries and used to be the same picture — byte for
+    // byte, in an exported file where the picture is all the reader has.
+    expect(targetShape('iswap')).not.toBe(targetShape('swap'))
+  })
+
+  it('writes a gate’s angles as notation, not as a localised number', () => {
+    /*
+     * These sit beside `π`, `q0` and `c0 = 1` in a drawing that also travels
+     * into a file with no locale in it, so they are notation (D2) — the same
+     * π forms the angle field shows beside the slider. The *sentence* a screen
+     * reader hears is `formatParams`, which does go through `Intl`.
+     */
+    const at = (params: ParamValue[]) =>
+      paramLabel(operation({ gate: 'rz', targets: [0], params }))
+
+    expect(at([Math.PI / 2])).toBe('π/2')
+    expect(at([-3 * (Math.PI / 4)])).toBe('-3π/4')
+    expect(at([0])).toBe('0')
+    expect(at([0.123456])).toBe('0.1235')
+    // A declared parameter is an identifier, not a quantity.
+    expect(at(['theta'])).toBe('theta')
+    // Nothing at all for a gate that carries no angle: an empty label would
+    // still be an element in the exported markup.
+    expect(paramLabel(operation({ gate: 'h', targets: [0] }))).toBe('')
+  })
+
+  it('bounds the angle label so it cannot sit under the next gate', () => {
+    // The label is centred in a 56 px column. Truncation is marked, because a
+    // number silently cut in half is worse than one visibly cut.
+    const long = paramLabel(
+      operation({ gate: 'u', targets: [0], params: [0.12345, 0.6789, 0.98765] })
+    )
+    expect(long.length).toBeLessThanOrEqual(11)
+    expect(long.endsWith('…')).toBe(true)
   })
 })
 

@@ -1,7 +1,7 @@
 {
   "appName": "The Q Simulator",
   "meta": {
-    "description": "Construisez des circuits quantiques dans votre navigateur, observez l'état évoluer et exécutez-les sur du matériel réel."
+    "description": "Construisez des circuits quantiques dans votre navigateur, observez l’état évoluer et exécutez-les sur du matériel réel."
   },
   "language": {
     "label": "Langue",
@@ -26,7 +26,9 @@
     "circuits": "Vos circuits",
     "signOut": "Se déconnecter",
     "signIn": "Se connecter",
-    "signOutFailed": "La déconnexion n'a pas abouti. Vérifiez votre connexion et réessayez."
+    "signOutFailed": "La déconnexion n’a pas abouti. Vérifiez votre connexion et réessayez.",
+    "collections": "Vos collections",
+    "settings": "Paramètres"
   },
   "loading": "Chargement…"
 }

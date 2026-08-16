@@ -1,0 +1,43 @@
+{
+  "title": "Paramètres",
+  "lead": "Votre nom, votre identifiant, votre image et la langue affichée par ce navigateur.",
+  "loading": "Chargement de votre compte…",
+  "profile": {
+    "heading": "Profil",
+    "signedInAs": "Connecté en tant que {{email}}. L’adresse appartient à votre méthode de connexion et se modifie là-bas.",
+    "displayName": "Nom affiché",
+    "displayNameHint": "Affiché au-dessus de vos circuits. Laissez-le vide pour n’être connu que par votre identifiant.",
+    "username": "Identifiant",
+    "usernameHint": "Votre adresse publique. La modifier déplace votre page de profil, ainsi que tous les liens qui y mènent.",
+    "usernameShape": "Minuscules, chiffres, traits d’union et tirets bas, de 3 à 32 caractères.",
+    "viewPublic": "Voir votre profil public",
+    "avatar": "Image",
+    "avatarGenerated": "En dessiner une à partir de mon compte",
+    "avatarProvider": "Utiliser l’image du compte avec lequel je me suis connecté",
+    "avatarHint": "L’envoi de fichiers n’existe pas encore. L’image dessinée découle de votre compte : elle est donc toujours disponible et n’est jamais le fichier de quelqu’un d’autre.",
+    "save": "Enregistrer les modifications",
+    "saving": "Enregistrement…",
+    "saved": "Votre profil est enregistré.",
+    "collections": "Vos collections"
+  },
+  "language": {
+    "heading": "Langue",
+    "note": "La langue est mémorisée dans ce navigateur plutôt que sur votre compte : elle reste donc celle que vous avez choisie ici, que vous soyez connecté ou non."
+  },
+  "danger": {
+    "heading": "Supprimer votre compte",
+    "body": "Cela supprime vos circuits, toutes leurs versions, vos collections et vos étoiles. C’est irréversible.",
+    "identityNote": "Votre méthode de connexion reste chez le fournisseur avec lequel vous vous êtes connecté : vous reconnecter vous donnera donc un compte neuf et vide, et non celui-ci.",
+    "reveal": "Supprimer mon compte…",
+    "confirmLabel": "Saisissez {{username}} pour confirmer",
+    "confirm": "Supprimer définitivement mon compte",
+    "deleting": "Suppression…",
+    "doneHeading": "Votre compte n’existe plus",
+    "doneBody": "{{circuits}} et {{collections}} ont été supprimés.",
+    "doneCircuits_one": "{{value}} circuit",
+    "doneCircuits_other": "{{value}} circuits",
+    "doneCollections_one": "{{value}} collection",
+    "doneCollections_other": "{{value}} collections",
+    "doneHome": "Revenir au début"
+  }
+}

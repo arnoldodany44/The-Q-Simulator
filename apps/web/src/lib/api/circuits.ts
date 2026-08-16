@@ -26,6 +26,7 @@ import { circuitPath, wireCircuitResponses } from '@qsim/contract'
 import type {
   CircuitEnvelope,
   CircuitPage,
+  CircuitView,
   CircuitWithVersion,
   CreateCircuitRequest,
   CreateVersionRequest,
@@ -80,16 +81,22 @@ export function createCircuit(
 /**
  * `GET /circuits/:id` — by slug or by id, and readable anonymously when the
  * circuit is PUBLIC or the caller holds an UNLISTED slug.
+ *
+ * The envelope carries `starred` beside the circuit and its version (M1.5b).
+ * It is not a property of the circuit but of the pair (circuit, viewer), which
+ * is why only this route answers it and why it rides outside the resource —
+ * see `CircuitViewResponse` in @qsim/contract. `false` for an anonymous
+ * reader, who has no star to have.
  */
 export function getCircuit(
   client: ApiClient,
   handle: string,
   context: RequestContext = {}
-): Promise<CircuitWithVersion> {
+): Promise<CircuitView> {
   return client.request({
     method: 'GET',
     path: circuitPath.item(handle),
-    schema: wireCircuitResponses.CircuitWithVersionResponse,
+    schema: wireCircuitResponses.CircuitViewResponse,
     ...context,
   })
 }

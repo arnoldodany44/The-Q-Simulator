@@ -21,6 +21,7 @@
  *   - `gates.ts`        gate matrices and their flat layout
  *   - `apply.ts`        the kernel: in-place gate application by index pairing
  *   - `measure.ts`      Born rule, collapse, sampling, and the two run modes
+ *   - `metrics.ts`      partial trace, Bloch vector, purity (§5.5)
  *   - `rng.ts`          the seeded generator every sampler takes
  *   - `runner.ts`       circuit JSON in, result out, with incremental caching
  *
@@ -101,6 +102,16 @@ export type {
   TrajectoriesOptions,
   TrajectoriesResult,
 } from './measure.js'
+
+export {
+  blochOf,
+  blochVector,
+  blochVectors,
+  purity,
+  reducedDensity,
+  trace,
+} from './metrics.js'
+export type { BlochVector, ReducedDensity } from './metrics.js'
 
 export { createRng, randomSeed } from './rng.js'
 export type { Rng } from './rng.js'

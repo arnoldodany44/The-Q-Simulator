@@ -1,0 +1,43 @@
+{
+  "title": "Ajustes",
+  "lead": "Tu nombre, tu identificador, tu imagen y el idioma que muestra este navegador.",
+  "loading": "Cargando tu cuenta…",
+  "profile": {
+    "heading": "Perfil",
+    "signedInAs": "Sesión iniciada como {{email}}. La dirección pertenece a tu método de inicio de sesión y se cambia allí.",
+    "displayName": "Nombre visible",
+    "displayNameHint": "Aparece sobre tus circuitos. Déjalo vacío para que se te conozca solo por tu identificador.",
+    "username": "Identificador",
+    "usernameHint": "Tu dirección pública. Cambiarlo mueve tu página de perfil y todos los enlaces que apunten a ella.",
+    "usernameShape": "Minúsculas, dígitos, guiones y guiones bajos, de 3 a 32 caracteres.",
+    "viewPublic": "Ver tu perfil público",
+    "avatar": "Imagen",
+    "avatarGenerated": "Dibujar una a partir de mi cuenta",
+    "avatarProvider": "Usar la imagen de la cuenta con la que inicié sesión",
+    "avatarHint": "Todavía no se pueden subir archivos. La imagen dibujada se deriva de tu cuenta, así que siempre está disponible y nunca es el archivo de otra persona.",
+    "save": "Guardar cambios",
+    "saving": "Guardando…",
+    "saved": "Tu perfil está guardado.",
+    "collections": "Tus colecciones"
+  },
+  "language": {
+    "heading": "Idioma",
+    "note": "El idioma se recuerda en este navegador y no en tu cuenta, así que sigue siendo el que elegiste aquí tanto si has iniciado sesión como si no."
+  },
+  "danger": {
+    "heading": "Eliminar tu cuenta",
+    "body": "Esto elimina tus circuitos, todas sus versiones, tus colecciones y tus estrellas. No se puede deshacer.",
+    "identityNote": "Tu método de inicio de sesión lo conserva el proveedor con el que entraste, así que volver a iniciar sesión te dará una cuenta nueva y vacía, no esta de vuelta.",
+    "reveal": "Eliminar mi cuenta…",
+    "confirmLabel": "Escribe {{username}} para confirmar",
+    "confirm": "Eliminar mi cuenta definitivamente",
+    "deleting": "Eliminando…",
+    "doneHeading": "Tu cuenta ya no existe",
+    "doneBody": "Se eliminaron {{circuits}} y {{collections}}.",
+    "doneCircuits_one": "{{value}} circuito",
+    "doneCircuits_other": "{{value}} circuitos",
+    "doneCollections_one": "{{value}} colección",
+    "doneCollections_other": "{{value}} colecciones",
+    "doneHome": "Volver al inicio"
+  }
+}

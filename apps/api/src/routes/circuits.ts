@@ -37,6 +37,7 @@ import {
   canEditCircuit,
   forkCircuit,
   MissingVersionError,
+  normalizeTagNames,
   type StoredVersion,
 } from '@qsim/db'
 import { CircuitValidationError, safeParseCircuit } from '@qsim/schema'
@@ -59,6 +60,7 @@ import {
   CircuitEnvelope,
   CircuitHandleParams,
   CircuitPageResponse,
+  CircuitViewResponse,
   CircuitWithVersionResponse,
   CreateCircuitBody,
   CreateVersionBody,
@@ -70,6 +72,7 @@ import {
   VersionParams,
   toPage,
 } from './circuits.schemas.js'
+import { StarStateResponse } from './gallery.schemas.js'
 
 export interface CircuitRoutesOptions {
   readonly env: ApiEnv
@@ -120,13 +123,47 @@ function acceptCircuit(input: unknown): Circuit {
 }
 
 /**
- * The `public.User` row the circuit's foreign key points at, created on the
- * caller's first write (see `users.ts` for why here and not in a trigger).
+ * Canonical tag names, or a 400 that names the element that was wrong.
  *
- * Only the two routes that *create* a circuit call this. A caller who is
- * patching or saving a version already owns a circuit, so their row exists,
- * and doing a write on the read path of every request would be a cost paid
- * forever for a case that happens once per account.
+ * The normalisation itself lives in `@qsim/db`, next to the write, for the
+ * same reason slug generation does: the canonical spelling is what makes
+ * `Tag.name @unique` a browsable facet, and a value that identifies a row is
+ * minted where rows are written rather than agreed on by callers. The same
+ * function normalises `?tag=` on the way in, so a facet cannot be written
+ * under one spelling and searched under another.
+ *
+ * A tag that survives normalisation as nothing — `"---"`, `"###"` — is
+ * refused rather than silently dropped. A request whose tags quietly did not
+ * happen is worse than one that failed.
+ */
+function acceptTags(
+  raw: readonly string[] | undefined,
+  path: string
+): string[] | undefined {
+  if (raw === undefined) return undefined
+
+  const { names, invalid } = normalizeTagNames(raw)
+  if (invalid.length === 0) return names
+
+  const details = invalid
+    .slice(0, MAX_ERROR_DETAILS)
+    .map((index) => ({ path: `${path}.${String(index)}`, code: 'invalid_tag' }))
+  throw new ApiError('VALIDATION_FAILED', {
+    details: withTruncationMarker(details, invalid.length, path),
+  })
+}
+
+/**
+ * The `public.User` row a foreign key points at, created on the caller's
+ * first write (see `users.ts` for why here and not in a trigger).
+ *
+ * Called by the three routes that write a row referencing the user: the two
+ * that create a circuit, and starring — which is the one that can happen to
+ * an account that has never created anything, and would otherwise fail on
+ * `Star_userId_fkey` with nothing to say about why. A caller who is patching
+ * or saving a version already owns a circuit, so their row exists, and doing
+ * a write on the read path of every request would be a cost paid forever for
+ * a case that happens once per account.
  */
 async function ensureOwnerId(
   app: FastifyInstance,
@@ -228,6 +265,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
     },
     async (request, reply) => {
       const circuit = acceptCircuit(request.body.circuit)
+      const tags = acceptTags(request.body.tags, 'body.tags')
       const ownerId = await ensureOwnerId(app, request)
 
       const created = await app.circuits.create({
@@ -240,6 +278,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
         // Attribution is set by the fork route and by nothing a client sends:
         // a forged `forkedFromId` would credit an unrelated circuit.
         forkedFromId: null,
+        ...(tags === undefined ? {} : { tags }),
       })
 
       reply.status(201)
@@ -259,12 +298,26 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
       config: { auth: 'optional' },
       schema: {
         params: CircuitHandleParams,
-        response: { 200: CircuitWithVersionResponse },
+        response: { 200: CircuitViewResponse },
       },
     },
     async (request) => {
       const circuit = await readableCircuit(app, request, request.params.id)
       const version = await app.circuits.latestVersion(circuit.id)
+      const viewerId = viewerIdOf(request)
+      /*
+       * This viewer's own star, which is what the button in the corner draws.
+       * One primary-key lookup, and only for a signed-in caller: an anonymous
+       * reader has no star to have, so the anonymous path — which is most of
+       * the gallery's traffic — costs nothing extra.
+       */
+      const starred =
+        viewerId === null
+          ? false
+          : await app.circuits.hasStarred({
+              userId: viewerId,
+              circuitId: circuit.id,
+            })
       /*
        * A circuit is created with version 1 in the same transaction, so a row
        * that persists in this state would mean the data is inconsistent. The
@@ -276,7 +329,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
        * server is broken.
        */
       if (version === null) throw new MissingVersionError(circuit.id)
-      return { circuit, version: toVersionResponse(version) }
+      return { circuit, version: toVersionResponse(version), starred }
     }
   )
 
@@ -295,10 +348,17 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
       const circuit = await readableCircuit(app, request, request.params.id)
       assertOwner(circuit, viewerId)
 
+      const { tags: rawTags, ...changes } = request.body
+      const tags = acceptTags(rawTags, 'body.tags')
+
       const updated = await app.circuits.update({
         id: circuit.id,
         ownerId: viewerId,
-        ...request.body,
+        ...changes,
+        // Absent leaves the set alone; `[]` empties it. Spreading
+        // `request.body` wholesale would send `undefined` and make those two
+        // requests indistinguishable.
+        ...(tags === undefined ? {} : { tags }),
       })
       // Only reachable if the circuit was deleted between the read and the
       // write. 404 is then the truth.
@@ -360,6 +420,59 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
         circuit: created.circuit,
         version: toVersionResponse(created.version),
       }
+    }
+  )
+
+  /*
+   * ── Stars ───────────────────────────────────────────────────────────────
+   *
+   * `POST` and `DELETE` on the same address, both idempotent, both answering
+   * with the resulting state rather than 204. The body is not decoration: the
+   * caller has just moved `starCount`, a denormalised counter rendered on
+   * every card, and the alternative to sending it back is a client that
+   * guesses and drifts.
+   *
+   * `readableCircuit` comes first on both, so "you cannot star what you
+   * cannot read" is true in the query rather than merely intended: somebody
+   * else's PRIVATE circuit is a 404 here exactly as it is on GET. An UNLISTED
+   * one *can* be starred, because holding the slug is what UNLISTED means by
+   * "may read" — and it stays out of every listing regardless of its count.
+   */
+  app.post(
+    CIRCUIT_ROUTES.star,
+    {
+      config: { auth: 'required' },
+      schema: {
+        params: CircuitHandleParams,
+        response: { 200: StarStateResponse },
+      },
+    },
+    async (request) => {
+      const circuit = await readableCircuit(app, request, request.params.id)
+      // Not `requireViewerId`: `Star.userId` is a foreign key onto
+      // `public.User`, and a caller who has never created a circuit has no
+      // row there yet. Starring is the first write many accounts will make.
+      const userId = await ensureOwnerId(app, request)
+      return app.circuits.star({ userId, circuitId: circuit.id })
+    }
+  )
+
+  app.delete(
+    CIRCUIT_ROUTES.star,
+    {
+      config: { auth: 'required' },
+      schema: {
+        params: CircuitHandleParams,
+        response: { 200: StarStateResponse },
+      },
+    },
+    async (request) => {
+      const circuit = await readableCircuit(app, request, request.params.id)
+      const userId = requireViewerId(request)
+      // No `ensureOwnerId` here: removing a star that cannot exist yet is a
+      // no-op, and creating a user row on a DELETE would be a write nobody
+      // asked for.
+      return app.circuits.unstar({ userId, circuitId: circuit.id })
     }
   )
 

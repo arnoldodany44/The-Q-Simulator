@@ -1,5 +1,11 @@
 import { Buffer } from 'node:buffer'
-import { type Circuit, parseCircuit } from '@qsim/schema'
+import {
+  type Circuit,
+  type CircuitPreview,
+  parseCircuit,
+  previewOf,
+  safeParsePreview,
+} from '@qsim/schema'
 import type { Prisma } from './generated/prisma/client.js'
 import type { CircuitVersion } from './generated/prisma/client.js'
 
@@ -104,4 +110,39 @@ export function toCircuitJson(circuit: Circuit): Prisma.InputJsonValue {
   const bytes = circuitJsonByteLength(circuit)
   if (bytes > MAX_CIRCUIT_JSON_BYTES) throw new CircuitTooLargeError(bytes)
   return circuit
+}
+
+/**
+ * The other crossing on this table: `Circuit.preview`, the gallery card's
+ * thumbnail (M1.5b).
+ *
+ * Deliberately *not* the same contract as `parseStoredCircuit` above, and the
+ * asymmetry is the whole point of having both. A version's payload is the
+ * document — a row that does not parse is a fault that must stop the request
+ * rather than reach the engine. A preview is a picture derived from data the
+ * server already holds, on a route that lists fifty circuits at once, so one
+ * unreadable row must cost one thumbnail and never the listing: `null` here
+ * means the card draws its counters instead.
+ *
+ * There is no size check because there is no way to exceed one. `previewOf`
+ * bounds the value at `PREVIEW_MAX_QUBITS × PREVIEW_MAX_COLUMNS` operations
+ * with no parameters and no labels, so the ceiling is a property of the
+ * function rather than something a caller could hand in.
+ */
+export function parseStoredPreview(
+  value: Prisma.JsonValue | null
+): CircuitPreview | null {
+  return value === null ? null : safeParsePreview(value)
+}
+
+/**
+ * The write direction, and the only one: a preview is never accepted from a
+ * caller, it is computed from the document being stored.
+ *
+ * That is the same rule `metricsOf` follows and for a sharper reason — a
+ * client that could send its own thumbnail could draw a circuit other than
+ * the one it published, which is a lie rendered on the front page.
+ */
+export function toPreviewJson(circuit: Circuit): Prisma.InputJsonValue {
+  return previewOf(circuit)
 }
