@@ -104,3 +104,45 @@ describe('a production build with no API origin', () => {
     warn.mockRestore()
   })
 })
+
+/*
+ * The second production incident, pinned.
+ *
+ * The domain was pasted out of a dashboard that shows hosts without their
+ * scheme, so VITE_API_URL became `the-q-simulator-production.up.railway.app`.
+ * Every request then resolved against the page instead of the API, Vercel's
+ * SPA rewrite answered with index.html, and the gallery reported "the server
+ * sent an unexpected response" while the API was demonstrably healthy —
+ * health 200, gallery 200, CORS correct.
+ */
+describe('an origin pasted without its scheme', () => {
+  it('is repaired rather than left to resolve as a path', () => {
+    expect(
+      resolveApiBaseUrl({ VITE_API_URL: 'the-q-simulator.up.railway.app' })
+    ).toBe('https://the-q-simulator.up.railway.app')
+  })
+
+  it('assumes http only for loopback, where that is what was meant', () => {
+    expect(resolveApiBaseUrl({ VITE_API_URL: 'localhost:8080' })).toBe(
+      'http://localhost:8080'
+    )
+    expect(resolveApiBaseUrl({ VITE_API_URL: '127.0.0.1:8080' })).toBe(
+      'http://127.0.0.1:8080'
+    )
+  })
+
+  it('leaves a URL that already has one alone', () => {
+    expect(
+      resolveApiBaseUrl({ VITE_API_URL: 'https://api.example.test/' })
+    ).toBe('https://api.example.test')
+    expect(resolveApiBaseUrl({ VITE_API_URL: 'http://api.example.test' })).toBe(
+      'http://api.example.test'
+    )
+  })
+
+  it('derives a secure socket from a repaired origin', () => {
+    const base = resolveApiBaseUrl({ VITE_API_URL: 'api.example.test' })
+    expect(base).not.toBeNull()
+    expect(resolveSocketUrl(base as string)).toBe('wss://api.example.test/ws')
+  })
+})

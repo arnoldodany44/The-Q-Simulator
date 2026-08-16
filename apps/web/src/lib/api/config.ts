@@ -74,11 +74,44 @@ export function resolveSocketUrl(baseUrl: string): string {
  * Never throws. A configuration mistake must not be able to take the page
  * down — see the header.
  */
+/**
+ * A configured origin with no scheme is always a mistake, and it is the one
+ * that hides best.
+ *
+ * `api.example.com/api/v1/gallery` is a RELATIVE url. The browser resolves it
+ * against the page, Vercel's SPA rewrite answers the resulting path with
+ * `index.html`, and the client reports "the server sent an unexpected
+ * response" — a message that points at the API, which is healthy, rather than
+ * at a variable that is missing four characters. This happened on the first
+ * production deploy: the value was pasted out of a dashboard that displays
+ * domains without their scheme.
+ *
+ * Repaired rather than refused. There is exactly one thing `https://` in front
+ * of a bare domain could mean, guessing it costs nothing, and the alternative
+ * is a deployment that is down until somebody reads a warning.
+ */
+function withScheme(origin: string): string {
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(origin)) return origin
+
+  // Loopback is the one place plain http is right, and where a dev typing
+  // `localhost:8080` means exactly that.
+  const scheme = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(origin)
+    ? 'http'
+    : 'https'
+
+  console.warn(
+    `VITE_API_URL has no scheme, so "${origin}" would be read as a path ` +
+      `relative to this page rather than as an origin. Using ${scheme}://. ` +
+      'Set the full URL in the deployment settings.'
+  )
+  return `${scheme}://${origin}`
+}
+
 export function resolveApiBaseUrl(
   env: ApiEnvSource = import.meta.env
 ): string | null {
   const configured = env.VITE_API_URL?.trim() ?? ''
-  if (configured !== '') return stripTrailingSlash(configured)
+  if (configured !== '') return stripTrailingSlash(withScheme(configured))
 
   if (env.PROD === true) {
     /*
