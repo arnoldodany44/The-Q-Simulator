@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   encodeState,
+  type ServerRequest,
   type SimulateRequest,
   type SimulationRequest,
 } from './protocol'
@@ -560,5 +561,205 @@ describe('the snapshot', () => {
     const snapshot = scheduler.getSnapshot()
     expect(snapshot.status).toBe('error')
     expect(snapshot.failure?.code).toBe('worker-unavailable')
+  })
+})
+
+/**
+ * §4's second level, behind the same seam.
+ *
+ * The assertions worth making here are all about *sameness*: the same id
+ * sequence, the same single in-flight slot, the same staleness line. A server
+ * run that got its own version of any of those would reintroduce the exact
+ * defects the rest of this file exists to rule out, over a transport where an
+ * answer can be seconds late rather than milliseconds.
+ */
+describe('the server backend', () => {
+  let sent: ServerRequest[]
+
+  function serverResultFor(id: number, status: 'DONE' | 'FAILED' = 'DONE') {
+    return {
+      kind: 'result',
+      id,
+      mode: 'server',
+      run: {
+        id: `run_${String(id)}`,
+        status,
+        mode: 'STATEVECTOR',
+        shots: null,
+        circuitId: null,
+        createdAt: new Date(0),
+        durationMs: 1234,
+        estimatedDurationMs: null,
+        result: null,
+        error: status === 'FAILED' ? 'TIMED_OUT' : null,
+        progress: null,
+      },
+    } as const
+  }
+
+  beforeEach(() => {
+    sent = []
+    scheduler.connectServer((request) => {
+      sent.push(request)
+    })
+  })
+
+  it('sends a circuit past the ceiling to the server instead of refusing it', () => {
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+
+    expect(posts).toHaveLength(0)
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({ kind: 'server-simulate' })
+    // And the panel is told where it went, in the same frame the request left.
+    expect(scheduler.getSnapshot().serverRun).toMatchObject({
+      stage: 'submitting',
+      runId: null,
+    })
+  })
+
+  it('still refuses when there is no server to send it to', () => {
+    // A reader with no API is a reader for whom the browser's ceiling really is
+    // the ceiling, and the sentence that says so is the news.
+    scheduler.connectServer(null)
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+
+    expect(sent).toHaveLength(0)
+    expect(scheduler.getSnapshot().failure?.code).toBe('too-many-qubits')
+  })
+
+  it('keeps everything the browser can do in the browser', () => {
+    // The whole of §4 in one assertion: the server exists for what a tab
+    // cannot do, and for nothing else.
+    scheduler.schedule(withQubits(20))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    expect(sent).toHaveLength(0)
+    expect(posts).toHaveLength(1)
+  })
+
+  it('draws ids from the one sequence both backends share', () => {
+    settle(withGates([0]))
+    scheduler.schedule(withQubits(22))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    const workerId = simulates(posts).at(-1)?.id ?? 0
+    const serverId = sent.filter(
+      (request) => request.kind === 'server-simulate'
+    )[0]?.id
+    expect(serverId).toBeGreaterThan(workerId)
+  })
+
+  it('discards a stale server result exactly as it discards a stale worker one', () => {
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    const first = sent[0]
+    expect(first?.kind).toBe('server-simulate')
+
+    // The reader edits again while the run is still out there.
+    scheduler.schedule(withQubits(22))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+
+    expect(scheduler.receive(serverResultFor(first!.id))).toBe(false)
+    expect(scheduler.getSnapshot().outcome).toBeNull()
+  })
+
+  it('drops a progress report that belongs to a superseded run', () => {
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    const stale = sent[0]!.id
+
+    scheduler.schedule(withQubits(22))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+
+    expect(
+      scheduler.report({
+        id: stale,
+        stage: 'running',
+        runId: 'run_old',
+        phase: 'simulating',
+        completed: 1,
+        total: 2,
+        estimatedDurationMs: null,
+        submittedAt: 0,
+        live: true,
+      })
+    ).toBe(false)
+    expect(scheduler.getSnapshot().serverRun?.runId).not.toBe('run_old')
+  })
+
+  it('accepts a report for the run actually in flight', () => {
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    const id = sent[0]!.id
+
+    expect(
+      scheduler.report({
+        id,
+        stage: 'running',
+        runId: 'run_live',
+        phase: 'sampling',
+        completed: 4,
+        total: 8,
+        estimatedDurationMs: 9_000,
+        submittedAt: 0,
+        live: true,
+      })
+    ).toBe(true)
+    expect(scheduler.getSnapshot().serverRun).toMatchObject({
+      runId: 'run_live',
+      estimatedDurationMs: 9_000,
+    })
+  })
+
+  it('cancels the backend that holds the request, and only it', () => {
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    const id = sent[0]!.id
+
+    scheduler.cancel()
+    expect(sent.at(-1)).toEqual({ kind: 'cancel', id })
+    // The worker never heard about a run it was not given.
+    expect(posts).toHaveLength(0)
+    expect(scheduler.getSnapshot().serverRun).toBeNull()
+  })
+
+  it('clears the server notice the moment an answer lands', () => {
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    const id = sent[0]!.id
+
+    expect(scheduler.receive(serverResultFor(id))).toBe(true)
+    const snapshot = scheduler.getSnapshot()
+    expect(snapshot.serverRun).toBeNull()
+    expect(snapshot.outcome).toMatchObject({ mode: 'server' })
+    // Engine time, the same measure the worker reports, so the two compare.
+    expect(snapshot.durationMs).toBe(1234)
+  })
+
+  it('treats a failed run as an answer rather than as a failure', () => {
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    scheduler.receive(serverResultFor(sent[0]!.id, 'FAILED'))
+
+    const snapshot = scheduler.getSnapshot()
+    expect(snapshot.failure).toBeNull()
+    expect(snapshot.outcome).toMatchObject({ mode: 'server' })
+    expect(snapshot.status).toBe('ready')
+  })
+
+  it('reports a transport failure through the same staleness line', () => {
+    scheduler.schedule(withQubits(21))
+    vi.advanceTimersByTime(SIMULATION_DEBOUNCE_MS)
+    const id = sent[0]!.id
+
+    expect(
+      scheduler.receive({
+        kind: 'error',
+        id,
+        failure: { code: 'server-unavailable', detail: 'no queue' },
+      })
+    ).toBe(true)
+    expect(scheduler.getSnapshot().failure?.code).toBe('server-unavailable')
+    expect(scheduler.getSnapshot().serverRun).toBeNull()
   })
 })

@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { createInstance, type i18n as I18n } from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
 import { MemoryRouter } from 'react-router'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { AppRoutes } from './App'
 import { SessionProvider } from './features/auth'
@@ -35,6 +35,26 @@ import {
  */
 
 afterEach(cleanup)
+
+/*
+ * Compile the lazy route chunks BEFORE any test measures anything.
+ *
+ * `React.lazy` here wraps a real dynamic `import()`, which Vite compiles on
+ * demand — Zustand, Zundo, dnd-kit and the whole canvas, the first time
+ * anything asks for them. That cost is the machine's, not the code's: under
+ * `turbo` it lands beside six other workspaces building and testing at once,
+ * and it moved either side of a one-second budget and then either side of a
+ * five-second one. Raising the number again would only move the coin flip.
+ *
+ * These tests are about the ROUTE TABLE — that /new reaches the editor and /
+ * reaches the landing. Compilation is not what they are asserting, so it is
+ * paid here, once, outside every measured window. `findBy*` still does the
+ * waiting inside each test, because resolving an already-compiled module is
+ * still asynchronous; what is gone is the unbounded part.
+ */
+beforeAll(async () => {
+  await Promise.all([import('./routes/editor'), import('./routes/landing')])
+}, 60_000)
 
 function i18n(): I18n {
   const instance = createInstance()
@@ -123,21 +143,8 @@ describe('routes', () => {
   it('shows the editor at /new once its chunk arrives', async () => {
     at('/new')
 
-    /*
-     * The default `findBy*` budget is one second, and what is being waited on
-     * here is a real dynamic `import()` of the editor chunk — Zustand, Zundo,
-     * dnd-kit and the whole canvas — compiled on demand by Vite. That is not
-     * a fixed cost: it is the machine's, and on a loaded CI runner (or under
-     * `turbo` building three workspaces at once) it lands either side of the
-     * second. The assertion is about routing, not about speed, so the budget
-     * is raised rather than left to decide the outcome by coin flip.
-     */
     expect(
-      await screen.findByRole(
-        'grid',
-        { name: 'Circuit grid' },
-        { timeout: 5_000 }
-      )
+      await screen.findByRole('grid', { name: 'Circuit grid' })
     ).toBeDefined()
     expect(screen.getByRole('button', { name: 'CNOT' })).toBeDefined()
     expect(
@@ -149,11 +156,7 @@ describe('routes', () => {
     at('/c/V1StGXR8Z5jdHi6BmyT8a', [jsonResponse(circuitViewPayload)])
 
     expect(
-      await screen.findByRole(
-        'grid',
-        { name: 'Circuit grid' },
-        { timeout: 5_000 }
-      )
+      await screen.findByRole('grid', { name: 'Circuit grid' })
     ).toBeDefined()
     // The circuit's own title, which is the one thing this route shows that
     // `/new` does not — proof the document arrived rather than the frame.
@@ -170,11 +173,7 @@ describe('routes', () => {
     at('/c/V1StGXR8Z5jdHi6BmyT8a', [jsonResponse(circuitViewPayload)])
 
     expect(
-      await screen.findByRole(
-        'grid',
-        { name: 'Circuit grid' },
-        { timeout: 5_000 }
-      )
+      await screen.findByRole('grid', { name: 'Circuit grid' })
     ).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull()
   })

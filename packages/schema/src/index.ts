@@ -11,6 +11,7 @@
  *   - `gates.ts`    the gate catalog: arity, parameters, category, symbol
  *   - `validate.ts` the rules a shape cannot express, and the parse entry points
  *   - `helpers.ts`  pure functions over a circuit
+ *   - `expand.ts`   custom gates flattened into primitives, and the column map
  *   - `preview.ts`  the bounded thumbnail a gallery card draws
  *   - `text.ts`     what a string must not contain to be storable at all
  *
@@ -27,6 +28,8 @@ export {
   CustomGateSchema,
   MAX_CLBITS,
   MAX_COLUMNS,
+  MAX_CUSTOM_GATE_DEPTH,
+  MAX_CUSTOM_GATE_PARAMS,
   MAX_QUBITS,
   OperationSchema,
   ParamValueSchema,
@@ -84,6 +87,27 @@ export {
   qubitsOf,
   resolveParams,
 } from './helpers.js'
+
+export {
+  CircuitExpansionError,
+  MAX_EXPANDED_COLUMNS,
+  MAX_EXPANDED_OPERATIONS,
+  customGateUsage,
+  expandCircuit,
+  expandedFromColumn,
+  expandedThroughColumn,
+  inlineOperation,
+  safeExpandCircuit,
+  sourceColumnOf,
+  sourceOperationId,
+  usesCustomGates,
+} from './expand.js'
+export type {
+  ColumnSpan,
+  CustomGateUsage,
+  ExpandedCircuit,
+  ExpansionCode,
+} from './expand.js'
 
 export {
   CircuitPreviewSchema,

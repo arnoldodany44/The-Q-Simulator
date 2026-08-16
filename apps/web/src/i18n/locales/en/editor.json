@@ -209,6 +209,72 @@
     "register-limit": "The circuit has reached its limit of qubits or classical bits.",
     "nothing-to-undo": "There is nothing left to undo.",
     "nothing-to-redo": "There is nothing left to redo.",
-    "clbit-in-use": "Another operation in that column already writes to that classical bit."
+    "clbit-in-use": "Another operation in that column already writes to that classical bit.",
+    "custom-gate-too-deep": "Those blocks are nested too deeply inside one another.",
+    "custom-gate-not-unitary": "A block cannot contain a measurement, a reset or a conditioned gate.",
+    "custom-gate-too-large": "Those blocks expand to more operations than a circuit may hold.",
+    "custom-gate-name": "A block needs a name that starts with a letter and is not already a gate.",
+    "custom-gate-exists": "This circuit already has a block with that name.",
+    "custom-gate-not-found": "This circuit has no block with that name.",
+    "custom-gate-in-use": "That block is still used in this circuit. Expand its uses first.",
+    "custom-gate-reshaped": "That change alters the wires or the parameters the existing uses were placed with.",
+    "fragment-not-rectangular": "The selection skips a gate between its first and last column. Select the whole range.",
+    "not-a-custom-gate": "That gate is not a block, so there is nothing to expand.",
+    "definition-open": "A block is already open for editing.",
+    "no-definition-open": "No block is open for editing."
+  },
+  "customGates": {
+    "title": "Blocks",
+    "summary": "Package a fragment as a reusable block with a name and an icon.",
+    "empty": "No blocks yet. Select a run of gates on the canvas and package it.",
+    "package": {
+      "heading": "Package the selection",
+      "name": "Name",
+      "namePlaceholder": "bellPair",
+      "symbol": "Icon",
+      "symbolPlaceholder": "B",
+      "submit": "Package",
+      "hint": "The selection must cover every gate between its first and last column."
+    },
+    "entry": {
+      "qubits_one": "{{value}} qubit",
+      "qubits_other": "{{value}} qubits",
+      "gates_one": "{{value}} gate",
+      "gates_other": "{{value}} gates",
+      "uses_one": "used {{value}} time here",
+      "uses_other": "used {{value}} times here",
+      "unused": "not used here yet"
+    },
+    "actions": {
+      "place": "Place",
+      "edit": "Edit definition",
+      "duplicate": "Duplicate",
+      "remove": "Delete",
+      "inline": "Expand in place"
+    },
+    "shared": {
+      "heading": "One definition, every use",
+      "body_one": "Editing this definition changes its {{value}} use in this circuit. There is no way to change only one of them.",
+      "body_other": "Editing this definition changes all {{value}} uses in this circuit. There is no way to change only one of them.",
+      "unused": "Nothing uses this definition yet, so editing it changes nothing else.",
+      "escape": "Duplicate it first if you want to change one use and leave the rest alone."
+    },
+    "editing": {
+      "heading": "Editing the block {{name}}",
+      "symbol": "Icon",
+      "apply": "Apply to every use",
+      "cancel": "Discard changes",
+      "note": "This canvas is the block’s own body. Its wires are the block’s wires, and its parameters are the angles a use supplies."
+    },
+    "done": {
+      "packaged": "Packaged the selection as the block {{name}}.",
+      "placed": "Placed the block {{name}} on the canvas.",
+      "opened": "Editing the block {{name}}. The canvas now shows its body instead of the circuit.",
+      "applied": "Applied the changes to {{name}} to every use of it.",
+      "discarded": "Discarded the changes to {{name}}. The circuit is back.",
+      "duplicated": "Copied the block {{name}} as {{into}}.",
+      "inlined": "Expanded one use of {{name}} into the gates it stands for.",
+      "removed": "Deleted the block {{name}}."
+    }
   }
 }

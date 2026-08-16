@@ -178,6 +178,8 @@ describe('the error vocabulary', () => {
       'NOT_FOUND',
       'PAYLOAD_TOO_LARGE',
       'RATE_LIMITED',
+      'SIMULATION_TOO_LARGE',
+      'SIMULATION_UNAVAILABLE',
       'UNSUPPORTED_MEDIA_TYPE',
       'USERNAME_TAKEN',
       'USERNAME_UNAVAILABLE',

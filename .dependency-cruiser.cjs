@@ -32,6 +32,20 @@ module.exports = {
       to: { path: '^packages/db/' },
     },
     {
+      name: 'web-no-queue-client',
+      severity: 'error',
+      comment:
+        'The same rule as web-no-db, for the same reason and about the other ' +
+        'backing store. A browser that imported bullmq or ioredis would be a ' +
+        'browser holding a Redis connection string — and §4 is emphatic that ' +
+        'the browser simulates for itself and asks the API when it cannot, ' +
+        'rather than reaching for infrastructure directly.',
+      from: { path: '^apps/web/' },
+      to: {
+        path: ['node_modules/(bullmq|ioredis)(/|$)', '^(bullmq|ioredis)(/|$)'],
+      },
+    },
+    {
       name: 'apps-are-independent',
       severity: 'error',
       comment:
@@ -110,6 +124,100 @@ module.exports = {
         'authoritatively" would quietly become "the database layer decides".',
       from: { path: '^packages/db/src/' },
       to: { path: '^packages/(?!db/|schema/)' },
+    },
+    {
+      name: 'jobs-depends-only-on-schema-and-engine',
+      severity: 'error',
+      comment:
+        'packages/jobs is the queue contract that apps/api and apps/worker ' +
+        'share (§12.3 rule 4: shared logic between apps goes up into a ' +
+        'package). It may reach packages/schema — a job carries a circuit — ' +
+        'and packages/qsim, because the routing threshold and the resource ' +
+        'limits are statements about what the engine can do and the numbers ' +
+        'belong where they are decided. It may NOT reach packages/db: the ' +
+        'moment a payload knows about Prisma, the queue contract stops being ' +
+        'something the two processes agree on and becomes something the ' +
+        'database dictates — and it would drag a driver into a package whose ' +
+        'whole value is that it is pure.',
+      from: { path: '^packages/jobs/src/' },
+      to: { path: '^packages/(?!jobs/|schema/|qsim/)' },
+    },
+    {
+      name: 'jobs-touches-no-environment',
+      severity: 'error',
+      comment:
+        'The queue contract is pure by design: the payload, the state ' +
+        'machine, the progress protocol, the cost model and the result shape ' +
+        'are arithmetic and data, and keeping them free of Node means they ' +
+        'are testable with nothing running. It is also what makes the ' +
+        'connection, the blocking read and the Lua scripts stay in the two ' +
+        'apps, where a live instance is genuinely required. Its tsconfig ' +
+        'sets "types": [] to catch this at compile time too — which is why ' +
+        'the byte length in payload.ts is computed rather than taken from ' +
+        'Buffer.',
+      from: { path: '^packages/jobs/src/' },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
+      name: 'jobs-carries-no-queue-client',
+      severity: 'error',
+      comment:
+        'bullmq and ioredis belong to the apps that connect, never to the ' +
+        'contract they agree on. A shared package that imported either would ' +
+        'make the pure half — the half every test exercises without a network ' +
+        '— impossible to load without one.',
+      from: { path: '^packages/jobs/src/' },
+      to: {
+        // Two spellings for the reason `api-is-server-only` needs two: an
+        // undeclared dependency does not resolve and appears as the bare
+        // specifier rather than as a node_modules path.
+        path: ['node_modules/(bullmq|ioredis)(/|$)', '^(bullmq|ioredis)(/|$)'],
+      },
+    },
+    {
+      name: 'worker-is-a-consumer-not-a-server',
+      severity: 'error',
+      comment:
+        'apps/worker listens on nothing and renders nothing. React or i18next ' +
+        'here would mean user-facing English in a process no catalog covers; ' +
+        'Fastify or @fastify/* would mean an HTTP surface that §4 gives this ' +
+        'process no reason to have — it dials out to Redis and Postgres and ' +
+        'that is all. Anything it needed to serve would belong in apps/api.',
+      from: { path: '^apps/worker/src/' },
+      to: {
+        path: [
+          'node_modules/(react|react-dom|react-i18next|i18next|zustand|zundo|@dnd-kit|react-router|fastify|@fastify)(/|$)',
+          '^(react|react-dom|react-i18next|i18next|zustand|zundo|@dnd-kit|react-router|fastify|@fastify)(/|$)',
+        ],
+      },
+    },
+    {
+      name: 'worker-verifies-no-tokens',
+      severity: 'error',
+      comment:
+        'Only apps/api may reach for `jose`. This process never sees a ' +
+        'request, so it has nothing to verify: authorisation happened when ' +
+        'the job was enqueued, and the §11 visibility rules are applied by ' +
+        'the routes that read a run. A worker that could check a JWT would ' +
+        'be a worker with a reason to accept work from somewhere other than ' +
+        'the queue, which is the one thing it must not have.',
+      from: { path: '^apps/worker/src/' },
+      to: { path: ['node_modules/jose(/|$)', '^jose(/|$)'] },
+    },
+    {
+      name: 'worker-testing-helpers-stay-in-tests',
+      severity: 'error',
+      comment:
+        'apps/worker/src/testing holds a fake child process and in-memory ' +
+        'doubles for the run table and the pool. Importing one from ' +
+        'production code would put a stub inside the deployed image — and the ' +
+        'pool double is the worse of the two: a `run` that always resolves is ' +
+        'a simulator that answers without simulating.',
+      from: {
+        path: '^apps/worker/src/',
+        pathNot: '(^apps/worker/src/testing/|\\.test\\.ts$)',
+      },
+      to: { path: '^apps/worker/src/testing/' },
     },
     {
       name: 'contract-depends-only-on-schema',
@@ -332,6 +440,22 @@ module.exports = {
            * not what dead code is.
            */
           '^apps/api/src/server\\.ts$',
+          /*
+           * The worker's two process entry points. Railway runs
+           * `node dist/worker.js`, and `simulate.child.ts` is what that
+           * process *forks* — resolved by path at runtime rather than
+           * imported, which is precisely why nothing imports it and why
+           * build.js fails the build if it is not emitted.
+           */
+          '^apps/worker/src/worker\\.ts$',
+          '^apps/worker/src/simulate\\.child\\.ts$',
+          /*
+           * The pool tests' stand-in child. Nothing imports it either, and
+           * nothing can: it is forked by path, and it is plain JavaScript
+           * precisely because a forked process is started by Node with no
+           * Vitest transform in front of it.
+           */
+          '^apps/worker/src/testing/fake-child\\.mjs$',
           /*
            * The generated Prisma client emits entry points this project does
            * not use — `browser.ts` for a client-side bundle it will never

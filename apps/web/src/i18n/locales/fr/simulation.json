@@ -31,6 +31,55 @@
     "density-too-large": "Une matrice de densité pour {{qubits}} qubits dépasse le plafond de {{limit}} qubits du mode bruit. Les trajectoires échantillonnées vont plus loin, car elles conservent un vecteur d’état et non une matrice.",
     "trajectories-too-large": "Une exécution échantillonnée rejoue tout le circuit à chaque tir : avec {{qubits}} qubits et {{operations}} portes, ce navigateur ne pouvait s’offrir que {{shots}} tirs, en deçà des {{limit}} qu’il faut pour qu’un échantillon dise quelque chose. Raccourcissez le circuit ou réduisez le registre.",
     "noise-out-of-memory": "Cet appareil n’a pas pu réserver la mémoire que la méthode exacte demande pour {{qubits}} qubits, bien que ce soit sous le plafond de {{limit}} qubits. Les trajectoires échantillonnées en demandent bien moins : elles conservent un vecteur d’état et non une matrice.",
-    "noise-failed": "L’exécution bruitée ne s’est pas terminée. Tout ce qui la précède décrit le circuit tel qu’il est écrit et n’est pas affecté."
+    "noise-failed": "L’exécution bruitée ne s’est pas terminée. Tout ce qui la précède décrit le circuit tel qu’il est écrit et n’est pas affecté.",
+    "server-unavailable": "La simulation sur le serveur est indisponible pour l’instant. Ce circuit dépasse ce que le navigateur peut contenir : il n’y a donc rien à afficher jusqu’à son retour.",
+    "server-too-large": "Le serveur a refusé ce circuit : il dépasse une limite de ressources. Essayez moins de qubits, un circuit plus court, ou moins de tirs.",
+    "server-refused": "Le serveur n’a pas accepté cette exécution. Rien n’a été simulé.",
+    "sampling-too-large": "Une exécution par échantillonnage rejoue tout le circuit à chaque tir : {{shots}} tirs d’un circuit de {{qubits}} qubits avec {{operations}} portes prendraient des minutes dans cet onglet — et un serveur refuserait aussi un travail de cette taille. Utilisez moins de qubits ou un circuit plus court."
+  },
+  "server": {
+    "heading": "Exécution sur le serveur",
+    "why": "Ce circuit compte {{qubits}} qubits. Le navigateur en simule jusqu’à {{limit}} : celui-ci a donc été envoyé à un serveur — d’où des secondes plutôt que des millisecondes.",
+    "state": {
+      "submitting": "Envoi du circuit…",
+      "queued": "Dans la file, en attente d’un travailleur.",
+      "running": "En cours sur le serveur : {{phase}}."
+    },
+    "phase": {
+      "validating": "vérification du circuit",
+      "simulating": "évolution de l’état",
+      "sampling": "tirage des mesures",
+      "summarising": "synthèse du résultat"
+    },
+    "elapsed": "Écoulé",
+    "estimate": "Durée estimée",
+    "done": "Avancement",
+    "runId": "Exécution",
+    "seconds": "{{seconds}} s",
+    "fraction": "{{completed}} sur {{total}}",
+    "offline": "Le flux d’avancement est tombé et se reconnecte. L’exécution n’est pas affectée ; cette page continue de la consulter.",
+    "stop": "Cesser d’attendre",
+    "stopNote": "L’exécution se poursuit sur le serveur et conserve son identifiant — ceci arrête seulement l’attente de cette page.",
+    "summary": "{{qubits}} qubits, graine {{seed}}, {{milliseconds}} ms de moteur.",
+    "hidden": "{{states}} autres états de base ne sont pas listés ; ils portent ensemble {{weight}} de la probabilité.",
+    "noResult": "L’exécution s’est terminée sans enregistrer de résultat lisible.",
+    "table": {
+      "caption": "États de base rapportés par le serveur, du plus grand au plus petit",
+      "state": "État",
+      "probability": "Probabilité",
+      "count": "Décompte"
+    },
+    "failure": {
+      "INVALID_CIRCUIT": "Le serveur a refusé ce circuit : il ne correspond pas au format attendu par le simulateur.",
+      "LIMIT_EXCEEDED": "Le serveur a refusé cette exécution : elle dépasse une limite de ressources — le plafond de qubits, le nombre de portes, les tirs, ou la durée qu’une exécution peut prendre.",
+      "TIMED_OUT": "L’exécution était encore en cours à l’expiration de sa limite de temps, et a été arrêtée. Essayez moins de qubits, un circuit plus court, ou moins de tirs.",
+      "RESULT_TOO_LARGE": "La réponse était trop volumineuse pour être enregistrée. Un registre de cette taille compte plus d’états de base qu’un résultat ne peut en porter.",
+      "ENGINE_FAILED": "Le moteur de simulation a échoué sur le serveur. C’est un défaut de ce projet, et non un problème de votre circuit.",
+      "WORKER_CRASHED": "Le processus qui exécutait cette simulation est mort sans répondre — très probablement à court de mémoire.",
+      "QUEUE_UNAVAILABLE": "L’exécution a été acceptée mais n’a jamais atteint de travailleur : rien ne l’a exécutée.",
+      "UNKNOWN": "L’exécution ne s’est pas terminée, et le serveur n’a pas donné de raison que cette page sache expliquer."
+    },
+    "stopped": "Vous avez cessé d’attendre. L’exécution se poursuit sur le serveur et conserve son identifiant.",
+    "stoppedWithId": "Vous avez cessé d’attendre. L’exécution se poursuit sur le serveur sous le nom {{runId}}."
   }
 }

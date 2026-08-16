@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /*
+     * Declarations only, exactly as @qsim/schema and @qsim/contract do — see
+     * that package's tsconfig.build.json for the full reasoning. Runtime
+     * consumers resolve this package's source; only type resolution goes to
+     * `dist/`.
+     */
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"]
+}

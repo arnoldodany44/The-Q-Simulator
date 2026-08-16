@@ -1359,6 +1359,175 @@ body {
 }
 
 /* ------------------------------------------------------------------ *
+ * The server run notice — §4's two-level split, made visible
+ *
+ * Everything else in the simulation feature works to make the split
+ * invisible; this is the one place a reader needs to see it. It is set apart
+ * from the panel it sits in — its own border and a tinted ground — because
+ * the fact it carries is "this one is different", and a block that looked
+ * like the rest of the panel would say the opposite.
+ * ------------------------------------------------------------------ */
+
+.server-run {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.4rem;
+  /*
+   * `color-mix` rather than a new token: the tint is the accent at low
+   * opacity over whatever the panel's own ground is, so it stays correct if
+   * either changes. It degrades to the panel background where the function is
+   * unsupported, which is the right failure — the border still carries the
+   * distinction.
+   */
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-panel));
+}
+
+.server-run__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  color: var(--accent);
+}
+
+.server-run__why {
+  margin: 0.35rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.server-run__status {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+}
+
+/*
+ * What is left after "stop waiting": the sentence that says the run kept its
+ * identifier, and the identifier itself. It replaces the status line rather
+ * than sitting beside it, so it inherits that line's weight.
+ */
+.server-run__stopped {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.server-run__facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 1rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.server-run__fact {
+  display: contents;
+}
+
+.server-run__fact dt {
+  color: var(--text-muted);
+}
+
+.server-run__fact dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+/*
+ * The run id, which is the one string here a reader may want to copy — it is
+ * what `GET /simulate/:runId` takes and what a bug report needs. Wrapping
+ * rather than truncating for that reason: an id with an ellipsis in it is an
+ * id nobody can use.
+ */
+.server-run__id {
+  overflow-wrap: anywhere;
+}
+
+.server-run__offline {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.server-run__stop {
+  margin: 0.65rem 0 0;
+}
+
+/*
+ * The note under the stop button, and it is load-bearing copy rather than
+ * decoration: §8 gives `/simulate` no delete, so the button stops this page
+ * waiting and nothing else. A control that implied more would be a lie with a
+ * pointer on it.
+ */
+.server-run__heading:focus-visible,
+.custom-gates__heading:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.server-run__stop-note {
+  margin: 0.3rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.server-run__failure {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--accent);
+}
+
+.server-run__result {
+  margin: 0.65rem 0 0;
+}
+
+.server-run__summary {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/*
+ * The table scrolls inside its own box rather than widening the panel. A
+ * 22-qubit ket is 22 characters of monospace, which is wider than the panel
+ * on a phone and must not push the canvas off screen.
+ */
+.server-run__viewport {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+}
+
+.server-run__grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.server-run__grid th,
+.server-run__grid td {
+  padding: 0.2rem 0.5rem 0.2rem 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.server-run__grid thead th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.server-run__state {
+  font-family: var(--font-mono);
+  text-align: left;
+}
+
+.server-run__hidden {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
  * Probability histogram with phasors (M0.7b) — §3.2, §10
  *
  * The signature element. Everything below is layout and ink: the phase
@@ -2576,6 +2745,7 @@ td.histogram__delta--loss {
 .share-link,
 .save-panel,
 .history-panel,
+.custom-gates,
 .export-panel {
   background: var(--bg-panel);
   border: 1px solid var(--wire);
@@ -2587,6 +2757,7 @@ td.histogram__delta--loss {
 .share-link__heading,
 .save-panel__heading,
 .history-panel__heading,
+.custom-gates__heading,
 .export-panel__heading {
   margin: 0;
   font-family: var(--font-display);
@@ -2597,6 +2768,7 @@ td.histogram__delta--loss {
 .preset-picker__hint,
 .share-link__hint,
 .history-panel__hint,
+.custom-gates__hint,
 .export-panel__hint {
   margin: 0.25rem 0 0;
   font-size: var(--text-caption);
@@ -2645,11 +2817,226 @@ td.histogram__delta--loss {
  */
 .preset-picker__status,
 .share-link__status,
+.custom-gates__status,
 .export-panel__status {
   margin: 0.5rem 0 0;
   min-height: 1.25rem;
   font-size: var(--text-caption);
   color: var(--text-muted);
+}
+
+/* ---- import (M2.4) ---- */
+
+/*
+ * A disclosure rather than an open panel, and the only one in the document bar
+ * that is: it is the control that *replaces* the document, so opening it is a
+ * deliberate act rather than a paste box sitting beside the canvas. Its closed
+ * contents stay in the DOM, which is also what lets `no-raw-keys.spec.ts` see
+ * every string in it without pressing anything.
+ */
+.import-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.import-panel__summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: var(--text-data);
+  color: var(--text-muted);
+}
+
+.import-panel__hint {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.import-panel__field {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.import-panel__file {
+  display: block;
+  margin-top: 0.25rem;
+  max-width: 100%;
+  font: inherit;
+  font-size: var(--text-caption);
+  color: var(--text);
+}
+
+/*
+ * Monospaced, because what goes in it is source code and a proportional font
+ * makes an indented gate body unreadable. `resize: vertical` only: a textarea
+ * that can be dragged wider escapes the panel it lives in.
+ */
+.import-panel__text {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  line-height: 1.4;
+  resize: vertical;
+}
+
+/* Sized like the preset chips: 2.25rem clears WCAG 2.2 SC 2.5.8 with room. */
+.import-panel__button {
+  min-height: 2.25rem;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.import-panel__button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.import-panel__button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/*
+ * The live region keeps its line whether or not it has anything to say — the
+ * same rule the preset picker's status follows, and for the same reason: a
+ * region that appears at the same moment as its text is one some screen readers
+ * never announce.
+ */
+.import-panel__status {
+  margin: 0.5rem 0 0;
+  min-height: 1.25rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/* ---- blocks: custom gates and subcircuits (M2.3) ---- */
+
+.custom-gates {
+  margin-top: 0.75rem;
+}
+
+.custom-gates__subheading {
+  margin: 0.75rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.custom-gates__field {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.custom-gates__input {
+  width: 100%;
+  max-width: 18rem;
+  margin-top: 0.15rem;
+  padding: 0.3rem 0.45rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-size: var(--text-caption);
+}
+
+.custom-gates__list {
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.custom-gates__entry {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+}
+
+.custom-gates__name {
+  font-family: var(--font-display);
+}
+
+.custom-gates__meta,
+.custom-gates__empty {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.custom-gates__empty {
+  margin: 0.6rem 0 0;
+}
+
+.custom-gates__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+/*
+ * Same 2.25rem floor as a preset chip, and for the same reason: these are
+ * pressed on a phone too, and WCAG 2.2 SC 2.5.8 is a floor rather than a
+ * target.
+ */
+.custom-gates__action {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.custom-gates__action:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.custom-gates__action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * The sentence that says a definition is shared. It stays on screen for the
+ * whole editing session rather than appearing as a dialog, so it is styled to
+ * be readable rather than to be dismissed.
+ */
+.custom-gates__warning {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: 0.375rem;
+  font-size: var(--text-caption);
+  color: var(--text);
 }
 
 /* ---- export panel (M1.7) ---- */

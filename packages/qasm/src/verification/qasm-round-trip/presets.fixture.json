@@ -1,0 +1,250 @@
+[
+  {
+    "id": "superposition",
+    "circuit": {
+      "schemaVersion": 1,
+      "qubits": 2,
+      "clbits": 0,
+      "operations": [
+        {
+          "id": "op_1",
+          "gate": "h",
+          "targets": [0],
+          "column": 0
+        },
+        {
+          "id": "op_2",
+          "gate": "h",
+          "targets": [1],
+          "column": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "bell",
+    "circuit": {
+      "schemaVersion": 1,
+      "qubits": 2,
+      "clbits": 0,
+      "operations": [
+        {
+          "id": "op_1",
+          "gate": "h",
+          "targets": [0],
+          "column": 0
+        },
+        {
+          "id": "op_2",
+          "gate": "cx",
+          "targets": [1],
+          "controls": [0],
+          "column": 1
+        }
+      ]
+    }
+  },
+  {
+    "id": "ghz",
+    "circuit": {
+      "schemaVersion": 1,
+      "qubits": 3,
+      "clbits": 0,
+      "operations": [
+        {
+          "id": "op_1",
+          "gate": "h",
+          "targets": [0],
+          "column": 0
+        },
+        {
+          "id": "op_2",
+          "gate": "cx",
+          "targets": [1],
+          "controls": [0],
+          "column": 1
+        },
+        {
+          "id": "op_3",
+          "gate": "cx",
+          "targets": [2],
+          "controls": [1],
+          "column": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "interference",
+    "circuit": {
+      "schemaVersion": 1,
+      "qubits": 1,
+      "clbits": 0,
+      "operations": [
+        {
+          "id": "op_1",
+          "gate": "h",
+          "targets": [0],
+          "column": 0
+        },
+        {
+          "id": "op_2",
+          "gate": "p",
+          "targets": [0],
+          "params": [3.141592653589793],
+          "column": 1
+        },
+        {
+          "id": "op_3",
+          "gate": "h",
+          "targets": [0],
+          "column": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "deutschJozsa",
+    "circuit": {
+      "schemaVersion": 1,
+      "qubits": 3,
+      "clbits": 0,
+      "operations": [
+        {
+          "id": "op_1",
+          "gate": "x",
+          "targets": [2],
+          "column": 0
+        },
+        {
+          "id": "op_2",
+          "gate": "h",
+          "targets": [0],
+          "column": 1
+        },
+        {
+          "id": "op_3",
+          "gate": "h",
+          "targets": [1],
+          "column": 1
+        },
+        {
+          "id": "op_4",
+          "gate": "h",
+          "targets": [2],
+          "column": 1
+        },
+        {
+          "id": "op_5",
+          "gate": "cx",
+          "targets": [2],
+          "controls": [0],
+          "column": 2
+        },
+        {
+          "id": "op_6",
+          "gate": "cx",
+          "targets": [2],
+          "controls": [1],
+          "column": 3
+        },
+        {
+          "id": "op_7",
+          "gate": "h",
+          "targets": [0],
+          "column": 4
+        },
+        {
+          "id": "op_8",
+          "gate": "h",
+          "targets": [1],
+          "column": 4
+        }
+      ]
+    }
+  },
+  {
+    "id": "teleportation",
+    "circuit": {
+      "schemaVersion": 1,
+      "qubits": 3,
+      "clbits": 3,
+      "operations": [
+        {
+          "id": "op_1",
+          "gate": "ry",
+          "targets": [0],
+          "params": [1.0471975511965976],
+          "column": 0
+        },
+        {
+          "id": "op_2",
+          "gate": "h",
+          "targets": [1],
+          "column": 0
+        },
+        {
+          "id": "op_3",
+          "gate": "cx",
+          "targets": [2],
+          "controls": [1],
+          "column": 1
+        },
+        {
+          "id": "op_4",
+          "gate": "cx",
+          "targets": [1],
+          "controls": [0],
+          "column": 2
+        },
+        {
+          "id": "op_5",
+          "gate": "h",
+          "targets": [0],
+          "column": 3
+        },
+        {
+          "id": "op_6",
+          "gate": "measure",
+          "targets": [0],
+          "clbitTargets": [0],
+          "column": 4
+        },
+        {
+          "id": "op_7",
+          "gate": "measure",
+          "targets": [1],
+          "clbitTargets": [1],
+          "column": 4
+        },
+        {
+          "id": "op_8",
+          "gate": "x",
+          "targets": [2],
+          "column": 5,
+          "condition": {
+            "clbit": 1,
+            "equals": 1
+          }
+        },
+        {
+          "id": "op_9",
+          "gate": "z",
+          "targets": [2],
+          "column": 6,
+          "condition": {
+            "clbit": 0,
+            "equals": 1
+          }
+        },
+        {
+          "id": "op_10",
+          "gate": "measure",
+          "targets": [2],
+          "clbitTargets": [2],
+          "column": 7
+        }
+      ]
+    }
+  }
+]

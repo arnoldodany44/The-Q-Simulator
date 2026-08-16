@@ -209,6 +209,72 @@
     "register-limit": "Le circuit a atteint sa limite de qubits ou de bits classiques.",
     "nothing-to-undo": "Il n’y a plus rien à annuler.",
     "nothing-to-redo": "Il n’y a plus rien à rétablir.",
-    "clbit-in-use": "Une autre opération de cette colonne écrit déjà dans ce bit classique."
+    "clbit-in-use": "Une autre opération de cette colonne écrit déjà dans ce bit classique.",
+    "custom-gate-too-deep": "Ces blocs sont imbriqués trop profondément les uns dans les autres.",
+    "custom-gate-not-unitary": "Un bloc ne peut contenir ni mesure, ni réinitialisation, ni porte conditionnée.",
+    "custom-gate-too-large": "Ces blocs se développent en plus d’opérations qu’un circuit ne peut en contenir.",
+    "custom-gate-name": "Un bloc demande un nom qui commence par une lettre et qui n’est pas déjà une porte.",
+    "custom-gate-exists": "Ce circuit possède déjà un bloc portant ce nom.",
+    "custom-gate-not-found": "Ce circuit ne possède aucun bloc portant ce nom.",
+    "custom-gate-in-use": "Ce bloc est encore utilisé dans ce circuit. Développez d’abord ses usages.",
+    "custom-gate-reshaped": "Ce changement modifie les fils ou les paramètres avec lesquels les usages existants ont été posés.",
+    "fragment-not-rectangular": "La sélection saute une porte entre sa première et sa dernière colonne. Sélectionnez toute la plage.",
+    "not-a-custom-gate": "Cette porte n’est pas un bloc : il n’y a rien à développer.",
+    "definition-open": "Un bloc est déjà ouvert en édition.",
+    "no-definition-open": "Aucun bloc n’est ouvert en édition."
+  },
+  "customGates": {
+    "title": "Blocs",
+    "summary": "Empaquetez un fragment en un bloc réutilisable, avec un nom et une icône.",
+    "empty": "Aucun bloc pour l’instant. Sélectionnez une suite de portes sur le canevas et empaquetez-la.",
+    "package": {
+      "heading": "Empaqueter la sélection",
+      "name": "Nom",
+      "namePlaceholder": "bellPair",
+      "symbol": "Icône",
+      "symbolPlaceholder": "B",
+      "submit": "Empaqueter",
+      "hint": "La sélection doit couvrir toutes les portes entre sa première et sa dernière colonne."
+    },
+    "entry": {
+      "qubits_one": "{{value}} qubit",
+      "qubits_other": "{{value}} qubits",
+      "gates_one": "{{value}} porte",
+      "gates_other": "{{value}} portes",
+      "uses_one": "utilisé {{value}} fois ici",
+      "uses_other": "utilisé {{value}} fois ici",
+      "unused": "pas encore utilisé ici"
+    },
+    "actions": {
+      "place": "Poser",
+      "edit": "Modifier la définition",
+      "duplicate": "Dupliquer",
+      "remove": "Supprimer",
+      "inline": "Développer sur le canevas"
+    },
+    "shared": {
+      "heading": "Une définition, tous les usages",
+      "body_one": "Modifier cette définition change son {{value}} usage dans ce circuit. Impossible de n’en changer qu’un seul.",
+      "body_other": "Modifier cette définition change ses {{value}} usages dans ce circuit. Impossible de n’en changer qu’un seul.",
+      "unused": "Rien n’utilise encore cette définition : la modifier ne change rien d’autre.",
+      "escape": "Dupliquez-la d’abord si vous voulez changer un usage et laisser les autres intacts."
+    },
+    "editing": {
+      "heading": "Modification du bloc {{name}}",
+      "symbol": "Icône",
+      "apply": "Appliquer à tous les usages",
+      "cancel": "Abandonner les modifications",
+      "note": "Ce canevas est le corps du bloc. Ses fils sont les fils du bloc, et ses paramètres sont les angles que chaque usage fournit."
+    },
+    "done": {
+      "packaged": "La sélection a été empaquetée dans le bloc {{name}}.",
+      "placed": "Le bloc {{name}} a été placé sur le canevas.",
+      "opened": "Édition du bloc {{name}}. Le canevas montre maintenant son corps à la place du circuit.",
+      "applied": "Les modifications de {{name}} ont été appliquées à tous ses usages.",
+      "discarded": "Les modifications de {{name}} ont été abandonnées. Le circuit est de retour.",
+      "duplicated": "Le bloc {{name}} a été copié sous le nom {{into}}.",
+      "inlined": "Un usage de {{name}} a été développé en les portes qu’il représente.",
+      "removed": "Le bloc {{name}} a été supprimé."
+    }
   }
 }

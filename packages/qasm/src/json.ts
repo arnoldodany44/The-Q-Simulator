@@ -86,6 +86,12 @@ function orderedCustomGates(
     name,
     withoutUndefined({
       qubits: definition.qubits,
+      // The definition's own formal parameters (M2.3). Absent here, a
+      // parameterised block exported as "the format that loses nothing" came
+      // back as a block that takes no arguments, and every operation inside it
+      // that referenced one failed `parseCircuit` on the way in.
+      params:
+        definition.params === undefined ? undefined : [...definition.params],
       symbol: definition.symbol,
       operations: definition.operations.map(orderedOperation),
     }),

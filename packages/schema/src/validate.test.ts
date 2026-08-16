@@ -375,6 +375,146 @@ describe('custom gates', () => {
     expect(result.ok).toBe(true)
   })
 
+  /* ── Parameters, widened in M2.3 ─────────────────────────────────── */
+
+  const rotate = {
+    qubits: 1,
+    params: ['angle'],
+    operations: [
+      { id: 'cg_1', gate: 'rz', targets: [0], params: ['angle'], column: 0 },
+    ],
+  }
+
+  it('accepts a call that passes one argument per formal parameter', () => {
+    expect(
+      safeParseCircuit(
+        circuit({
+          customGates: { rotate },
+          operations: [
+            {
+              id: 'op_1',
+              gate: 'rotate',
+              targets: [0],
+              params: [0.5],
+              column: 0,
+            },
+          ],
+        })
+      ).ok
+    ).toBe(true)
+  })
+
+  it('counts the arguments a call passes against the formals', () => {
+    const issue = onlyProblem(
+      circuit({
+        customGates: { rotate },
+        operations: [{ id: 'op_1', gate: 'rotate', targets: [0], column: 0 }],
+      })
+    )
+    expect(issue.code).toBe('param-count-mismatch')
+    expect(issue.message).toContain('takes exactly 1')
+  })
+
+  it('lets an argument be a circuit parameter, so sweeps reach inside', () => {
+    expect(
+      safeParseCircuit(
+        circuit({
+          parameters: [{ name: 'theta', value: 0.25 }],
+          customGates: { rotate },
+          operations: [
+            {
+              id: 'op_1',
+              gate: 'rotate',
+              targets: [0],
+              params: ['theta'],
+              column: 0,
+            },
+          ],
+        })
+      ).ok
+    ).toBe(true)
+  })
+
+  it('refuses a body that reads a name the definition does not declare', () => {
+    const issue = onlyProblem(
+      circuit({
+        parameters: [{ name: 'theta', value: 0.25 }],
+        customGates: {
+          leaky: {
+            qubits: 1,
+            operations: [
+              {
+                id: 'cg_1',
+                gate: 'rz',
+                targets: [0],
+                params: ['theta'],
+                column: 0,
+              },
+            ],
+          },
+        },
+      })
+    )
+    // Even though the circuit declares `theta`: a definition reads only its
+    // own parameters, so that it means the same thing in every document.
+    expect(issue.code).toBe('unknown-parameter')
+    expect(issue.customGate).toBe('leaky')
+  })
+
+  it('refuses two formals with the same name', () => {
+    const issue = onlyProblem(
+      circuit({
+        customGates: {
+          twin: { qubits: 1, params: ['a', 'a'], operations: [] },
+        },
+      })
+    )
+    expect(issue.code).toBe('duplicate-parameter')
+  })
+
+  /* ── A definition is a unitary block ─────────────────────────────── */
+
+  it.each([
+    ['measure', { gate: 'measure', targets: [0], clbitTargets: [0] }],
+    ['reset', { gate: 'reset', targets: [0] }],
+    [
+      'a condition',
+      { gate: 'x', targets: [0], condition: { clbit: 0, equals: 1 } },
+    ],
+  ])('refuses %s inside a definition', (_label, operation) => {
+    const issues = problems(
+      circuit({
+        customGates: {
+          impure: {
+            qubits: 1,
+            operations: [{ id: 'cg_1', column: 0, ...operation }],
+          },
+        },
+      })
+    )
+    expect(issues.map((issue) => issue.code)).toContain(
+      'custom-gate-not-unitary'
+    )
+  })
+
+  it('refuses controls on a call, and says the gate takes none', () => {
+    const issue = onlyProblem(
+      circuit({
+        customGates: { bellPair },
+        operations: [
+          {
+            id: 'op_1',
+            gate: 'bellPair',
+            targets: [0, 1],
+            controls: [2],
+            column: 0,
+          },
+        ],
+      })
+    )
+    expect(issue.code).toBe('control-count-mismatch')
+  })
+
   it('checks the call against the custom gate width', () => {
     const issue = onlyProblem(
       circuit({

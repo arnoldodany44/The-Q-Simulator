@@ -47,7 +47,9 @@
 import {
   MAX_CLBITS,
   MAX_QUBITS,
+  customGateUsage,
   emptyCircuit,
+  inlineOperation,
   lookupGate,
   normalizeColumns,
   normalizeControl,
@@ -56,6 +58,7 @@ import {
   type Circuit,
   type Condition,
   type Control,
+  type CustomGate,
   type Operation,
   type ParamValue,
   type ValidationIssue,
@@ -64,6 +67,18 @@ import { temporal, type TemporalState } from 'zundo'
 import { create, type StoreApi } from 'zustand'
 
 import { writesCollide } from './classicalWrites'
+import {
+  customGateNameIssue,
+  defaultArguments,
+  definitionAsDocument,
+  documentAsDefinition,
+  firstFreeColumn,
+  isUsableSymbol,
+  packageFragment,
+  parameterValues,
+  reshapesUses,
+  withFragmentPackaged,
+} from './customGates'
 
 /** Wires a new document starts with: room for a Bell pair and a spare. */
 export const DEFAULT_QUBITS = 3
@@ -121,6 +136,9 @@ export const REJECTION_REASONS = [
   'duplicate-parameter',
   'qubit-label-count',
   'custom-gate-cycle',
+  'custom-gate-too-deep',
+  'custom-gate-not-unitary',
+  'custom-gate-too-large',
   'operation-not-found',
   'control-not-found',
   'empty-selection',
@@ -136,6 +154,29 @@ export const REJECTION_REASONS = [
   // see the canvas needs to be told; see `undo` below.
   'nothing-to-undo',
   'nothing-to-redo',
+  /*
+   * ── Custom gates (M2.3) ─────────────────────────────────────────────
+   *
+   * Seven refusals the contract cannot express, because they are about the
+   * *editing gesture* rather than about the document it would produce.
+   */
+  // The typed name is not an identifier, or it is a catalog gate's.
+  'custom-gate-name',
+  'custom-gate-exists',
+  'custom-gate-not-found',
+  // Deleting a definition something still calls, or inlining an operation
+  // that is not a call at all.
+  'custom-gate-in-use',
+  'not-a-custom-gate',
+  // The definition editor changed the register or the parameter list, which
+  // every existing use was written against. See `reshapesUses`.
+  'custom-gate-reshaped',
+  // The selection skips an operation inside its own column range, so
+  // packaging it would move that operation relative to the block.
+  'fragment-not-rectangular',
+  // A command that needs a definition open, or one that needs none.
+  'definition-open',
+  'no-definition-open',
 ] as const
 
 export type RejectionReason = (typeof REJECTION_REASONS)[number]
@@ -194,6 +235,39 @@ export interface CircuitFragment {
   readonly originQubit: number
 }
 
+/**
+ * A definition being edited on the ordinary canvas.
+ *
+ * ── The decision this type exists to make visible (M2.3) ─────────────────
+ *
+ * A definition is shared **by reference inside its document**: every use is
+ * the name, so changing the definition changes every use, at once, with no
+ * way to change one of them. That is the feature — it is what makes a block
+ * worth having over copy and paste — and it is data loss for anyone who
+ * expected a copy. The editor's answer is not to pick one meaning; it is to
+ * make the count impossible to miss. `uses` is carried here so the definition
+ * editor's own header can say "3 uses in this circuit will change" for the
+ * whole time the user is editing, not in a dialog they dismissed on the way
+ * in. The escape hatch is beside it: duplicate the definition under a new
+ * name and edit that, which changes nothing.
+ *
+ * Sharing stops at the document. A definition installed from the library is
+ * *copied* into the circuit (see `features/custom-gates`), so nobody else's
+ * edit and nobody else's deletion can reach a circuit that is already using
+ * it. §3.4 makes the same trade for forks, and for the same reason: a saved
+ * circuit has to keep meaning what it meant.
+ */
+export interface DefinitionEdit {
+  readonly name: string
+  /** The icon, editable while the definition is open. */
+  readonly symbol: string | undefined
+  /** The document to come back to. */
+  readonly host: Circuit
+  readonly hostSelection: readonly string[]
+  /** How many uses in the host document this edit will change. */
+  readonly uses: number
+}
+
 /** The slice of the store that undo and redo travel through. */
 interface CircuitSnapshot {
   readonly circuit: Circuit
@@ -227,6 +301,14 @@ export interface CircuitState extends CircuitSnapshot {
    * not renumber it.
    */
   readonly documentId: number
+  /**
+   * The definition currently open on the canvas, or `null` for the ordinary
+   * case of editing the circuit itself.
+   *
+   * Deliberately outside `partialize`, like `documentId`: undo moves within
+   * one document, and a definition editing session is a different document.
+   */
+  readonly definitionEdit: DefinitionEdit | null
 
   placeGate(
     gate: string,
@@ -260,6 +342,33 @@ export interface CircuitState extends CircuitSnapshot {
   copy(): EditResult
   paste(qubit: number, column: number): EditResult
   compactColumns(): EditResult
+
+  /* ── Custom gates and subcircuits (§3.1, M2.3) ─────────────────────── */
+
+  /** Wrap the selection in a new definition and place the block in its stead. */
+  packageSelection(
+    name: string,
+    options?: { readonly symbol?: string }
+  ): EditResult
+  /** Place an existing definition on the first column where it fits. */
+  placeCustomGate(name: string, qubit?: number): EditResult
+  /** Replace one use with the operations it stands for, one level deep. */
+  inlineOperation(id: string): EditResult
+  /** Copy a definition under a new name — the way to branch instead of edit. */
+  duplicateCustomGate(name: string, into: string): EditResult
+  /** Add a definition that came from elsewhere, by value. */
+  installCustomGate(name: string, definition: CustomGate): EditResult
+  /** Remove a definition. Refused while anything still calls it. */
+  removeCustomGate(name: string): EditResult
+
+  /** Open a definition's body as the document being edited. */
+  openDefinition(name: string): EditResult
+  /** Change the icon of the definition currently open. */
+  setDefinitionSymbol(symbol: string): EditResult
+  /** Write the open definition back, updating every use, and return to the host. */
+  applyDefinition(): EditResult
+  /** Go back to the host document, changing nothing. */
+  cancelDefinition(): EditResult
 
   setSelection(ids: readonly string[]): void
   toggleSelection(id: string): void
@@ -444,6 +553,7 @@ export function createCircuitStore(
           clipboard: null,
           nextId: 1,
           documentId: 0,
+          definitionEdit: null,
 
           placeGate: (gate, targets, column, options = {}) => {
             const state = get()
@@ -908,6 +1018,220 @@ export function createCircuitStore(
             return commit({ circuit: compacted })
           },
 
+          /* ── Custom gates (M2.3) ─────────────────────────────────── */
+
+          packageSelection: (name, options = {}) => {
+            const state = get()
+            /*
+             * Not while a definition is open. `documentAsDefinition` carries a
+             * document's operations back into the host and nothing else, so a
+             * block packaged inside a definition would be dropped on the way
+             * out — and if its name is one the *host* already owns, the body's
+             * call rebinds to the host's unrelated definition. The edit is
+             * accepted, the document validates, and the block now means
+             * something else. The panel already hides the packaging form while
+             * editing; this is the store's own half of that rule.
+             */
+            if (state.definitionEdit !== null) return refused('definition-open')
+            const ids = idAllocator(state.circuit, state.nextId)
+            const result = packageFragment(
+              state.circuit,
+              state.selection,
+              name,
+              { ...pick('symbol', options.symbol), instanceId: ids.take() }
+            )
+            if (!result.ok) return refused(result.reason)
+
+            const circuit = withFragmentPackaged(
+              state.circuit,
+              state.selection,
+              name,
+              result.packaged
+            )
+            return commit({
+              circuit,
+              selection: [result.packaged.instance.id],
+              nextId: ids.next,
+              ids: [result.packaged.instance.id],
+            })
+          },
+
+          placeCustomGate: (name, qubit = 0) => {
+            const circuit = get().circuit
+            const definition = definitionIn(circuit, name)
+            if (definition === undefined) {
+              return refused('custom-gate-not-found')
+            }
+            const top = Math.min(
+              Math.max(0, qubit),
+              Math.max(0, circuit.qubits - definition.qubits)
+            )
+            const targets = Array.from(
+              { length: definition.qubits },
+              (_, index) => top + index
+            )
+            const column = firstFreeColumn(circuit, top, definition.qubits)
+            return get().placeGate(name, targets, column, {
+              params: defaultArguments(definition),
+            })
+          },
+
+          inlineOperation: (id) => {
+            const state = get()
+            const ids = idAllocator(state.circuit, state.nextId)
+            const circuit = inlineOperation(state.circuit, id, () => ids.take())
+            if (circuit === null) {
+              const exists = state.circuit.operations.some(
+                (operation) => operation.id === id
+              )
+              return refused(
+                exists ? 'not-a-custom-gate' : 'operation-not-found'
+              )
+            }
+            // The definition stays declared. Peeling one use apart is not a
+            // statement about the other uses, and a definition nothing calls
+            // is still a definition the user may want to place again.
+            return commit({ circuit, selection: [], nextId: ids.next })
+          },
+
+          duplicateCustomGate: (name, into) => {
+            const circuit = get().circuit
+            const definition = definitionIn(circuit, name)
+            if (definition === undefined) {
+              return refused('custom-gate-not-found')
+            }
+            return get().installCustomGate(into, definition)
+          },
+
+          installCustomGate: (name, definition) => {
+            const circuit = get().circuit
+            const issue = customGateNameIssue(circuit, name)
+            if (issue !== null) return refused(issue)
+            return commit({
+              circuit: {
+                ...circuit,
+                customGates: { ...circuit.customGates, [name]: definition },
+              },
+            })
+          },
+
+          removeCustomGate: (name) => {
+            const circuit = get().circuit
+            if (definitionIn(circuit, name) === undefined) {
+              return refused('custom-gate-not-found')
+            }
+            // A definition something still calls cannot simply disappear —
+            // the same rule the library applies to a published gate, applied
+            // here to the document's own copy. Inline the uses first.
+            if (customGateUsage(circuit, name).total > 0) {
+              return refused('custom-gate-in-use')
+            }
+            const customGates = { ...circuit.customGates }
+            delete customGates[name]
+            return commit({
+              circuit:
+                Object.keys(customGates).length === 0
+                  ? withoutCustomGates(circuit)
+                  : { ...circuit, customGates },
+            })
+          },
+
+          openDefinition: (name) => {
+            const state = get()
+            if (state.definitionEdit !== null) return refused('definition-open')
+            const definition = definitionIn(state.circuit, name)
+            if (definition === undefined) {
+              return refused('custom-gate-not-found')
+            }
+
+            abandonGesture()
+            const document = definitionAsDocument(
+              definition,
+              parameterValues(state.circuit)
+            )
+            set((current) => ({
+              circuit: document,
+              selection: [],
+              nextId: 1,
+              documentId: current.documentId + 1,
+              definitionEdit: {
+                name,
+                symbol: definition.symbol,
+                host: current.circuit,
+                hostSelection: current.selection,
+                uses: customGateUsage(current.circuit, name).total,
+              },
+            }))
+            history().clear()
+            return accepted()
+          },
+
+          setDefinitionSymbol: (symbol) => {
+            const open = get().definitionEdit
+            if (open === null) return refused('no-definition-open')
+            set({
+              definitionEdit: {
+                ...open,
+                symbol: isUsableSymbol(symbol) ? symbol : undefined,
+              },
+            })
+            return accepted()
+          },
+
+          applyDefinition: () => {
+            const state = get()
+            const open = state.definitionEdit
+            if (open === null) return refused('no-definition-open')
+
+            const before = definitionIn(open.host, open.name)
+            const after = documentAsDefinition(state.circuit, open.symbol)
+            if (
+              before !== undefined &&
+              open.uses > 0 &&
+              reshapesUses(before, after) !== null
+            ) {
+              // Refused rather than repaired: there is no honest guess about
+              // which wire a new one should be, and a use silently rewired is
+              // a different circuit wearing the same name.
+              return refused('custom-gate-reshaped')
+            }
+
+            const host: Circuit = {
+              ...open.host,
+              customGates: { ...open.host.customGates, [open.name]: after },
+            }
+            const parsed = safeParseCircuit(host)
+            if (!parsed.ok) {
+              return refused(parsed.issues[0]?.code ?? 'shape', parsed.issues)
+            }
+
+            abandonGesture()
+            set((current) => ({
+              circuit: host,
+              selection: open.hostSelection,
+              nextId: 1,
+              documentId: current.documentId + 1,
+              definitionEdit: null,
+            }))
+            history().clear()
+            return accepted()
+          },
+
+          cancelDefinition: () => {
+            const open = get().definitionEdit
+            if (open === null) return refused('no-definition-open')
+            abandonGesture()
+            set((current) => ({
+              circuit: open.host,
+              selection: open.hostSelection,
+              nextId: 1,
+              documentId: current.documentId + 1,
+              definitionEdit: null,
+            }))
+            history().clear()
+            return accepted()
+          },
+
           setSelection: (ids) => {
             const state = get()
             const selection = pruneSelection(ids, state.circuit)
@@ -952,6 +1276,10 @@ export function createCircuitStore(
               selection: [],
               nextId: 1,
               documentId: state.documentId + 1,
+              // A definition edit is a detour inside one document; the
+              // document it would return to has just been replaced, so there
+              // is nowhere to come back to and the detour ends here.
+              definitionEdit: null,
             }))
             history().clear()
             return accepted()
@@ -965,6 +1293,7 @@ export function createCircuitStore(
               selection: [],
               nextId: 1,
               documentId: state.documentId + 1,
+              definitionEdit: null,
             }))
             history().clear()
           },
@@ -1081,6 +1410,29 @@ export function selectedOperations(
 ): Operation[] {
   const wanted = new Set(selection)
   return circuit.operations.filter((operation) => wanted.has(operation.id))
+}
+
+/**
+ * A definition by name, without asking `Object.prototype` for one.
+ *
+ * `customGates` is an ordinary object, so a bare read answers `toString` with
+ * an inherited function — the same trap `gateResolver` documents in the
+ * contract's validator, and it would reach here as a definition with no
+ * `qubits` and no `operations`.
+ */
+function definitionIn(circuit: Circuit, name: string): CustomGate | undefined {
+  const definitions = circuit.customGates
+  if (definitions === undefined || !Object.hasOwn(definitions, name)) {
+    return undefined
+  }
+  return definitions[name]
+}
+
+/** The circuit with the (now empty) `customGates` key gone entirely. */
+function withoutCustomGates(circuit: Circuit): Circuit {
+  const next: Circuit = { ...circuit }
+  delete next.customGates
+  return next
 }
 
 /** Placeholder wire name, used when a user names one wire and not the rest. */

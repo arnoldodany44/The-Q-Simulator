@@ -1,0 +1,39 @@
+{
+  "name": "worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Q Simulator simulation worker — BullMQ consumer on Railway (§4)",
+  "main": "dist/worker.js",
+  "scripts": {
+    "dev": "node build.js --watch",
+    "start": "node dist/worker.js",
+    "build": "node build.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:perf": "vitest run --config vitest.perf.config.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "catalog:",
+    "@prisma/client": "catalog:",
+    "@qsim/core": "workspace:*",
+    "@qsim/db": "workspace:*",
+    "@qsim/jobs": "workspace:*",
+    "@qsim/schema": "workspace:*",
+    "bullmq": "catalog:",
+    "ioredis": "catalog:",
+    "nanoid": "catalog:",
+    "pino": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "@types/node": "catalog:",
+    "esbuild": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

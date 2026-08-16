@@ -1,0 +1,34 @@
+{
+  "heading": "Importer de l’OpenQASM",
+  "hint": "OpenQASM 2 et OpenQASM 3 sont lus tous les deux, et lequel vous avez se déduit du fichier lui-même. L’import remplace le circuit à l’écran et efface son historique d’annulation.",
+  "file": {
+    "label": "Choisir un fichier"
+  },
+  "text": {
+    "label": "Ou coller un programme",
+    "placeholder": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nh q[0];\ncx q[0], q[1];"
+  },
+  "action": "Lire ce circuit",
+  "counts": {
+    "qubits_one": "{{value}} qubit",
+    "qubits_other": "{{value}} qubits",
+    "gates_one": "{{value}} porte",
+    "gates_other": "{{value}} portes",
+    "depth": "profondeur {{value}}"
+  },
+  "status": {
+    "working": "Lecture en cours…",
+    "imported": "Lu comme {{format}} : {{qubits}}, {{gates}}, {{depth}}."
+  },
+  "failure": {
+    "empty": "Il n’y a encore rien à lire. Choisissez un fichier ou collez un programme ci-dessus.",
+    "too-large": "Ce fichier est trop gros pour être lu ici. L’importateur accepte des programmes d’un mégaoctet au plus.",
+    "unreadable": "Ce fichier n’a pas pu être lu. Essayez de le choisir à nouveau.",
+    "syntax": "La ligne {{line}}, colonne {{column}} n’est pas quelque chose qu’OpenQASM autorise, si bien que la suite du fichier n’a pas pu être lue.",
+    "semantic": "La ligne {{line}}, colonne {{column}} est correctement écrite mais ne veut rien dire : un registre, une porte ou un indice y est inconnu, ou reçoit un nombre de qubits qui ne lui convient pas.",
+    "unsupported": "La ligne {{line}}, colonne {{column}} utilise « {{construct}} », qui est bien de l’OpenQASM mais qu’un circuit d’ici ne peut pas représenter. Retirez-le ou écrivez cette partie autrement.",
+    "unsupportedUnnamed": "La ligne {{line}}, colonne {{column}} utilise une fonctionnalité d’OpenQASM qu’un circuit d’ici ne peut pas représenter.",
+    "limit": "Ce fichier demande plus qu’un circuit d’ici ne peut contenir : trop de qubits, trop de portes, ou une structure imbriquée trop profondément. Il s’arrête à la ligne {{line}}, colonne {{column}}.",
+    "contract": "Le fichier a bien été lu, mais le circuit qu’il décrit n’est pas un circuit que cet éditeur sait ouvrir. Signalez-le, s’il vous plaît : le fichier est valide et l’erreur est de notre côté."
+  }
+}

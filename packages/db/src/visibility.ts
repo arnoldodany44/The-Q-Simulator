@@ -197,3 +197,65 @@ export function canEditCollection(
 ): boolean {
   return viewerId !== null && collection.ownerId === viewerId
 }
+
+/*
+ * ── Simulation runs (§8's /simulate, §11) ─────────────────────────────────
+ *
+ * A run has no `visibility` column and should not have one: nobody publishes a
+ * run. What it has instead are two facts that decide who may read it, and both
+ * have to hold.
+ */
+
+/**
+ * The complete `where` for "the run this id names, if this viewer may read it".
+ *
+ * ── Fact one: whose run it is ─────────────────────────────────────────────
+ *
+ * `SimulationRun.userId` is the verified `sub` of whoever submitted, or `null`
+ * for an anonymous submission — and an anonymous run has to be readable by
+ * *somebody*, or the anonymous caller could never collect the answer they were
+ * handed a run id for. So for those the id is the credential, exactly as a
+ * slug is the credential for an UNLISTED circuit: `@default(cuid(2))` is a
+ * hash of randomness with no timestamp and no counter in it, the same class of
+ * handle §11 sizes an unlisted circuit's whole access control at.
+ *
+ * A run that *does* belong to a user is that user's alone. There is no
+ * "unlisted run" and no sharing: an anonymous caller holding a signed-in
+ * user's run id gets nothing, because a run having an owner is itself the
+ * statement that its id is not a credential.
+ *
+ * ── Fact two: the circuit it is about ─────────────────────────────────────
+ *
+ * A run's result is a function of a circuit, so it is readable only if that
+ * circuit is. The filter is the *slug-addressable* one rather than the
+ * listable one, and the difference is deliberate: submitting a run against an
+ * UNLISTED circuit means the submitter held its handle, and holding the handle
+ * is what UNLISTED means — refusing them their own run afterwards would be
+ * stricter than the circuit is. A PRIVATE circuit belonging to somebody else
+ * stays out of reach, which is the case this clause exists for.
+ *
+ * A run with no `circuitId` — the ordinary case for a document that was never
+ * saved — passes this clause trivially. There is no circuit to be private.
+ */
+export function simulationRunFilter(
+  runId: string,
+  viewerId: ViewerId
+): Prisma.SimulationRunWhereInput {
+  const ownership: Prisma.SimulationRunWhereInput =
+    viewerId === null
+      ? { userId: null }
+      : { OR: [{ userId: viewerId }, { userId: null }] }
+
+  return {
+    AND: [
+      { id: runId },
+      ownership,
+      {
+        OR: [
+          { circuitId: null },
+          { circuit: slugAddressableCircuitFilter(viewerId) },
+        ],
+      },
+    ],
+  }
+}

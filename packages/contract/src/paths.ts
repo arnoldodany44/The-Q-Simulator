@@ -70,6 +70,24 @@ export const USER_ROUTES = {
 
 export type UserRoute = (typeof USER_ROUTES)[keyof typeof USER_ROUTES]
 
+/**
+ * Server-side simulation — §8, and §4's three reasons for it to exist.
+ *
+ * `run` takes a **run id** and not a circuit handle, and the distinction is
+ * load-bearing: a run is not a property of a circuit. It may be over a circuit
+ * that was never saved, several runs of one circuit differ only by seed and
+ * shots, and a run belongs to whoever asked for it rather than to whoever owns
+ * the document. Addressing it under `/circuits/:id/runs` would imply all three
+ * of those are false.
+ */
+export const SIMULATE_ROUTES = {
+  collection: '/simulate',
+  run: '/simulate/:runId',
+} as const
+
+export type SimulateRoute =
+  (typeof SIMULATE_ROUTES)[keyof typeof SIMULATE_ROUTES]
+
 export const COLLECTION_ROUTES = {
   collection: '/collections',
   item: '/collections/:id',
@@ -132,6 +150,11 @@ export const userPath = {
     fillRoute(USER_ROUTES.profile, { username }),
   collections: (username: string): string =>
     fillRoute(USER_ROUTES.collections, { username }),
+} as const
+
+export const simulatePath = {
+  collection: (): string => SIMULATE_ROUTES.collection,
+  run: (runId: string): string => fillRoute(SIMULATE_ROUTES.run, { runId }),
 } as const
 
 export const collectionPath = {

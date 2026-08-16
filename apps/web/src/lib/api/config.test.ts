@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEV_API_BASE_URL, resolveApiBaseUrl } from './config.js'
+import {
+  DEV_API_BASE_URL,
+  resolveApiBaseUrl,
+  resolveSocketUrl,
+} from './config.js'
 
 describe('resolveApiBaseUrl', () => {
   it('uses the configured origin', () => {
@@ -29,5 +33,38 @@ describe('resolveApiBaseUrl', () => {
      * API sent an unexpected response" for what is a deployment problem.
      */
     expect(() => resolveApiBaseUrl({ PROD: true })).toThrow('VITE_API_URL')
+  })
+})
+
+describe('resolveSocketUrl', () => {
+  it('derives the socket origin from the API origin', () => {
+    // One address, one place it can be wrong. A second variable would fail in
+    // the nastiest way available: the REST calls work, so the app looks fine,
+    // and only the progress feed points at the wrong host.
+    expect(resolveSocketUrl('https://api.example.test')).toBe(
+      'wss://api.example.test/ws'
+    )
+  })
+
+  it('keeps a plaintext development origin plaintext', () => {
+    expect(resolveSocketUrl('http://localhost:8080')).toBe(
+      'ws://localhost:8080/ws'
+    )
+  })
+
+  it('upgrades the scheme with the page, not independently', () => {
+    /*
+     * A page served over TLS may not open an insecure socket, and a browser
+     * refuses it with a mixed-content error — which points at the wrong
+     * problem entirely. Tying the two schemes together is what stops that.
+     */
+    expect(resolveSocketUrl('https://api.example.test')).toMatch(/^wss:/)
+    expect(resolveSocketUrl('http://api.example.test')).toMatch(/^ws:/)
+  })
+
+  it('does not produce a double slash from a trailing one', () => {
+    expect(resolveSocketUrl('https://api.example.test/')).toBe(
+      'wss://api.example.test/ws'
+    )
   })
 })

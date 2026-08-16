@@ -40,6 +40,26 @@
  * The cost of being wrong is asymmetric — too early replays a few columns, too
  * late is silently false physics — so every uncertainty here resolves towards
  * invalidating more.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * 4. TWO BACKENDS, ONE SEAM (§4). A circuit past `MAX_CLIENT_QUBITS` is not a
+ * failure any more: it goes to the server. What makes that safe is that it
+ * changes nothing above — a server run takes an id from the *same* monotonic
+ * sequence, occupies the *same* single `inFlight` slot, and its answer passes
+ * the *same* staleness line in `receive`. There is deliberately no second
+ * scheduler, no second id space and no second notion of "current": a stale
+ * server result is discarded by the identical comparison that discards a stale
+ * worker result, and the test suite asserts it with the same shape of test.
+ *
+ * The routing rule is the whole of §4 and it is one line: the browser runs
+ * everything it can, and only what it cannot goes over the network. A run sent
+ * to the server that a tab could have done would be slower for the reader and
+ * more expensive for the project at the same time.
+ *
+ * Where there is no server — no API configured, or the transport never
+ * connected — the old behaviour stands exactly as it was: `too-many-qubits`,
+ * with the register and the ceiling, on screen. A ceiling with nowhere to go is
+ * still a ceiling.
  */
 
 import type { ExecutionMode } from '@qsim/core'
@@ -50,8 +70,13 @@ import {
   MAX_CLIENT_QUBITS,
   clampShots,
   decodeResult,
+  idealTrajectoriesFit,
+  maxIdealTrajectoryShots,
   type NoiseSpec,
   type RequestId,
+  type ServerRequest,
+  type ServerRunView,
+  type ServerSimulateRequest,
   type SimulateRequest,
   type SimulationFailure,
   type SimulationOutcome,
@@ -102,6 +127,18 @@ export interface SimulationSnapshot {
   readonly durationMs: number | null
   /** How the last state crossed the thread boundary; null for counts. */
   readonly transport: TransportKind | null
+  /**
+   * The server run in flight, or null when the answer on screen came from this
+   * tab.
+   *
+   * The one piece of state whose whole purpose is to be *visible*: §4's split
+   * is invisible from the outside — a run is a run — and a reader who cannot
+   * tell that this particular answer took a network round trip has no way to
+   * understand why it took eleven seconds when the last one took eight
+   * milliseconds. Cleared the moment the run finishes or is superseded, so it
+   * can never describe something that is no longer happening.
+   */
+  readonly serverRun: ServerRunView | null
 }
 
 export interface RunOptions {
@@ -154,6 +191,14 @@ export interface SchedulerOptions {
 /** Where messages go. The scheduler's only side effect. */
 export type Transport = (request: SimulationRequest) => void
 
+/** The same, for the second backend of §4. See `ServerRequest`. */
+export type ServerTransport = (request: ServerRequest) => void
+
+/** A server run's state, as the backend reports it back. */
+export interface ServerRunUpdate extends ServerRunView {
+  readonly id: RequestId
+}
+
 /**
  * Every member is a property holding a closure rather than a method, and that
  * is deliberate: a scheduler has no `this`, and `subscribe` and `getSnapshot`
@@ -180,6 +225,34 @@ export interface SimulationScheduler {
   readonly connect: (transport: Transport | null) => void
 
   /**
+   * Point the scheduler at the server backend, or at nothing.
+   *
+   * Separate from `connect` because the two have different lifetimes and
+   * different owners: the worker is created and terminated by the hook, while
+   * the server backend depends on an API client that comes from React context
+   * and on a socket that outlives any one run. Nothing else about them differs
+   * — a request dispatched with no server transport is dropped exactly as one
+   * dispatched with no worker is.
+   *
+   * `null` is the ordinary state and not a degraded one: it is what a reader
+   * with no API configured has, and it is why `schedule` still produces
+   * `too-many-qubits` in that case rather than a request nothing will answer.
+   */
+  readonly connectServer: (transport: ServerTransport | null) => void
+
+  /**
+   * A server run said something about itself — it was accepted, a worker
+   * claimed it, it reached a phase, the feed went offline.
+   *
+   * Goes through the scheduler rather than straight to the UI so that it meets
+   * the *same* staleness guard as a result: a progress frame for a run the
+   * reader has already superseded must not repaint the panel, and there is
+   * exactly one line in this file that decides that. Returns false when it was
+   * dropped, like `receive`.
+   */
+  readonly report: (update: ServerRunUpdate) => boolean
+
+  /**
    * Ask for `circuit` to be simulated. Debounced, coalesced, and a no-op when
    * the circuit is unchanged in every way the engine can see.
    */
@@ -203,6 +276,7 @@ const IDLE: SimulationSnapshot = {
   failure: null,
   durationMs: null,
   transport: null,
+  serverRun: null,
 }
 
 export function createSimulationScheduler(
@@ -212,6 +286,7 @@ export function createSimulationScheduler(
   const sharedMemory = options.sharedMemory ?? false
 
   let send: Transport | null = null
+  let sendToServer: ServerTransport | null = null
   const listeners = new Set<() => void>()
   let snapshot: SimulationSnapshot = IDLE
 
@@ -219,10 +294,19 @@ export function createSimulationScheduler(
   let failure: SimulationFailure | null = null
   let durationMs: number | null = null
   let transport: TransportKind | null = null
+  let serverRun: ServerRunView | null = null
 
   let timer: ReturnType<typeof setTimeout> | null = null
   let pending: { circuit: Circuit; run: ResolvedRun } | null = null
   let inFlight: RequestId | null = null
+  /**
+   * Which backend owns `inFlight`, so a cancel reaches the right one.
+   *
+   * One slot, not two: exactly one request is in flight at a time whichever
+   * backend is answering it, which is what keeps the staleness rule a single
+   * comparison rather than a pair of them that can disagree.
+   */
+  let inFlightOn: 'worker' | 'server' | null = null
   let lastId = 0
 
   /** The circuit the last `schedule` call saw, for the next diff. */
@@ -248,13 +332,15 @@ export function createSimulationScheduler(
       failure,
       durationMs,
       transport,
+      serverRun,
     }
     if (
       next.status === snapshot.status &&
       next.outcome === snapshot.outcome &&
       next.failure === snapshot.failure &&
       next.durationMs === snapshot.durationMs &&
-      next.transport === snapshot.transport
+      next.transport === snapshot.transport &&
+      next.serverRun === snapshot.serverRun
     ) {
       // Same object out means `useSyncExternalStore` sees no change, which is
       // what keeps a re-render from being scheduled for nothing.
@@ -272,33 +358,110 @@ export function createSimulationScheduler(
 
   function disown(): void {
     if (inFlight === null) return
-    // The worker cannot always act on this — see `simulation.worker.ts` — but
-    // it costs one message and saves copying a 16 MB state back that nobody
-    // would look at.
-    send?.({ kind: 'cancel', id: inFlight })
+    /*
+     * Sent to whichever backend holds it. The worker cannot always act on this
+     * — see `simulation.worker.ts` — but it costs one message and saves copying
+     * a 16 MB state back that nobody would look at. The server can act on even
+     * less of it (§8 gives `/simulate` no delete), so there it means "stop
+     * waiting", and the panel's own wording says exactly that.
+     */
+    if (inFlightOn === 'server') {
+      sendToServer?.({ kind: 'cancel', id: inFlight })
+    } else {
+      send?.({ kind: 'cancel', id: inFlight })
+    }
     inFlight = null
+    inFlightOn = null
+    serverRun = null
+  }
+
+  /** Whether this circuit is past what a tab can hold, and must go out (§4). */
+  function needsServer(circuit: Circuit): boolean {
+    return circuit.qubits > MAX_CLIENT_QUBITS
+  }
+
+  /**
+   * A sampled run this tab cannot afford in time, or `null`.
+   *
+   * THE CEILING IS NOT ONLY A REGISTER. `needsServer` asks about memory, which
+   * is the right question for the analytic path and only half of it for the
+   * sampled one: trajectories re-run the whole circuit once per shot, so a
+   * twenty-qubit circuit that merely carries a `measure` gate — inside the
+   * register ceiling, so never routed anywhere — cost two and three quarter
+   * minutes in a worker that cannot be interrupted. The server would have
+   * refused the same work outright, and the shots control is deliberately
+   * absent in this mode, so the reader could not have made it smaller either.
+   *
+   * Refused rather than routed: at these sizes the server's own admission check
+   * says no as well, and a round trip to be told so is a slower way to arrive
+   * at the same sentence.
+   */
+  function tooMuchSampling(
+    circuit: Circuit,
+    run: ResolvedRun
+  ): SimulationFailure | null {
+    if (run.mode !== 'trajectories') return null
+    const operations = circuit.operations.length
+    if (idealTrajectoriesFit(circuit.qubits, operations, run.shots)) return null
+    return {
+      code: 'sampling-too-large',
+      qubits: circuit.qubits,
+      operations,
+      shots: run.shots,
+      limit: maxIdealTrajectoryShots(circuit.qubits, operations),
+      detail:
+        `${String(run.shots)} shots of a ${String(circuit.qubits)}-qubit ` +
+        `circuit with ${String(operations)} operations is past the sampled ` +
+        `work budget.`,
+    }
   }
 
   function dispatch(): void {
     clearTimer()
     if (pending === null) return
 
+    const { circuit, run } = pending
     disown()
     lastId += 1
     inFlight = lastId
-
-    const request = buildRequest(
-      lastId,
-      pending.circuit,
-      dirtyFrom ?? NOTHING_INVALIDATED,
-      pending.run,
-      sharedMemory
-    )
     pending = null
     // Reset the post-dispatch accumulator, not `dirtyFrom`: only a result
     // proves the worker's cache advanced. See the header, point 3.
     sinceDispatch = null
-    send?.(request)
+
+    if (needsServer(circuit)) {
+      inFlightOn = 'server'
+      /*
+       * Seeded here rather than waiting for the backend's first report, so the
+       * panel says "this one is going to the server" in the same frame the
+       * request leaves. The alternative is a gap in which the reader sees a
+       * spinner with no explanation, and that gap is a network round trip long.
+       */
+      serverRun = {
+        stage: 'submitting',
+        runId: null,
+        phase: null,
+        completed: null,
+        total: null,
+        estimatedDurationMs: null,
+        submittedAt: Date.now(),
+        live: false,
+      }
+      sendToServer?.(buildServerRequest(lastId, circuit, run))
+      publish()
+      return
+    }
+
+    inFlightOn = 'worker'
+    send?.(
+      buildRequest(
+        lastId,
+        circuit,
+        dirtyFrom ?? NOTHING_INVALIDATED,
+        run,
+        sharedMemory
+      )
+    )
     publish()
   }
 
@@ -316,6 +479,10 @@ export function createSimulationScheduler(
       send = transportTo
     },
 
+    connectServer(transportTo) {
+      sendToServer = transportTo
+    },
+
     schedule(circuit, run = {}) {
       const resolved = resolveRun(run)
       const previousRun = lastRun
@@ -329,10 +496,33 @@ export function createSimulationScheduler(
 
       if (changedColumn === null && !changedRun) return
 
-      if (circuit.qubits > MAX_CLIENT_QUBITS) {
-        // Refused here rather than in the worker so the tab never allocates a
-        // state it cannot afford. The worker checks again anyway: it is the
-        // one that would do the allocating.
+      const unaffordable = tooMuchSampling(circuit, resolved)
+      if (unaffordable !== null) {
+        // Refused here rather than in the worker so the tab never starts a loop
+        // it cannot stop; the worker checks again anyway, because it is the one
+        // that would spend the minutes.
+        clearTimer()
+        pending = null
+        disown()
+        outcome = null
+        durationMs = null
+        transport = null
+        failure = unaffordable
+        publish()
+        return
+      }
+
+      if (needsServer(circuit) && sendToServer === null) {
+        /*
+         * Past what a tab can hold, and nowhere to send it. Refused here rather
+         * than in the worker so the tab never allocates a state it cannot
+         * afford; the worker checks again anyway, because it is the one that
+         * would do the allocating.
+         *
+         * With a server connected this branch does not run at all — the request
+         * goes out instead (see `dispatch`). That is §4's second level, and the
+         * ceiling that used to be the end of the road is now a fork in it.
+         */
         clearTimer()
         pending = null
         disown()
@@ -371,6 +561,10 @@ export function createSimulationScheduler(
       // sufficient.
       if (response.id !== inFlight) return false
       inFlight = null
+      inFlightOn = null
+      // Whatever it was describing is finished or superseded. The panel's
+      // server notice must never outlive the run it is about.
+      serverRun = null
 
       if (response.kind === 'error') {
         failure = response.failure
@@ -400,10 +594,32 @@ export function createSimulationScheduler(
         }
         outcome = decodeResult(response)
         failure = null
-        durationMs = response.durationMs
+        /*
+         * A server run reports the engine's own time, which is the same measure
+         * the worker reports and is comparable with it — deliberately not the
+         * time from submission. A run that waited four minutes behind other
+         * work did not take four minutes, and printing that it did would make
+         * the number useless for the one thing anybody uses it for, which is
+         * comparing two circuits.
+         */
+        durationMs =
+          response.mode === 'server'
+            ? response.run.durationMs
+            : response.durationMs
         transport =
           response.mode === 'analytic' ? response.state.transport : null
       }
+      publish()
+      return true
+    },
+
+    report(update) {
+      // The same staleness line as `receive`, and that is the point: a progress
+      // frame for a run the reader has already superseded is exactly as stale
+      // as a result would be, and there is one place that decides it.
+      if (update.id !== inFlight) return false
+      const { id: _id, ...view } = update
+      serverRun = view
       publish()
       return true
     },
@@ -421,8 +637,15 @@ export function createSimulationScheduler(
         // here on the next render.
         return
       }
-      // No id to match: the answer to whatever was in flight is never coming.
-      inFlight = null
+      /*
+       * Through `disown` and not by clearing the slot, because the backend that
+       * owns the request has to be told. Clearing it directly left a server run
+       * with nobody watching it: the poll chain kept issuing a GET every five
+       * seconds until the component unmounted, and the answer, when it came,
+       * was dropped by the staleness line that no longer had an id to match.
+       * `fail` ends the same request the same way `cancel` does.
+       */
+      disown()
       failure = nextFailure
       outcome = null
       durationMs = null
@@ -441,6 +664,8 @@ export function createSimulationScheduler(
       clearTimer()
       pending = null
       inFlight = null
+      inFlightOn = null
+      serverRun = null
       lastScheduled = undefined
       lastRun = undefined
       dirtyFrom = null
@@ -452,6 +677,8 @@ export function createSimulationScheduler(
       clearTimer()
       pending = null
       inFlight = null
+      inFlightOn = null
+      serverRun = null
       listeners.clear()
     },
   }
@@ -600,6 +827,40 @@ function buildRequest(
     throughColumn: run.throughColumn,
     sample: run.sample ? { shots: run.shots, seed: run.seed } : null,
     noise: run.noise,
+  }
+}
+
+/**
+ * The same run, addressed to the server.
+ *
+ * Two fields are dropped and the reasons are different, so both are written
+ * down rather than left as omissions.
+ *
+ * `fromColumn` and `throughColumn` go nowhere, because there is no checkpoint
+ * cache on the other side and there could not be one: the server evaluates a
+ * submission and forgets it, which is what makes the same circuit and the same
+ * seed give the same answer from any replica. Scrubbing a twenty-four-qubit
+ * circuit column by column over the network would be one queued job per step,
+ * which is a different feature and probably a bad one.
+ *
+ * `sample` is folded into `shots`. On the worker, sampling is a second reading
+ * taken from a state that already exists; on the server there is no state to
+ * take a second reading from — a register that size never comes back whole
+ * (`result.ts` in `@qsim/jobs`) — so shots are the run or there are none.
+ */
+function buildServerRequest(
+  id: RequestId,
+  circuit: Circuit,
+  run: ResolvedRun
+): ServerSimulateRequest {
+  return {
+    kind: 'server-simulate',
+    id,
+    circuit,
+    mode: run.mode,
+    shots:
+      run.mode === 'trajectories' || run.sample ? clampShots(run.shots) : null,
+    seed: run.seed,
   }
 }
 

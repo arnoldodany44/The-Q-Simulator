@@ -75,9 +75,19 @@ export {
   idAddressableCircuitFilter,
   listableCircuitFilter,
   listableCollectionFilter,
+  simulationRunFilter,
   slugAddressableCircuitFilter,
 } from './visibility.js'
 export type { ViewerId } from './visibility.js'
+
+export { prismaSimulationRunRepository, simulationRunSelect } from './runs.js'
+export type {
+  CompleteRunInput,
+  CreateRunInput,
+  FailRunInput,
+  SimulationRunRepository,
+  StoredRun,
+} from './runs.js'
 
 export {
   circuitCardSelect,
@@ -233,3 +243,23 @@ export type {
   Tag,
   User,
 } from './generated/prisma/client.js'
+
+export {
+  CustomGateTooLargeError,
+  MAX_CUSTOM_GATES_PER_USER,
+  MAX_DEFINITION_JSON_BYTES,
+  canEditCustomGate,
+  countersFor,
+  createCustomGateStore,
+  customGateHandleFilter,
+  definitionIssues,
+  listableCustomGateFilter,
+  parseStoredDefinition,
+  toDefinitionJson,
+} from './custom-gates.js'
+export type {
+  CustomGatePatch,
+  CustomGateStore,
+  NewCustomGate,
+  StoredCustomGate,
+} from './custom-gates.js'

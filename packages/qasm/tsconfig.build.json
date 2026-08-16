@@ -17,5 +17,13 @@
     "rootDir": "./src"
   },
   "include": ["src/**/*"],
-  "exclude": ["src/**/*.test.ts"]
+  /*
+   * `src/testing/` holds fixtures shared between test files, the same
+   * arrangement packages/qsim uses: a test file cannot be imported from another
+   * without executing its `describe` blocks, and a random-circuit generator is
+   * needed by the round-trip suite and by the endianness verification alike.
+   * Excluded here and never re-exported from index.ts, so no consumer can
+   * reach it.
+   */
+  "exclude": ["src/**/*.test.ts", "src/testing/**"]
 }

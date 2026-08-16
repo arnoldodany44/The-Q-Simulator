@@ -1159,8 +1159,9 @@ function applyUnitaryTo<S>(
     default:
       throw new CircuitRunError(
         `Operation "${operation.id}" uses gate "${gate}", which the engine ` +
-          `does not know. Custom gates are not expanded yet, so a circuit ` +
-          `that uses one cannot be simulated.`,
+          `does not know. A custom gate reaches the engine as the primitives ` +
+          `it stands for, never by name — run the circuit through ` +
+          `expandCircuit() from @qsim/schema first.`,
         operation.id
       )
   }

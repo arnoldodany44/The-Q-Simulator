@@ -15,16 +15,23 @@
  *     a log line. Every message names the *variable*. `DATABASE_URL` is a
  *     credential and a validation error is the classic way one ends up in a
  *     crash report.
- *   - **Only the variables this service actually reads are declared.** The
- *     API does not use `REDIS_URL` or `ENCRYPTION_KEY` yet, so requiring
- *     them here would refuse to boot over something that cannot break.
- *     They arrive with the milestone that needs them.
+ *   - **Only the variables this service actually reads are declared.**
+ *     `ENCRYPTION_KEY` is still absent, because nothing here uses it yet;
+ *     requiring it would refuse to boot over something that cannot break.
+ *     `REDIS_URL` arrived with the job queue and is declared **optional**,
+ *     which is a deliberate exception argued at its schema entry below.
  *
  * This module and `server.ts` are the only two allowed to touch
  * `process.env` — enforced by a lint rule in `eslint.config.js`. Everything
  * else receives the `ApiEnv` object this file produces.
  */
 
+import {
+  DEFAULT_JOB_TIMEOUT_MS,
+  DEFAULT_SERVER_QUBITS,
+  DEFAULT_SYNC_WAIT_MS,
+  queuePrefix,
+} from '@qsim/jobs'
 import { z } from 'zod'
 
 export type NodeEnv = 'development' | 'test' | 'production'
@@ -79,6 +86,20 @@ const HINTS: Record<string, string> = {
     'requests per window on the routes §11 singles out (auth, /simulate)',
   SHUTDOWN_TIMEOUT_MS:
     'how long a graceful shutdown may take before the process is killed',
+  REDIS_URL:
+    'redis:// or rediss:// for the simulation queue; without it /simulate ' +
+    'answers 503 and every other route is unaffected',
+  QUEUE_PREFIX:
+    'namespace for every queue key; must differ between environments ' +
+    'sharing one Redis instance',
+  SIMULATION_MAX_QUBITS:
+    'largest register a server run may use; must match the worker',
+  SIMULATION_TIMEOUT_MS:
+    'wall-clock bound on one run; must match the worker, and is what the ' +
+    'admission work budget is derived from',
+  SIMULATION_SYNC_WAIT_MS:
+    'how long POST /simulate holds a request open for a small run before ' +
+    'answering 202 with a run id instead',
 }
 
 const trustProxySchema = z.string().transform((raw, ctx): TrustProxySetting => {
@@ -165,6 +186,58 @@ const EnvSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(60_000),
   RATE_LIMIT_STRICT_MAX: z.coerce.number().int().min(1).default(20),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(100).default(10_000),
+
+  /*
+   * OPTIONAL, AND THAT IS THE DESIGN.
+   *
+   * Every other dependency here is required because the service is useless
+   * without it: no database, no circuits, no gallery, no anything. Redis is
+   * not like that. It backs exactly one route — `POST /simulate` — and §4's
+   * whole point is that most simulation happens in the browser and never
+   * reaches this process at all. An API that refused to boot without Redis
+   * would take the gallery, the editor's persistence and every sign-in down
+   * with a queue outage, which is a much larger failure than the one it was
+   * protecting against.
+   *
+   * So a missing URL is a boot *warning* and a 503 on one route
+   * (`SIMULATION_UNAVAILABLE`), which is exactly what a Redis that is present
+   * but unreachable produces — one behaviour for one situation, rather than
+   * two.
+   */
+  REDIS_URL: z
+    .string()
+    .min(1)
+    .refine(isRedisUrl, { message: 'expected a redis:// or rediss:// URL' })
+    .optional(),
+
+  /*
+   * The namespace every queue key lives under. Not decorative: this project's
+   * Redis is a single shared instance, so a developer running a worker locally
+   * with the production prefix would be consuming production jobs — and would
+   * be doing it silently and successfully. Defaulted in `@qsim/jobs` rather
+   * than here so the worker and the API cannot default differently.
+   */
+  QUEUE_PREFIX: z.string().min(1).max(64).optional(),
+
+  /*
+   * The two ceilings the admission check applies. They must match the worker's
+   * or the API will accept work the worker then refuses — which is not unsafe
+   * (the worker checks again, and that is the check that matters) but is a
+   * confusing 202 followed by a FAILED run instead of an immediate 413.
+   */
+  SIMULATION_MAX_QUBITS: z.coerce.number().int().min(1).max(28).optional(),
+  SIMULATION_TIMEOUT_MS: z.coerce.number().int().min(1_000).optional(),
+  /*
+   * Bounded above at thirty seconds because that is where platform gateways
+   * start cutting idle requests, and a wait longer than the proxy's patience
+   * is a failure the client cannot distinguish from a crash.
+   */
+  SIMULATION_SYNC_WAIT_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(30_000)
+    .optional(),
 })
 
 /**
@@ -197,6 +270,23 @@ function isPostgresUrl(value: string): boolean {
   try {
     const protocol = new URL(value).protocol
     return protocol === 'postgres:' || protocol === 'postgresql:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * `redis:` or `rediss:`, and nothing else.
+ *
+ * The same reasoning as `isPostgresUrl`: a value that does not parse as the
+ * protocol it is for produces a connection error three layers down, at the
+ * first job rather than at boot. Both schemes are accepted because a managed
+ * instance is TLS (`rediss:`) and a local one is not.
+ */
+function isRedisUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol
+    return protocol === 'redis:' || protocol === 'rediss:'
   } catch {
     return false
   }
@@ -254,6 +344,20 @@ export interface ApiEnv {
     readonly strictMax: number
   }
   readonly shutdownTimeoutMs: number
+  /**
+   * The simulation queue, or `null` when no Redis was configured.
+   *
+   * `null` is a first-class state and not a missing value: `POST /simulate`
+   * answers 503 and everything else works, which is the same behaviour as a
+   * Redis that is configured and unreachable.
+   */
+  readonly queue: {
+    readonly redisUrl: string | null
+    readonly prefix: string
+    readonly maxQubits: number
+    readonly timeoutMs: number
+    readonly syncWaitMs: number
+  }
 }
 
 /** Thrown when the environment cannot produce a valid `ApiEnv`. */
@@ -369,6 +473,13 @@ export function loadEnv(source: EnvSource): ApiEnv {
       strictMax: env.RATE_LIMIT_STRICT_MAX,
     },
     shutdownTimeoutMs: env.SHUTDOWN_TIMEOUT_MS,
+    queue: {
+      redisUrl: env.REDIS_URL ?? null,
+      prefix: queuePrefix(env.QUEUE_PREFIX),
+      maxQubits: env.SIMULATION_MAX_QUBITS ?? DEFAULT_SERVER_QUBITS,
+      timeoutMs: env.SIMULATION_TIMEOUT_MS ?? DEFAULT_JOB_TIMEOUT_MS,
+      syncWaitMs: env.SIMULATION_SYNC_WAIT_MS ?? DEFAULT_SYNC_WAIT_MS,
+    },
   }
 }
 
@@ -392,6 +503,15 @@ function trimSlash(value: string): string {
  */
 export function configurationWarnings(env: ApiEnv): string[] {
   const warnings: string[] = []
+
+  if (env.queue.redisUrl === null) {
+    warnings.push(
+      'REDIS_URL is not set, so POST /simulate will answer 503 ' +
+        'SIMULATION_UNAVAILABLE. Every other route is unaffected — see §4: ' +
+        'most simulation happens in the browser and never reaches this ' +
+        'process.'
+    )
+  }
 
   let url: URL
   try {

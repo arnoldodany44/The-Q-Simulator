@@ -216,6 +216,18 @@ interface Scope {
   readonly customNames: ReadonlyMap<string, string>
   /** Set inside a custom gate body, where classical bits do not exist. */
   readonly insideDefinition: string | undefined
+  /**
+   * The definition's own formal parameter names (M2.3), inside a body; empty at
+   * the top level.
+   *
+   * They are what makes a parameterised block exportable at all. A body reads
+   * only its own parameters and never the circuit's — that is the decision on
+   * `CustomGateSchema`, and it is what lets a definition be copied into another
+   * document — so a body angle naming `theta` must be written out as the
+   * identifier `theta` and not resolved against `circuit.parameters`, where a
+   * name that happened to match would silently substitute the wrong value.
+   */
+  readonly formals: readonly string[]
 }
 
 /**
@@ -263,6 +275,7 @@ export function toOpenQasm3(
     parameters: circuit.parameters ?? [],
     customNames,
     insideDefinition: undefined,
+    formals: [],
   }
   for (const operation of orderedOperations(circuit.operations)) {
     lines.push(...emitStatement(operation, scope, circuit, circuit.operations))
@@ -376,7 +389,9 @@ function emitOperation(
     }
     const custom = scope.customNames.get(operation.gate)
     if (custom === undefined) rejectUnknownGate(operation, circuit)
-    return [`${custom} ${targets.join(', ')};`]
+    const args = paramTexts(operation, scope)
+    const applied = args.length === 0 ? '' : `(${args.join(', ')})`
+    return [`${custom}${applied} ${targets.join(', ')};`]
   }
 
   return [
@@ -384,10 +399,41 @@ function emitOperation(
       shape,
       controlsOf(operation),
       operation.targets,
-      angles(operation, scope.parameters),
+      paramTexts(operation, scope),
       scope
     ),
   ]
+}
+
+/**
+ * An operation's angles as source text.
+ *
+ * At the top level a symbolic parameter becomes the literal it currently stands
+ * for, which is the deliberate loss `program.ts` argues for: the exported file
+ * has to run when it is pasted into a notebook, and `input float[64] theta`
+ * would not until somebody bound a value.
+ *
+ * Inside a `gate` body the same string is written out *as a name*, because that
+ * is what it is — a formal parameter of the definition, which OpenQASM 3 spells
+ * exactly the way the contract does. Resolving it against `circuit.parameters`
+ * here would produce a definition that ignores its own arguments, and it would
+ * do so silently whenever a circuit-level parameter happened to share the name.
+ */
+function paramTexts(operation: Operation, scope: Scope): string[] {
+  if (scope.insideDefinition === undefined) {
+    return angles(operation, scope.parameters).map(formatAngle)
+  }
+  return (operation.params ?? []).map((param) => {
+    if (typeof param === 'number') return formatAngle(param)
+    if (scope.formals.includes(param)) return param
+    throw new CircuitExportError(
+      `Operation "${operation.id}" inside custom gate ` +
+        `"${scope.insideDefinition ?? ''}" uses parameter "${param}", which ` +
+        `the definition does not declare in "params". A definition reads only ` +
+        `its own parameters.`,
+      operation.id
+    )
+  })
 }
 
 function emitMeasure(
@@ -474,14 +520,13 @@ function call(
   shape: QasmForm,
   controls: readonly ControlSpec[],
   targets: readonly number[],
-  params: readonly number[],
+  params: readonly string[],
   scope: Scope
 ): string {
   const args = [...controls.map((control) => control.qubit), ...targets]
     .map(scope.qubit)
     .join(', ')
-  const parameters =
-    params.length === 0 ? '' : `(${params.map(formatAngle).join(', ')})`
+  const parameters = params.length === 0 ? '' : `(${params.join(', ')})`
 
   const fitsDirect =
     controls.length === shape.builtInControls &&
@@ -507,16 +552,22 @@ function emitDefinition(
   circuit: Circuit,
   customNames: ReadonlyMap<string, string>
 ): string[] {
+  const parameters = definition.params ?? []
   const scope: Scope = {
     qubit: (index) => `a${index}`,
     parameters: circuit.parameters ?? [],
     customNames,
     insideDefinition: contractName,
+    formals: parameters,
   }
-  const formals = Array.from(
+  const wires = Array.from(
     { length: definition.qubits },
     (_, index) => `a${index}`
   ).join(', ')
+  // `gate rzz(theta) a0, a1 { … }` — the parameter list is OpenQASM's own
+  // spelling of the definition's formals, so a parameterised block survives the
+  // export as a parameterised gate rather than as a copy per angle.
+  const signature = parameters.length === 0 ? '' : `(${parameters.join(', ')})`
 
   const body = orderedOperations(definition.operations).flatMap((operation) =>
     emitStatement(operation, scope, circuit, definition.operations)
@@ -532,7 +583,7 @@ function emitDefinition(
             `catalog priority over customGates, so operations named ` +
             `"${contractName}" are the built-in gate.`
         )),
-    `gate ${emittedName} ${formals} {`,
+    `gate ${emittedName}${signature} ${wires} {`,
     ...body.map((line) => `${INDENT}${line}`),
     '}',
   ]

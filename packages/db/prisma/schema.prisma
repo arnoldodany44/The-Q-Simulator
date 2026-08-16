@@ -60,6 +60,7 @@ model User {
   createdAt   DateTime @default(now())
 
   circuits    Circuit[]
+  customGates CustomGate[]
   stars       Star[]
   comments    Comment[]
   collections Collection[]
@@ -175,6 +176,70 @@ model CircuitVersion {
   circuit Circuit @relation(fields: [circuitId], references: [id], onDelete: Cascade)
 
   @@unique([circuitId, versionNum])
+}
+
+/// A reusable block, saved per user and publishable — §3.1, milestone M2.3.
+/// §7 has no model for this; this is the one it needed.
+///
+/// ── This is a library, not a dependency graph ──────────────────────────────
+///
+/// A circuit carries its own copy of every definition it uses, inside
+/// `CircuitVersion.data.customGates`. Installing a published block *copies* the
+/// definition into the document. So a row here is never referenced by a saved
+/// circuit, and deleting one — or editing it, or making it private again — can
+/// never change, break or silently alter somebody else's circuit.
+///
+/// The alternative was a real reference, and it fails on the sentence §3.4
+/// already settled for forks: a saved version is immutable, and a version whose
+/// meaning depends on a row another account can edit is not. It also fails
+/// outside the database entirely, because a circuit travels in a URL (D4) and
+/// in an exported JSON file, where there is nothing to resolve a reference
+/// against.
+///
+/// What is lost by copying is attribution, and it is recovered here rather
+/// than in the document: `forkedFromId` records where an installed copy came
+/// from, exactly as `Circuit.forkedFromId` does, and it is a nullable
+/// self-relation for the same reason — the source may be deleted, and losing
+/// the credit must not take the copy with it.
+model CustomGate {
+  id           String     @id @default(cuid(2))
+  ownerId      String     @db.Uuid
+  /// The identifier a circuit uses to call it. Unique per owner, not globally:
+  /// two people may both have a `qft`, and the name only has to resolve inside
+  /// one document.
+  name         String
+  /// A human title, free text. `name` is the identifier and has to survive
+  /// OpenQASM; this is what a card shows.
+  title        String
+  description  String?    @db.Text
+  visibility   Visibility @default(PRIVATE)
+  /// The @qsim/schema `CustomGate` — qubits, params, operations, symbol.
+  /// Always read through `parseCustomGate`: Prisma types this as `JsonValue`
+  /// and a row written by an older schema version is exactly the case that
+  /// must not reach the editor unvalidated.
+  definition   Json
+  /// Denormalised the same way `Circuit.gateCount` is, and for the same
+  /// reason: a library listing sorts and filters on these without reading a
+  /// definition per row.
+  qubitCount   Int
+  paramCount   Int
+  gateCount    Int
+  forkedFromId String?
+  installCount Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  owner      User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  forkedFrom CustomGate?  @relation("GateForks", fields: [forkedFromId], references: [id], onDelete: SetNull)
+  forks      CustomGate[] @relation("GateForks")
+
+  /// One name per owner — what makes "install this into my library" answerable
+  /// with a 409 instead of a silent overwrite.
+  @@unique([ownerId, name])
+  /// The owner's own list, newest first.
+  @@index([ownerId, updatedAt])
+  /// The public library, paged by the same keyset shape the gallery uses.
+  @@index([visibility, updatedAt(sort: Desc), id(sort: Desc)])
 }
 
 // ─── Simulation ────────────────────────────────────────────────────────────

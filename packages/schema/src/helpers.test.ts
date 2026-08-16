@@ -92,7 +92,13 @@ describe('gateCount', () => {
     expect(circuit.operations).toHaveLength(5)
   })
 
-  it('counts a custom gate as one gate, not as its body', () => {
+  /*
+   * Reversed in M2.3, deliberately: §3.6 ranks challenge submissions on fewest
+   * gates, so a block that counted as one gate would make packaging the
+   * winning move and the leaderboard a measure of packaging. The argument is
+   * written out on `gateCount`.
+   */
+  it('counts a custom gate as the gates in its body', () => {
     const circuit: Circuit = {
       ...circuitOf([op('op_1', 'bellPair', [0, 1], 0)], 2),
       customGates: {
@@ -102,6 +108,26 @@ describe('gateCount', () => {
             op('cg_1', 'h', [0], 0),
             op('cg_2', 'cx', [1], 1, { controls: [0] }),
           ],
+        },
+      },
+    }
+    expect(gateCount(circuit)).toBe(2)
+    // And the same two gates used twice cost twice, however few operations
+    // the document holds.
+    const twice: Circuit = {
+      ...circuit,
+      operations: [...circuit.operations, op('op_2', 'bellPair', [0, 1], 1)],
+    }
+    expect(gateCount(twice)).toBe(4)
+  })
+
+  it('counts the structure inside a definition as structure', () => {
+    const circuit: Circuit = {
+      ...circuitOf([op('op_1', 'spaced', [0], 0)], 2),
+      customGates: {
+        spaced: {
+          qubits: 1,
+          operations: [op('cg_1', 'h', [0], 0), op('cg_2', 'barrier', [0], 1)],
         },
       },
     }

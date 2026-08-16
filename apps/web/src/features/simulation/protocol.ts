@@ -50,11 +50,20 @@
 import {
   MAX_DENSITY_QUBITS,
   MAX_QUBITS,
+  type ExecutionMode,
   type NoiseProfile,
   type ShotCounts,
   type Statevector,
 } from '@qsim/core'
 import type { Circuit } from '@qsim/schema'
+/*
+ * Type-only, and it has to stay that way. This module is imported by the Web
+ * Worker chunk, and a *value* import of `@qsim/contract` would pull the wire
+ * schemas and Zod into a bundle whose whole job is a kernel loop. Types are
+ * erased before a byte is emitted, so the worker pays nothing for the server
+ * backend existing — which is the point of putting both behind one protocol.
+ */
+import type { ServerFrame, SimulationRun } from '@qsim/contract'
 
 /** Monotonically increasing, minted by the scheduler. Never reused. */
 export type RequestId = number
@@ -246,6 +255,67 @@ export function maxTrajectoryShots(qubits: number, operations: number): number {
  */
 export function trajectoriesFit(qubits: number, operations: number): boolean {
   return maxTrajectoryShots(qubits, operations) >= MIN_TRAJECTORY_SHOTS
+}
+
+/**
+ * The work an *ideal* sampled run may cost — §5.3's plain trajectories mode.
+ *
+ * THE SAME ARGUMENT AS ABOVE, WITH A DIFFERENT CONSTANT, AND THE OMISSION WAS
+ * THE BUG. `trajectoriesFit` was applied only on the noise path, so the mode a
+ * circuit enters merely by carrying a `measure` gate had no time ceiling at
+ * all: `needsServer` tests the register and nothing else, and a twenty-qubit
+ * circuit with one measurement and the fixed thousand-shot default ran for two
+ * and three quarter minutes in a worker whose own header says no `cancel` can
+ * interrupt it. Nothing was sent to the server, nothing was refused, and the
+ * analysis panel, every later edit and the Cancel button were dead for the
+ * duration — the frozen tab §3.3 forbids, arrived at from the one direction
+ * nobody had closed. The server would have refused the same work outright.
+ *
+ * The constant differs because the *work* differs: the noisy path samples a
+ * Kraus operator per channel per wire on top of the gate, and measures at
+ * 5·10⁻⁵ ms per unit. The ideal path is the bare kernel, measured on the
+ * reference machine at 1.8, 4.2 and 2.7 ·10⁻⁶ ms per unit at 16, 18 and 20
+ * qubits (1000 shots of a 59-operation circuit: 6 826 ms, 64 228 ms and
+ * 164 709 ms). Three is the round number above all three, and the budget
+ * targets the same fifteen seconds:
+ *
+ *     15 000 ms ÷ 3·10⁻⁶ ms = 5·10⁹ units.
+ *
+ * A sixteen-qubit circuit of this shape is admitted at about seven seconds; the
+ * eighteen- and twenty-qubit ones are refused, at sixty-four seconds and at two
+ * and three quarter minutes.
+ */
+export const IDEAL_TRAJECTORY_WORK_BUDGET = 5e9
+
+/**
+ * Whether an ideal sampled run of this size and shot count fits the budget.
+ *
+ * Asked on both sides of the thread boundary, for the reason the noisy
+ * ceiling is: the scheduler's copy decides what to send, and the worker's is
+ * the side that would spend the minutes.
+ */
+export function idealTrajectoriesFit(
+  qubits: number,
+  operations: number,
+  shots: number
+): boolean {
+  return (
+    Math.max(1, shots) * trajectoryWork(qubits, operations) <=
+    IDEAL_TRAJECTORY_WORK_BUDGET
+  )
+}
+
+/** The most shots an ideal sampled run of this size can afford. */
+export function maxIdealTrajectoryShots(
+  qubits: number,
+  operations: number
+): number {
+  return Math.max(
+    0,
+    Math.floor(
+      IDEAL_TRAJECTORY_WORK_BUDGET / trajectoryWork(qubits, operations)
+    )
+  )
 }
 
 /**
@@ -542,6 +612,123 @@ export interface CancelRequest {
 
 export type SimulationRequest = SimulateRequest | CancelRequest
 
+/* ────────────────────── the second backend (§4, §8) ─────────────────── */
+
+/**
+ * Ask the *server* to run this circuit — §4's two-level principle, from the
+ * client's side.
+ *
+ * IT IS A SECOND BACKEND, NOT A SECOND PIPELINE. This request travels through
+ * the same scheduler as a worker request, carries an id from the same monotonic
+ * sequence, and its answer is dropped by the same staleness line. That is the
+ * whole design: the two failure modes M0.6 exists to prevent — a stale result
+ * repainting the panel, and a debounce that never settles — are properties of
+ * the *scheduler*, and a server run that bypassed it would reintroduce both,
+ * over a transport where an answer can be seconds late instead of milliseconds.
+ *
+ * WHEN IT IS USED, WHICH IS DELIBERATELY RARELY. Only when the register is past
+ * `MAX_CLIENT_QUBITS`. Everything the browser can do, the browser does: §4
+ * calls that the most important decision in the project, and moving work to the
+ * server that a tab could have done would make the app slower and the
+ * infrastructure expensive at once.
+ *
+ * WHAT IT DOES NOT CARRY. No noise model. §3.3's comparison is analytic-only
+ * and its exact method is capped at twelve qubits, which is far *below* the
+ * ceiling that sends anything here — so a noise field on this request could
+ * only ever describe a run that has already been refused for another reason.
+ * The server accepts one (`SimulateBody` has `noiseProfileId`); this client has
+ * nothing honest to put in it yet.
+ */
+export interface ServerSimulateRequest {
+  readonly kind: 'server-simulate'
+  readonly id: RequestId
+  readonly circuit: Circuit
+  /** Mapped to the wire's `SimulationMode` by the backend, never here. */
+  readonly mode: ExecutionMode
+  /** Null where the mode draws none. */
+  readonly shots: number | null
+  /** Always sent, so the answer is reproducible by whoever reads the run. */
+  readonly seed: number
+}
+
+/**
+ * What the scheduler may send the server backend.
+ *
+ * `CancelRequest` is shared with the worker's transport on purpose — one word
+ * for one intent — but it means something weaker here, and the UI says so. A
+ * worker cancel can drop a request that has not started; a server cancel can
+ * only stop *waiting*, because §8 gives `/simulate` no delete and a run that is
+ * already executing in a killable child is going to finish either way. The run
+ * keeps its id and stays readable; what ends is this client's interest in it.
+ */
+export type ServerRequest = ServerSimulateRequest | CancelRequest
+
+/**
+ * The phases §8's `run:progress` reports, derived from the frame rather than
+ * restated — a fifth phase added on the server becomes a compile error here
+ * instead of a value the panel silently has no sentence for.
+ */
+export type ServerRunPhase = Extract<
+  ServerFrame,
+  { type: 'run:progress' }
+>['phase']
+
+/** Where a server run is, from the client's point of view. */
+export type ServerRunStage =
+  /** The `POST` is in flight. There is no run id yet. */
+  | 'submitting'
+  /** Accepted, waiting for a worker to claim it. */
+  | 'queued'
+  /** A worker has it. `estimatedDurationMs` describes this part and only this. */
+  | 'running'
+
+/**
+ * The state of a server run, as the panel renders it.
+ *
+ * Carried in the scheduler's snapshot rather than in a store of its own,
+ * because it has exactly the same lifetime and the same staleness rule as the
+ * request that produced it: superseded means gone, in one place.
+ */
+export interface ServerRunView {
+  readonly stage: ServerRunStage
+  /** Null while the submission is in flight. */
+  readonly runId: string | null
+  /** The phase the worker reported, or null when none has arrived. */
+  readonly phase: ServerRunPhase | null
+  /** Units done in this phase, and units in it. Null where it does not divide. */
+  readonly completed: number | null
+  readonly total: number | null
+  /** The API's estimate of ENGINE time, or null when it did not give one. */
+  readonly estimatedDurationMs: number | null
+  /** `Date.now()` at submission, for an elapsed counter the panel prints. */
+  readonly submittedAt: number
+  /**
+   * Whether the progress feed is connected right now.
+   *
+   * Shown, because "no progress for ten seconds" and "no connection for ten
+   * seconds" look identical and mean different things — and because the second
+   * one resolves itself, which is worth saying to somebody deciding whether to
+   * give up.
+   */
+  readonly live: boolean
+}
+
+/** A finished server run, whatever it finished as. */
+export interface ServerRunResponse {
+  readonly kind: 'result'
+  readonly id: RequestId
+  readonly mode: 'server'
+  /**
+   * The run as `GET /simulate/:runId` answered it — including a FAILED one.
+   *
+   * A failed run is an *answer*, not a transport failure: the server did the
+   * work of deciding it could not be done, and the row says why in a code this
+   * client translates. Only a failure to reach the server at all becomes a
+   * `SimulationFailure`.
+   */
+  readonly run: SimulationRun
+}
+
 /* ────────────────────────────── responses ───────────────────────────── */
 
 /** How the amplitudes crossed the thread boundary. Diagnostic, not a choice. */
@@ -637,7 +824,7 @@ export interface ErrorResponse {
 }
 
 export type SimulationResponse =
-  AnalyticResponse | TrajectoriesResponse | ErrorResponse
+  AnalyticResponse | TrajectoriesResponse | ServerRunResponse | ErrorResponse
 
 /* ─────────────────────────────── failures ───────────────────────────── */
 
@@ -651,12 +838,43 @@ export type SimulationResponse =
  */
 export const SIMULATION_ERROR_CODES = [
   'too-many-qubits',
+  /*
+   * A *sampled* run whose cost is past what a tab can spend. Distinct from
+   * `too-many-qubits`, and it has to be: the register is inside the ceiling —
+   * the price is the shot loop, which re-runs the whole circuit once per shot.
+   * Carries the three numbers the sentence needs, because the reader's move
+   * depends on which of them is the large one.
+   */
+  'sampling-too-large',
   'invalid-circuit',
   'measurement-in-analytic-mode',
   'no-classical-bits',
   'unsupported-operation',
   'worker-unavailable',
   'worker-failed',
+  /*
+   * The three ways the *server* backend fails to produce a run at all, which is
+   * a different thing from a run that failed. A run that failed is an answer
+   * (`ServerRunResponse` carries it, error code and all); these are the cases
+   * where there is no run to carry.
+   *
+   *   `server-unavailable`  no queue behind the API, or this client could not
+   *                         reach it. Retryable, and the browser's own answer
+   *                         is still on screen if there was one.
+   *   `server-too-large`    §11's admission check refused the work before a row
+   *                         existed: past the qubit ceiling, the operation
+   *                         count, the shot count or the wall-clock budget.
+   *                         Carries the number and the limit, like every other
+   *                         ceiling in this file.
+   *   `server-refused`      everything else the API answered — a rate limit, a
+   *                         circuit id the caller may not read, a validation
+   *                         failure this client should have caught. One code
+   *                         because the reader's move is the same for all of
+   *                         them, and the specific one is in the console.
+   */
+  'server-unavailable',
+  'server-too-large',
+  'server-refused',
 ] as const
 
 export type SimulationErrorCode = (typeof SIMULATION_ERROR_CODES)[number]
@@ -665,6 +883,10 @@ export interface SimulationFailure {
   readonly code: SimulationErrorCode
   /** Register size that was refused. Interpolated into the message. */
   readonly qubits?: number
+  /** Operations in the circuit that was refused. Interpolated. */
+  readonly operations?: number
+  /** Shots that were asked for. Interpolated. */
+  readonly shots?: number
   /** The ceiling it was refused against. Interpolated into the message. */
   readonly limit?: number
   /** The gate to highlight on the canvas, when the engine named one. */
@@ -778,11 +1000,30 @@ export type SimulationOutcome =
       /** The column this tally stops after, or null for the whole circuit. */
       readonly throughColumn: number | null
     }
+  | {
+      /**
+       * A run the *server* did (§4). Carries no state and no counts object,
+       * because it does not have one: at the register sizes that reach the
+       * server a statevector is hundreds of megabytes, so what comes back is
+       * the bounded reading `@qsim/jobs`' `result.ts` defines — the largest
+       * outcomes, plus an honest account of what was left out.
+       *
+       * The panel therefore renders this branch differently from the other two,
+       * and it should: presenting a truncated list of basis states with the
+       * same chart as an exact statevector would be a picture that claims more
+       * than it knows.
+       */
+      readonly mode: 'server'
+      readonly run: SimulationRun
+    }
 
 /** Turns a successful response into the shape the analysis panel reads. */
 export function decodeResult(
-  response: AnalyticResponse | TrajectoriesResponse
+  response: AnalyticResponse | TrajectoriesResponse | ServerRunResponse
 ): SimulationOutcome {
+  if (response.mode === 'server') {
+    return { mode: 'server', run: response.run }
+  }
   if (response.mode === 'analytic') {
     return {
       mode: 'analytic',

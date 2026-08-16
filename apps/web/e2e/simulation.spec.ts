@@ -189,9 +189,22 @@ test('the analysis panel never pushes the page sideways at 320px', async ({
   await expect(sampledCell(page, 0, 0)).toHaveText(/100\s%/u)
 })
 
-test('a register past the browser ceiling is refused, not attempted', async ({
+test('a register past the browser ceiling leaves the tab, and says so', async ({
   page,
 }) => {
+  /*
+   * §4's two-level split, from the reader's side. Until M2.3 the twenty-first
+   * wire was the end of the road and this test asserted a refusal; now it is a
+   * fork, and what is asserted is the property that survived the change — the
+   * tab never allocates the 32 MB it could not afford, and the reader is told
+   * *why* rather than watching the page freeze.
+   *
+   * This suite runs Vite alone with no API behind it, which is exactly the
+   * state worth pinning here: the run cannot be accepted, and the explanation
+   * of the ceiling has to survive that. It used to be the whole message and is
+   * now the panel above the failure, which is the arrangement that keeps a
+   * failed submission from erasing the one sentence the reader needs.
+   */
   await openEditor(page)
   const insertBelowFirst = page.getByRole('button', {
     name: 'Insert a qubit below q0',
@@ -201,18 +214,21 @@ test('a register past the browser ceiling is refused, not attempted', async ({
   for (let added = 0; added < 17; added += 1) await insertBelowFirst.click()
   await expect(simulationFact(page, QUBITS)).toHaveText('20')
   await expect(simulationFailure(page)).toHaveText('')
+  await expect(page.locator('.server-run')).toHaveCount(0)
 
   await insertBelowFirst.click()
 
-  // The twenty-first wire is refused on the main thread, so the tab never
-  // allocates the 32 MB it could not afford — and the user is told why
-  // instead of watching the page freeze.
-  await expect(simulationFailure(page)).toContainText('21')
-  await expect(simulationFailure(page)).toContainText('20')
-  await expect(simulationState(page)).toHaveText('The simulation did not run.')
+  const notice = page.locator('.server-run')
+  await expect(notice).toBeVisible()
+  await expect(notice).toContainText('21')
+  await expect(notice).toContainText('20')
+  // With nothing serving the API, the run cannot be accepted — and the reader
+  // is told that too, beside the explanation rather than instead of it.
+  await expect(simulationFailure(page)).not.toHaveText('')
 
-  // And it recovers: back under the ceiling, the pipeline answers again.
+  // And it recovers: back under the ceiling, the tab answers again on its own.
   await page.getByRole('button', { name: 'Remove qubit q0' }).click()
   await expect(simulationState(page)).toHaveText(READY)
   await expect(simulationFailure(page)).toHaveText('')
+  await expect(notice).toHaveCount(0)
 })

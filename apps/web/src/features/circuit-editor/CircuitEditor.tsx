@@ -69,6 +69,7 @@ import { SimulationPanel } from '../simulation/SimulationPanel'
 import { CircuitCanvas } from './CircuitCanvas'
 import { GatePalette } from './GatePalette'
 import { ParameterEditor } from './ParameterEditor'
+import { CustomGatePanel } from './CustomGatePanel'
 import { ShortcutsPanel } from './ShortcutsPanel'
 import { TimelineScrubber } from './TimelineScrubber'
 import { DEFAULT_METRICS, editableColumns, type Cell } from './geometry'
@@ -90,6 +91,7 @@ import {
   useCircuitStore,
   type CircuitStore,
 } from './useCircuitStore'
+import { drawnColumnOf } from './timeline'
 import { useTimeline } from './useTimeline'
 import {
   useKeyboardGrid,
@@ -128,6 +130,13 @@ export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
    * document, not part of it, and undo has no business restoring it.
    */
   const timeline = useTimeline({ circuit, documentId })
+  /*
+   * The one place the two column axes meet. The bar walks the engine's
+   * instants (`timeline.ts`), and the canvas draws source columns — so a
+   * playhead parked inside a block is drawn on the block, which is the honest
+   * picture: that instant really is happening there.
+   */
+  const playhead = drawnColumnOf(circuit, timeline.position)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -246,9 +255,7 @@ export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
               {...(grid.pending === null
                 ? {}
                 : { awaitingColumn: grid.pending.column })}
-              {...(timeline.position === null
-                ? {}
-                : { playhead: timeline.position })}
+              {...(playhead === null ? {} : { playhead })}
               onFocusCell={grid.moveCursorTo}
               onActivateCell={grid.activate}
               // Through the hook rather than straight to the store: both of
@@ -320,6 +327,21 @@ export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
                 store.getState().endTransaction()
               }}
             />
+
+            {/*
+             * Above the simulation panel and below the parameter editor,
+             * because it is an editing control and not an output — and
+             * because packaging a fragment is the next thing a user reaches
+             * for after selecting one, which is what the two controls above it
+             * are for. It is hidden on a read-only canvas like every other
+             * control that writes to the document (M2.3).
+             *
+             * `qubit` is the grid cursor's wire, so "Place" puts a block where
+             * the reader is looking rather than always on q0.
+             */}
+            {readOnly ? null : (
+              <CustomGatePanel store={store} qubit={grid.cursor.qubit} />
+            )}
 
             {/*
              * Last in the work column because it is the only output there:

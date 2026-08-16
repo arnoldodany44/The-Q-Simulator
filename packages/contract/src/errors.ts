@@ -59,10 +59,33 @@ export const API_ERROR_CODES = [
   'USERNAME_TAKEN',
   /** 409 — the collection already holds `MAX_COLLECTION_ITEMS` circuits. */
   'COLLECTION_FULL',
+  /*
+   * 413 — the circuit is past a §11 resource limit for a *server run*: the
+   * qubit ceiling, the operation count, the shot count, or the work budget the
+   * wall-clock bound implies.
+   *
+   * Distinct from CIRCUIT_TOO_LARGE, and the distinction is what the caller
+   * can do about it. CIRCUIT_TOO_LARGE is about bytes and is answered by
+   * saving something smaller; this is about 2ⁿ and is answered by simulating
+   * something smaller — a circuit far below the storage limit can be far past
+   * this one, because a statevector's cost has nothing to do with how much
+   * text describes it.
+   */
+  'SIMULATION_TOO_LARGE',
   'RATE_LIMITED',
   // 5xx — us
   'USERNAME_UNAVAILABLE',
   'DATABASE_UNAVAILABLE',
+  /*
+   * 503 — the job queue is not reachable, so a run cannot be accepted.
+   *
+   * Its own code rather than DATABASE_UNAVAILABLE because it is a different
+   * dependency with a different blast radius: every other route in this API
+   * works perfectly while this one does not, and a client that logged the user
+   * out or hid the gallery on a Redis outage would be reacting to the wrong
+   * fact. Retryable, and the client is told so by the status.
+   */
+  'SIMULATION_UNAVAILABLE',
   'INTERNAL_ERROR',
 ] as const
 

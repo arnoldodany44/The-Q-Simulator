@@ -127,7 +127,14 @@ describe('Supabase Auth owns identity', () => {
 })
 
 describe('the datamodel of §7', () => {
-  it('declares exactly the fifteen models', () => {
+  /*
+   * Fifteen from §7, plus `CustomGate` from M2.3 — §3.1 asks for blocks that
+   * are "saved per user and publishable" and §7 gives them no model, so this
+   * is the one place the datamodel deliberately exceeds the specification.
+   * Kept as an exhaustive list rather than a count so that adding a model is a
+   * decision somebody wrote down.
+   */
+  it('declares exactly the sixteen models', () => {
     expect(blockNames('model').sort()).toEqual([
       'ApiKey',
       'Challenge',
@@ -138,6 +145,7 @@ describe('the datamodel of §7', () => {
       'Collection',
       'CollectionItem',
       'Comment',
+      'CustomGate',
       'HardwareCredential',
       'HardwareJob',
       'SimulationRun',

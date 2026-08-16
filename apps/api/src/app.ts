@@ -29,7 +29,8 @@
 
 import { randomUUID } from 'node:crypto'
 import cors from '@fastify/cors'
-import { API_PREFIX } from '@qsim/contract'
+import websocket from '@fastify/websocket'
+import { API_PREFIX, MAX_SOCKET_FRAME_BYTES } from '@qsim/contract'
 import Fastify from 'fastify'
 import type { FastifyServerOptions } from 'fastify'
 import type { ApiEnv } from './env.js'
@@ -41,7 +42,13 @@ import circuitsPlugin from './plugins/circuits.js'
 import type { CircuitsPluginOptions } from './plugins/circuits.js'
 import databasePlugin from './plugins/database.js'
 import type { DatabasePluginOptions } from './plugins/database.js'
+import eventsPlugin from './plugins/events.js'
+import type { EventsPluginOptions } from './plugins/events.js'
+import queuePlugin from './plugins/queue.js'
+import type { QueuePluginOptions } from './plugins/queue.js'
 import rateLimitPlugin from './plugins/rate-limit.js'
+import runsPlugin from './plugins/runs.js'
+import type { RunsPluginOptions } from './plugins/runs.js'
 import {
   zodSerializerCompiler,
   zodValidatorCompiler,
@@ -52,7 +59,9 @@ import { circuitRoutes } from './routes/circuits.js'
 import { collectionRoutes } from './routes/collections.js'
 import { galleryRoutes } from './routes/gallery.js'
 import { healthRoutes } from './routes/health.js'
+import { simulateRoutes } from './routes/simulate.js'
 import { userRoutes } from './routes/users.js'
+import { webSocketRoutes } from './routes/ws.js'
 
 /*
  * `API_PREFIX` comes from `@qsim/contract` rather than being a literal here:
@@ -87,6 +96,20 @@ export interface BuildAppOptions {
   readonly database?: DatabasePluginOptions
   /** Tests inject an in-memory repository; production builds one on `app.db`. */
   readonly circuits?: CircuitsPluginOptions
+  /** Same arrangement for the run repository, which two processes write. */
+  readonly runs?: RunsPluginOptions
+  /**
+   * Tests inject a queue that models Redis without one. Production builds a
+   * BullMQ queue lazily, or leaves `app.simulations` null when REDIS_URL is
+   * absent — see `plugins/queue.ts` for why that is a supported state.
+   */
+  readonly queue?: Omit<QueuePluginOptions, 'env'>
+  /**
+   * The worker→API event feed the socket delivers. Tests inject a bus they can
+   * publish into; production builds a Redis subscriber on the first watcher,
+   * or leaves `app.runEvents` null when REDIS_URL is absent.
+   */
+  readonly events?: Omit<EventsPluginOptions, 'env'>
   /** Tests pass a cache backed by a locally generated key pair. */
   readonly jwks?: JwksCache
   /** `false` silences logging; tests use it to keep output readable. */
@@ -264,9 +287,31 @@ export async function buildApp(options: BuildAppOptions) {
     reply.status(notFound.statusCode).send(notFound.toResponse(request.id))
   })
 
+  /*
+   * The socket transport, registered before the routes that use it and after
+   * the hooks that protect it. `@fastify/websocket` installs an `onRoute` hook
+   * that upgrades any route declaring `websocket: true`, so the upgrade request
+   * still runs the auth resolver, the limiter and the policy check above — the
+   * whole reason `/ws` is a route rather than a server attached to `app.server`.
+   */
+  await app.register(websocket, {
+    options: {
+      /*
+       * The protocol layer refuses an oversized frame and closes the
+       * connection, so nothing is ever buffered while a decision is made. A
+       * server that read first and judged afterwards would have a memory
+       * ceiling any client could raise.
+       */
+      maxPayload: MAX_SOCKET_FRAME_BYTES,
+    },
+  })
+
   await app.register(authEnforcement)
   await app.register(databasePlugin, options.database ?? {})
   await app.register(circuitsPlugin, options.circuits ?? {})
+  await app.register(runsPlugin, options.runs ?? {})
+  await app.register(queuePlugin, { ...(options.queue ?? {}), env })
+  await app.register(eventsPlugin, { ...(options.events ?? {}), env })
 
   /*
    * Health lives at the root, outside the versioned surface: a platform
@@ -275,9 +320,17 @@ export async function buildApp(options: BuildAppOptions) {
    * as `/api/v2` beside it rather than as a flag day.
    */
   await app.register(healthRoutes)
+  /*
+   * `/ws` sits beside `/health`, outside the versioned surface, because §8
+   * writes it that way and because a socket is not a resource whose
+   * representation can be versioned by path — its frames are versioned by the
+   * union in `@qsim/contract`, and a client ignores a member it does not know.
+   */
+  await app.register(webSocketRoutes, { env })
   await app.register(circuitRoutes, { prefix: API_PREFIX, env })
   await app.register(galleryRoutes, { prefix: API_PREFIX })
   await app.register(collectionRoutes, { prefix: API_PREFIX, env })
+  await app.register(simulateRoutes, { prefix: API_PREFIX, env })
   await app.register(userRoutes, { prefix: API_PREFIX, env })
 
   for (const warning of configurationWarnings(env)) {

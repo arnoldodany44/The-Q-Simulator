@@ -1,0 +1,34 @@
+{
+  "heading": "Import OpenQASM",
+  "hint": "Both OpenQASM 2 and OpenQASM 3 are read, and which one you have is worked out from the file. Importing replaces the circuit on screen and clears its undo history.",
+  "file": {
+    "label": "Choose a file"
+  },
+  "text": {
+    "label": "Or paste a program",
+    "placeholder": "OPENQASM 3.0;\ninclude \"stdgates.inc\";\nqubit[2] q;\nh q[0];\ncx q[0], q[1];"
+  },
+  "action": "Read this circuit",
+  "counts": {
+    "qubits_one": "{{value}} qubit",
+    "qubits_other": "{{value}} qubits",
+    "gates_one": "{{value}} gate",
+    "gates_other": "{{value}} gates",
+    "depth": "depth {{value}}"
+  },
+  "status": {
+    "working": "Reading…",
+    "imported": "Read as {{format}}: {{qubits}}, {{gates}}, {{depth}}."
+  },
+  "failure": {
+    "empty": "There is nothing to read yet. Choose a file or paste a program above.",
+    "too-large": "That file is too big to read here. The importer accepts programs of up to one megabyte.",
+    "unreadable": "That file could not be read. Try choosing it again.",
+    "syntax": "Line {{line}}, column {{column}} is not something OpenQASM allows, so the rest of the file could not be read.",
+    "semantic": "Line {{line}}, column {{column}} is written correctly but does not mean anything: a register, a gate or an index there does not exist, or is used with the wrong number of qubits.",
+    "unsupported": "Line {{line}}, column {{column}} uses \"{{construct}}\", which is real OpenQASM that a circuit here has no shape for. Remove it or write that part another way.",
+    "unsupportedUnnamed": "Line {{line}}, column {{column}} uses a feature of OpenQASM that a circuit here has no shape for.",
+    "limit": "This file asks for more than a circuit here can hold — too many qubits, too many gates, or a structure nested too deeply. It stops at line {{line}}, column {{column}}.",
+    "contract": "This file was read, but the circuit it describes is not one this editor can open. Please report it: the file is valid and the fault is ours."
+  }
+}

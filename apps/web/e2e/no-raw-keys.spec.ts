@@ -97,6 +97,15 @@ async function rawKeysOn(page: Page): Promise<string[]> {
  * as loaded will never see them. That is precisely the surface nobody opens
  * while translating, so it has a suite of its own — `noise-mode.spec.ts` opens
  * it in French and asserts the same shape-based property there.
+ *
+ * M2.3 adds no address either, and for a sharper version of the same reason.
+ * The server-run notice (§4's two-level split, made visible) lives inside the
+ * analysis panel of `/new`, which is already here — but it only exists once a
+ * circuit crosses the browser's twenty-qubit ceiling *and* an API answers, so
+ * no walk of any page this suite can load will ever render it. Its trilingual
+ * surface is asserted where it can be: `ServerRunPanel.test.tsx` renders every
+ * state of it in en, es and fr and applies the same shape-based property this
+ * file does. A route added for server runs later belongs in the list below.
  */
 const ROUTES = [
   '/',

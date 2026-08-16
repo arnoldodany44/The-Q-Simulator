@@ -169,6 +169,32 @@ export const ERROR_DEFINITIONS = {
     status: 409,
     message: 'This collection already holds the maximum number of circuits.',
   },
+  /**
+   * The circuit is past a §11 resource limit for a *server run*.
+   *
+   * Distinct from CIRCUIT_TOO_LARGE, and the distinction is what the caller
+   * can do about it: that one is about bytes and is answered by saving
+   * something smaller, this one is about 2ⁿ and is answered by simulating
+   * something smaller. A four-kilobyte circuit can be far past this limit,
+   * because a statevector's cost has nothing to do with how much text
+   * describes it.
+   */
+  SIMULATION_TOO_LARGE: {
+    status: 413,
+    message: 'The circuit exceeds the limits for a server-side simulation.',
+  },
+  /**
+   * The job queue is unreachable, so no run can be accepted.
+   *
+   * Its own code rather than DATABASE_UNAVAILABLE because it is a different
+   * dependency with a much smaller blast radius: every other route works
+   * perfectly while this one does not, and §4 means the browser can still run
+   * anything below the client ceiling on its own.
+   */
+  SIMULATION_UNAVAILABLE: {
+    status: 503,
+    message: 'Server-side simulation is temporarily unavailable.',
+  },
   /** Every generated username candidate was taken. Retryable. */
   USERNAME_UNAVAILABLE: {
     status: 503,
@@ -287,6 +313,12 @@ const DOMAIN_ERROR_CODES: Record<string, ErrorCode> = {
   USERNAME_UNAVAILABLE: 'USERNAME_UNAVAILABLE',
   USERNAME_TAKEN: 'USERNAME_TAKEN',
   COLLECTION_FULL: 'COLLECTION_FULL',
+  /*
+   * `QueueUnavailableError` from `plugins/queue.ts`, covering "not
+   * configured", "cannot connect", "timed out" and "Redis replied with an
+   * error" alike. They are one fact to a client and one code here.
+   */
+  SIMULATION_UNAVAILABLE: 'SIMULATION_UNAVAILABLE',
   /*
    * `addCollectionItem` matched no collection for this owner. Unreachable
    * through the routes, which resolve the collection and check ownership

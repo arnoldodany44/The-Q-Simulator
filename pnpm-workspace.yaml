@@ -16,6 +16,13 @@ allowBuilds:
   # host. It is a build-time tool for `apps/api` only — see that package's
   # `build.js` for why the API is bundled rather than emitted file by file.
   esbuild: true
+  # Denied, deliberately. `msgpackr-extract` is an optional native accelerator
+  # for the msgpack encoder BullMQ uses; `msgpackr` falls back to its own
+  # JavaScript path when it is absent, which is what already runs on any
+  # platform it has no prebuilt binary for. Allowing it would mean a node-gyp
+  # compilation inside the Railway image for a serialisation step that is
+  # nowhere near this system's bottleneck — the bottleneck is a 2ⁿ kernel loop.
+  msgpackr-extract: false
 
 # Single source of truth for dependency versions across the monorepo.
 # Packages reference these with "catalog:" instead of a literal version,
@@ -64,6 +71,16 @@ catalog:
   fastify: 5.12.0
   '@fastify/cors': 11.3.0
   '@fastify/rate-limit': 11.2.0
+  # §8's `/ws`. The plugin rather than a bare `ws` server attached to
+  # `app.server`, and the reason is §11 rather than convenience: registering the
+  # socket as a Fastify *route* means the upgrade request runs the same
+  # `onRequest` chain as every other route — CORS, the identity resolver, the
+  # rate limiter, the auth-policy hook that refuses to boot when a route does
+  # not declare one. A socket bolted onto the HTTP server directly bypasses all
+  # four, and would do it silently.
+  #
+  # The 11.x line is the Fastify 5 one, like cors@11 and rate-limit@11.
+  '@fastify/websocket': 11.3.0
   fastify-plugin: 6.0.0
   # Token verification. `jose` rather than `jsonwebtoken`: it verifies with the
   # platform WebCrypto (no native build on Railway), it supports ES256 on P-256
@@ -83,6 +100,25 @@ catalog:
   prisma: 7.9.1
   '@prisma/client': 7.9.1
   '@prisma/adapter-pg': 7.9.1
+
+  # The job queue (§4: "Worker (proceso aparte) └── BullMQ").
+  #
+  # BullMQ rather than a hand-rolled list, and the reason is the part nobody
+  # hand-rolls correctly: an atomic move from the wait list to the active list
+  # *with* a lock, lock renewal from the consumer, and recovery of a job whose
+  # consumer died holding one. Those are Lua scripts against a data structure
+  # with no transactions, and getting them subtly wrong produces a queue that
+  # loses a job once a month.
+  #
+  # `ioredis` is a peer dependency of BullMQ 6 and an optional one, so it has to
+  # be declared by whoever actually connects. Pinned to the 5.x line rather than
+  # to the fresh 6.0: BullMQ's peer range is `>=5.0.0`, its own test matrix is
+  # built against 5, and a queue is the last place to be first through a major.
+  #
+  # Both are server-only. `apps/web` must never see either — a boundary rule in
+  # .dependency-cruiser.cjs says so, for the same reason the Prisma one exists.
+  bullmq: 6.1.1
+  ioredis: 5.11.1
 
   # Public handles for circuits (§11: "slug generado por `nanoid` de
   # suficiente entropía"). Zero dependencies, and its generator draws from
@@ -202,6 +238,11 @@ catalog:
   turbo: 2.10.10
   dependency-cruiser: 18.2.0
   '@types/node': 26.2.0
+  # `ws` ships no declarations of its own, and `@fastify/websocket`'s types
+  # import from it — so without this the API does not type-check at all once the
+  # socket route exists. DefinitelyTyped versions it in step with the library,
+  # which is why this number tracks the `ws` that `@fastify/websocket` resolves.
+  '@types/ws': 8.18.1
 
 minimumReleaseAgeExclude:
   - '@turbo/darwin-64@2.10.10'

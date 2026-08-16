@@ -17,6 +17,7 @@ import {
   type Operation,
   type Parameter,
 } from './circuit.js'
+import { safeExpandCircuit } from './expand.js'
 import { lookupGate } from './gates.js'
 
 /** A bare number means a positive control: fires when the qubit reads |1⟩. */
@@ -44,12 +45,26 @@ export function qubitsOf(operation: Operation): number[] {
  * it: barriers, resets and measurements are not gates, they are structure.
  * Use `circuit.operations.length` when you want the raw count instead.
  *
- * A custom gate counts as one gate, not as the size of its body — that is
- * the whole point of packaging a subcircuit.
+ * ── A custom gate counts as its body, not as one gate (reversed in M2.3) ──
+ *
+ * It used to count as one, on the reasoning that counting as one is the whole
+ * point of packaging a subcircuit. That reasoning is right about the *canvas*
+ * and wrong about the *number*, and the number is what §3.6 ranks on: "menor
+ * número de compuertas, menor profundidad". If a block counted as one gate,
+ * every leaderboard would be won by wrapping the answer in a definition —
+ * forty gates in, one gate reported — and the ranking would measure packaging
+ * rather than circuits. The same figure is on every gallery card, where it is
+ * read as "how much circuit is this".
+ *
+ * So this is the count of primitives the hardware would actually run, which is
+ * the count of the expanded circuit (`expand.ts`), and `depth` below is the
+ * matching statement about time. A circuit too large to expand falls back to
+ * its unexpanded count: the counter is not the place that reports a refusal,
+ * and a card that cannot be drawn must not be a 500.
  */
 export function gateCount(circuit: Circuit): number {
   let count = 0
-  for (const operation of circuit.operations) {
+  for (const operation of flatten(circuit).operations) {
     if (lookupGate(operation.gate)?.category === 'structural') continue
     count++
   }
@@ -59,27 +74,112 @@ export function gateCount(circuit: Circuit): number {
 /**
  * Circuit depth: how many time steps the circuit really takes.
  *
- * Counted as the number of *occupied* columns, which has two consequences
- * worth stating:
+ * The longest chain of operations that have to happen one after another — the
+ * critical path of the expanded circuit's dependency graph, which is what
+ * Qiskit's `depth()` measures and what a hardware scheduler would need. Two
+ * operations are on the same chain when they share a wire: a qubit either one
+ * touches, or a classical bit one writes and the other reads.
  *
- *  - Gaps do not count. A circuit whose operations sit in columns 0 and 7
- *    has depth 2, so `depth(c) === depth(normalizeColumns(c))` always holds
- *    and a half-finished drag cannot inflate the number.
- *  - Barriers do not count. A barrier is an instruction to the optimiser,
- *    not an operation on the state; Qiskit's `depth()` ignores them too, and
- *    matching it keeps our numbers comparable. `reset` and `measure` do
- *    count: they are real work on real hardware.
+ * ── WHY NOT SIMPLY COUNT THE OCCUPIED COLUMNS ────────────────────────────
  *
- * Everything in one column happens at once, so a `cx` spanning two qubits
- * adds one to the depth, not two.
+ * That is what this used to do, and it made depth a statement about the
+ * *document's layout* rather than about the circuit — which broke the one
+ * property §3.1 decision 3 exists to guarantee: that packaging a fragment as a
+ * block cannot change what the circuit is reported to cost.
+ *
+ * The layout is where a block's body is laid out from. Expansion gives each
+ * source column the width of the widest block in it and starts the next column
+ * after that, so a two-instant block sharing a column with a three-instant one
+ * runs "inside" the wider column and costs nothing extra. Expand that block
+ * back into its gates — `inlineOperation`, the editor's "expand this block" —
+ * and its second gate now needs a source column of its own, which lands *after*
+ * the wider sibling. Same gates, same wires, same order, same state: one more
+ * occupied column. Depth went up because the drawing changed, so depth rewarded
+ * leaving gates packaged.
+ *
+ * Counting the critical path removes the whole class: the chains depend only on
+ * the per-wire order of the operations, and neither packaging, inlining, a gap
+ * in the numbering nor a half-finished drag changes that. `depth(c) ===
+ * depth(normalizeColumns(c))` still holds, and now so does
+ * `depth(c) === depth(inlineOperation(c, …))`.
+ *
+ * Two rules are unchanged and worth restating:
+ *
+ *  - Barriers do not count. A barrier is an instruction to the optimiser, not
+ *    an operation on the state; Qiskit ignores them too. `reset` and `measure`
+ *    do count: they are real work on real hardware.
+ *  - Everything in one column happens at once, so operations sharing a column
+ *    are on the same rung of the chain — including a condition and the
+ *    measurement that fills its bit, because the engine reads a condition
+ *    against the register as it entered the column (`runner.ts`).
  */
 export function depth(circuit: Circuit): number {
-  const occupied = new Set<number>()
-  for (const operation of circuit.operations) {
-    if (operation.gate === 'barrier') continue
-    occupied.add(operation.column)
+  /** The rung the last operation on each wire sits on. */
+  const level = new Map<string, number>()
+  let deepest = 0
+
+  const byColumn = [...flatten(circuit).operations].sort(
+    (a, b) => a.column - b.column
+  )
+  let index = 0
+  while (index < byColumn.length) {
+    const column = (byColumn[index] as Operation).column
+    const reached: [string, number][] = []
+    while (
+      index < byColumn.length &&
+      (byColumn[index] as Operation).column === column
+    ) {
+      const operation = byColumn[index] as Operation
+      index += 1
+      if (operation.gate === 'barrier') continue
+      const wires = wiresOf(operation)
+      let after = 0
+      // Read against the levels as they were when the column began, which is
+      // the same rule the engine applies to a classical condition.
+      for (const wire of wires) after = Math.max(after, level.get(wire) ?? 0)
+      const rung = after + 1
+      deepest = Math.max(deepest, rung)
+      for (const wire of wires) reached.push([wire, rung])
+    }
+    for (const [wire, rung] of reached) {
+      level.set(wire, Math.max(level.get(wire) ?? 0, rung))
+    }
   }
-  return occupied.size
+  return deepest
+}
+
+/**
+ * Every wire this operation is on: its qubits, its controls' qubits, the
+ * classical bits it writes, and the one its condition reads.
+ *
+ * Prefixed rather than numbered, because qubit 0 and classical bit 0 are
+ * different wires and a shared key would chain operations that never meet.
+ */
+function wiresOf(operation: Operation): string[] {
+  const wires = operation.targets.map((qubit) => `q${String(qubit)}`)
+  for (const control of controlsOf(operation)) {
+    wires.push(`q${String(control.qubit)}`)
+  }
+  for (const clbit of operation.clbitTargets ?? []) {
+    wires.push(`c${String(clbit)}`)
+  }
+  if (operation.condition !== undefined) {
+    wires.push(`c${String(operation.condition.clbit)}`)
+  }
+  return wires
+}
+
+/**
+ * The circuit as the engine will actually run it.
+ *
+ * One call site's worth of duplication avoided, and one guarantee bought: the
+ * two numbers a gallery card shows come from the same document the simulator
+ * evolves, so "18 gates" and an eighteen-gate run cannot disagree. The
+ * expansion is memoised on the circuit object, so asking twice in one render
+ * costs one walk.
+ */
+function flatten(circuit: Circuit): Circuit {
+  return safeExpandCircuit(circuit)?.circuit ?? circuit
 }
 
 /**

@@ -23,7 +23,11 @@ export type {
   ResponseSchema,
 } from './client.js'
 
-export { DEV_API_BASE_URL, resolveApiBaseUrl } from './config.js'
+export {
+  DEV_API_BASE_URL,
+  resolveApiBaseUrl,
+  resolveSocketUrl,
+} from './config.js'
 export type { ApiEnvSource } from './config.js'
 
 export {
@@ -153,3 +157,5 @@ export type {
 
 export { useApiErrorMessage } from './useApiErrorMessage.js'
 export type { ApiErrorMessage } from './useApiErrorMessage.js'
+
+export { getSimulationRun, submitSimulation } from './simulate.js'

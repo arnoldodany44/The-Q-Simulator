@@ -151,12 +151,73 @@ export const OperationSchema = z.strictObject({
 })
 
 /**
- * A reusable subcircuit. It has its own qubit numbering, `0..qubits-1`, and
- * no classical register of its own: custom gates are unitary blocks, so a
- * measurement inside one has nowhere to write.
+ * Most formal parameters one custom gate may declare.
+ *
+ * Eight because the editor draws one control per parameter inside a chip that
+ * has to stay the width of a gate, and because the widest thing in the catalog
+ * — `u(θ, φ, λ)` — takes three. A block that genuinely needs nine angles wants
+ * a circuit-level parameter and a sweep, not nine sliders.
+ */
+export const MAX_CUSTOM_GATE_PARAMS = 8
+
+/**
+ * Deepest a custom gate may be nested inside another.
+ *
+ * The cycle check already guarantees the definition graph terminates, so this
+ * is not about termination — it is about the *expander*, which walks the graph
+ * one JavaScript frame per level. A chain `g0 → g1 → … → gN` costs about sixty
+ * bytes per link, so some seventeen thousand links fit inside the API's 1 MiB
+ * body limit while expanding to a single operation: the operation ceiling in
+ * `expand.ts` cannot see it coming, and what the client would get is a stack
+ * overflow reported as a 500. Thirty-two is far past anything a person builds
+ * by hand (a block inside a block inside a block is already unusual) and it
+ * makes the expander's recursion provably shallow.
+ */
+export const MAX_CUSTOM_GATE_DEPTH = 32
+
+/**
+ * A reusable subcircuit — §3.1's "package a fragment as a block with a name
+ * and an icon". The record key is the name; `symbol` is the icon.
+ *
+ * It has its own qubit numbering, `0..qubits-1`, and no classical register:
+ * custom gates are unitary blocks, so a measurement inside one has nowhere to
+ * write and a `reset` inside one would make the block's effect depend on the
+ * state it met. `validate.ts` refuses both by name.
+ *
+ * ── `params` — widened in M2.3, and why this much and no more ─────────────
+ *
+ * M1.1 recorded custom gates as unitary blocks with no classical register and
+ * no controls or parameters of their own. Parameters are the half worth
+ * having: a subcircuit that cannot take an angle is a macro — you package a
+ * QFT and then need a second copy for a different phase — while one that can
+ * is a gate in the sense the rest of the catalog means it. So `params` names
+ * the gate's *formal* parameters, and an operation that uses the gate passes
+ * one argument per name in `params`.
+ *
+ * These names are the definition's own and shadow nothing: a body that says
+ * `params: ['theta']` reads the block's `theta`, never the circuit's, even
+ * when both exist. That is what makes a definition self-contained enough to be
+ * copied into another document, published, and installed by a stranger — a
+ * body that quietly read a circuit-level parameter would break on install, or
+ * worse, silently pick up a different value from a name that happened to
+ * match.
+ *
+ * Controls are deliberately *not* widened with them. Controlling a whole block
+ * means controlling every operation inside it, and the kernel has no
+ * controlled `iswap` and no controlled anything for a nested block that is
+ * itself several columns wide — so "a controlled custom gate" would be a shape
+ * accepted by the contract and refused by the engine for reasons invisible at
+ * the call site. The honest way to control a block is to build the controlled
+ * version as its own definition, which costs one gate and reads correctly.
  */
 export const CustomGateSchema = z.strictObject({
   qubits: z.int().min(1).max(MAX_QUBITS),
+  /**
+   * Formal parameter names, positional. An operation using this gate passes
+   * exactly this many arguments in its own `params`, each of them a literal
+   * angle or a circuit-level parameter name.
+   */
+  params: z.array(IdentifierSchema).max(MAX_CUSTOM_GATE_PARAMS).optional(),
   operations: z.array(OperationSchema),
   symbol: storableText(z.string().min(1).max(8)).optional(),
 })

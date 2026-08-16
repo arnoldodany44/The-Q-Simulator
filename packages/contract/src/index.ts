@@ -154,20 +154,69 @@ export type {
 } from './collections.js'
 
 export {
+  MAX_SEED,
+  NOISE_PROFILE_IDS,
+  NoiseProfileIdSchema,
+  RUN_STATUS_VALUES,
+  RunStatus,
+  RunStatusSchema,
+  SIMULATION_MODE_VALUES,
+  SimulateBody,
+  SimulationMode,
+  SimulationModeSchema,
+  serverSimulateResponses,
+  wireSimulateResponses,
+} from './simulate.js'
+export type {
+  NoiseProfileId,
+  RunEnvelope,
+  SimulateRequest,
+  SimulationRun,
+} from './simulate.js'
+
+export {
+  ClientFrameSchema,
+  MAX_SOCKET_FRAMES_PER_WINDOW,
+  MAX_SOCKET_FRAME_BYTES,
+  MAX_SOCKET_PENDING_FRAMES,
+  MAX_SOCKET_SUBSCRIPTIONS,
+  MAX_SOCKET_TOKEN_LENGTH,
+  SOCKET_CLOSE,
+  SOCKET_ERROR_CODES,
+  SOCKET_FRAME_WINDOW_MS,
+  SOCKET_PATH,
+  SUBSCRIPTION_END_REASONS,
+  ServerFrameSchema,
+  encodeFrame,
+  parseClientFrame,
+  parseServerFrame,
+} from './socket.js'
+export type {
+  ClientFrame,
+  ServerFrame,
+  SocketCloseCode,
+  SocketErrorCode,
+  SubscriptionEndReason,
+} from './socket.js'
+
+export {
   API_PREFIX,
   CIRCUIT_ROUTES,
   COLLECTION_ROUTES,
   GALLERY_ROUTES,
+  SIMULATE_ROUTES,
   USER_ROUTES,
   circuitPath,
   collectionPath,
   fillRoute,
   galleryPath,
+  simulatePath,
   userPath,
 } from './paths.js'
 export type {
   CircuitRoute,
   CollectionRoute,
   GalleryRoute,
+  SimulateRoute,
   UserRoute,
 } from './paths.js'

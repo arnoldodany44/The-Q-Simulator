@@ -22,5 +22,7 @@
   "SESSION_UNAVAILABLE": "Votre session n’a pas pu être lue. Reconnectez-vous.",
   "UNKNOWN": "Une erreur est survenue.",
   "USERNAME_TAKEN": "Cet identifiant appartient à un autre compte. Essayez-en un autre.",
-  "COLLECTION_FULL": "Cette collection est pleine. Retirez un circuit avant d’en ajouter un autre."
+  "COLLECTION_FULL": "Cette collection est pleine. Retirez un circuit avant d’en ajouter un autre.",
+  "SIMULATION_TOO_LARGE": "Ce circuit est trop grand pour être simulé par le serveur. Réduisez les qubits, les portes ou les tirs.",
+  "SIMULATION_UNAVAILABLE": "La simulation sur le serveur est momentanément indisponible. Tout le reste fonctionne, et vous pouvez exécuter ceci dans votre navigateur."
 }

@@ -22,6 +22,25 @@
  * `orderedOperations` therefore emits every non-measurement of a column before
  * its measurements. That is not a cosmetic ordering: it is the only sequential
  * arrangement in which a condition sees the value the engine gives it.
+ *
+ * ── AND A MEASUREMENT CAN BE A READER TOO ────────────────────────────────
+ *
+ * "Non-measurements first" is not the whole rule, because an operation may
+ * both read the register and write it: a *conditioned measurement* tests one
+ * bit and fills another. Ranked only by `gate === 'measure'` it ties with every
+ * other measurement of its column, so the document's own order decided — and a
+ * document that happened to list the writer first exported a file whose
+ * condition reads the value the engine says it must not see. The export then
+ * computes something the simulated document does not, which is the one failure
+ * a round trip exists to prevent.
+ *
+ * So the order within a column is a real constraint and is solved as one:
+ * **every operation that reads a classical bit is emitted before every
+ * operation that writes that bit**, with the "non-measurements first" rule kept
+ * as the tie-break so the output stays byte-stable. A column whose reads and
+ * writes are genuinely circular — two conditioned measurements, each writing
+ * the bit the other tests — has no sequential arrangement at all, and is
+ * refused by name rather than emitted in whichever order the sort produced.
  */
 
 import {
@@ -60,22 +79,113 @@ export interface ExportOptions {
 
 /**
  * The operations in the order a sequential language must run them: ascending
- * by column, and within a column every other operation before the
- * measurements. See the header for why that second rule is load-bearing.
+ * by column, and within a column every reader of a classical bit before every
+ * writer of it. See the header for why that second rule is load-bearing.
  *
- * `Array.prototype.sort` is stable, so operations that tie on both keys keep
- * the order the document lists them in and the output is deterministic.
+ * The sort is stable and the ordering inside a column is deterministic, so an
+ * export is byte-stable across runs — a file whose diff is noise is a file
+ * nobody reviews.
  */
 export function orderedOperations(
   operations: readonly Operation[]
 ): readonly Operation[] {
-  return [...operations].sort(
+  const base = [...operations].sort(
     (a, b) => a.column - b.column || rank(a) - rank(b)
   )
+
+  const ordered: Operation[] = []
+  let start = 0
+  while (start < base.length) {
+    let end = start + 1
+    const column = (base[start] as Operation).column
+    while (end < base.length && (base[end] as Operation).column === column) {
+      end += 1
+    }
+    ordered.push(...withinColumn(base.slice(start, end)))
+    start = end
+  }
+  return ordered
 }
 
 function rank(operation: Operation): number {
   return operation.gate === 'measure' ? 1 : 0
+}
+
+function readsBit(operation: Operation): number | null {
+  return operation.condition?.clbit ?? null
+}
+
+function writesBits(operation: Operation): readonly number[] {
+  return operation.gate === 'measure' ? (operation.clbitTargets ?? []) : []
+}
+
+/**
+ * One column, arranged so that every read of a classical bit happens before
+ * every write of it.
+ *
+ * A topological sort rather than another sort key, because "reader before
+ * writer" is a relation between *pairs* and a rank can only ever approximate
+ * one — which is exactly how a conditioned measurement came to be ordered by
+ * whichever way round the document happened to list it. Ties are broken by the
+ * incoming order, which is already the column's stable "non-measurements
+ * first" arrangement, so a column with no classical interaction comes out
+ * exactly as it went in.
+ */
+function withinColumn(column: readonly Operation[]): readonly Operation[] {
+  if (column.length < 2) return column
+
+  const writersOf = new Map<number, number[]>()
+  for (const [index, operation] of column.entries()) {
+    for (const bit of writesBits(operation)) {
+      const holders = writersOf.get(bit)
+      if (holders === undefined) writersOf.set(bit, [index])
+      else holders.push(index)
+    }
+  }
+  if (writersOf.size === 0) return column
+
+  const successors = column.map((): number[] => [])
+  const incoming = column.map(() => 0)
+  for (const [index, operation] of column.entries()) {
+    const bit = readsBit(operation)
+    if (bit === null) continue
+    for (const writer of writersOf.get(bit) ?? []) {
+      if (writer === index) continue
+      ;(successors[index] as number[]).push(writer)
+      incoming[writer] = (incoming[writer] as number) + 1
+    }
+  }
+
+  const ready = column
+    .map((_operation, index) => index)
+    .filter((index) => incoming[index] === 0)
+  const ordered: Operation[] = []
+  while (ready.length > 0) {
+    // The smallest index available, so the incoming order decides every tie
+    // and the output does not depend on the traversal.
+    ready.sort((a, b) => a - b)
+    const index = ready.shift() as number
+    ordered.push(column[index] as Operation)
+    for (const next of successors[index] as number[]) {
+      incoming[next] = (incoming[next] as number) - 1
+      if (incoming[next] === 0) ready.push(next)
+    }
+  }
+
+  if (ordered.length !== column.length) {
+    const stuck = column
+      .filter((_operation, index) => (incoming[index] as number) > 0)
+      .map((operation) => operation.id)
+    throw new CircuitExportError(
+      `Operations ${stuck.join(', ')} share column ` +
+        `${String((column[0] as Operation).column)} and each one's condition ` +
+        `reads a classical bit another of them writes. The engine reads every ` +
+        `condition against the register as it entered the column, and no ` +
+        `sequential order of these statements reproduces that.`,
+      stuck[0]
+    )
+  }
+  return ordered
 }
 
 /**

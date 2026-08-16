@@ -17,6 +17,7 @@ import {
   type CustomGate,
   type Operation,
 } from './circuit.js'
+import { CircuitExpansionError, expandCircuit } from './expand.js'
 import { VARIABLE_ARITY, lookupGate, type GateArity } from './gates.js'
 import { controlsOf, qubitsOf } from './helpers.js'
 
@@ -41,6 +42,12 @@ export type ValidationCode =
   | 'duplicate-parameter'
   | 'qubit-label-count'
   | 'custom-gate-cycle'
+  /** A definition nested deeper than `MAX_CUSTOM_GATE_DEPTH`. */
+  | 'custom-gate-too-deep'
+  /** A `measure`, a `reset` or a condition inside a definition (M2.3). */
+  | 'custom-gate-not-unitary'
+  /** The definitions are acyclic but expand past the ceilings in `expand.ts`. */
+  | 'custom-gate-too-large'
 
 export interface ValidationIssue {
   readonly code: ValidationCode
@@ -152,21 +159,36 @@ export function validateCircuit(circuit: Circuit): ValidationIssue[] {
     qubits: circuit.qubits,
     clbits: circuit.clbits,
     parameterNames,
+    parameterOwner: 'circuit',
     resolveGate,
   })
 
   // Custom gate bodies obey the same rules against their own register. They
   // are checked once each, never expanded, so a cyclic definition still
   // terminates here — the cycle itself is reported separately.
+  //
+  // The parameter scope is the definition's *own* `params` and not the
+  // circuit's, which is the M2.3 decision written on `CustomGateSchema`: a
+  // definition that read a circuit-level parameter could not be copied into
+  // another document, published, or installed by anyone else without changing
+  // meaning.
   for (const [name, definition] of Object.entries(customGates)) {
+    const formals = checkFormalParameters(name, definition, issues)
+    checkUnitaryBody(name, definition, issues)
     checkOperations(definition.operations, issues, {
       qubits: definition.qubits,
       clbits: 0,
-      parameterNames,
+      parameterNames: formals,
+      parameterOwner: 'gate',
       resolveGate,
       customGate: name,
     })
   }
+
+  // Last, and only on an otherwise clean document: the expander refuses for
+  // reasons the checks above would already have named, and reporting the same
+  // problem twice in two vocabularies helps nobody.
+  if (issues.length === 0) checkExpansion(circuit, issues)
 
   return issues
 }
@@ -187,6 +209,8 @@ interface Scope {
   readonly qubits: number
   readonly clbits: number
   readonly parameterNames: ReadonlySet<string>
+  /** Which declaration `parameterNames` came from, for the message. */
+  readonly parameterOwner: 'circuit' | 'gate'
   readonly resolveGate: (gate: string) => ResolvedGate | undefined
   /** Name of the custom gate being checked, if this is not the circuit itself. */
   readonly customGate?: string
@@ -209,16 +233,125 @@ function gateResolver(
       ? customGates[gate]
       : undefined
     if (custom === undefined) return undefined
-    // A custom gate is applied to exactly its own qubits, with no controls
-    // and no parameters. Both are Fase 2 features; until then, rejecting
-    // them here beats accepting shapes the expander cannot honour.
+    // A custom gate is applied to exactly its own qubits, takes one argument
+    // per formal parameter it declares (M2.3), and carries no controls.
+    //
+    // Controls stay refused deliberately, and the argument is on
+    // `CustomGateSchema`: controlling a block means controlling every
+    // operation inside it, the kernel has no controlled `iswap` and nothing at
+    // all for a nested block, so a controlled custom gate would be a shape the
+    // contract accepted and the engine refused. Rejecting it here means the
+    // refusal names the operation on the canvas instead.
     return {
       arity: custom.qubits,
       controlCount: 0,
       acceptsControls: false,
-      paramCount: 0,
+      paramCount: custom.params?.length ?? 0,
       clbitCount: 0,
     }
+  }
+}
+
+/**
+ * A definition's own parameter names, reporting any declared twice.
+ *
+ * Separate from `checkParameters` above even though the rule is the same
+ * sentence, because the two lists are different kinds of thing: a circuit's
+ * `parameters` carry a *value* and drive sweeps, while a definition's `params`
+ * are formals that have no value until a use supplies one.
+ */
+function checkFormalParameters(
+  name: string,
+  definition: CustomGate,
+  issues: ValidationIssue[]
+): ReadonlySet<string> {
+  const formals = new Set<string>()
+  for (const formal of definition.params ?? []) {
+    if (formals.has(formal)) {
+      issues.push({
+        code: 'duplicate-parameter',
+        customGate: name,
+        message:
+          `Custom gate "${name}" declares parameter "${formal}" more than ` +
+          `once. Arguments are positional, so two formals with one name ` +
+          `cannot both be reached.`,
+      })
+      continue
+    }
+    formals.add(formal)
+  }
+  return formals
+}
+
+/**
+ * A definition is a unitary block, and these three things are not unitary.
+ *
+ * `measure` and a `condition` need a classical register, and a definition has
+ * none — so both already fail as an out-of-range classical bit, which is a
+ * true diagnostic about a false cause and sends the reader looking for a
+ * register to widen. `reset` needs no register and would otherwise pass: it is
+ * refused because a block containing one has an effect that depends on the
+ * state it meets, so the same block in two places would not be the same gate,
+ * and analytic mode would refuse the whole circuit for something invisible at
+ * the call site.
+ *
+ * A `barrier` is allowed. It is a drawing, it occupies its column, and that is
+ * all it does here as everywhere else.
+ */
+function checkUnitaryBody(
+  name: string,
+  definition: CustomGate,
+  issues: ValidationIssue[]
+): void {
+  for (const operation of definition.operations) {
+    const offender =
+      operation.gate === 'measure' || operation.gate === 'reset'
+        ? operation.gate
+        : operation.condition !== undefined
+          ? 'condition'
+          : undefined
+    if (offender === undefined) continue
+    issues.push({
+      code: 'custom-gate-not-unitary',
+      customGate: name,
+      operationId: operation.id,
+      message:
+        `Custom gate "${name}": operation "${operation.id}" uses ` +
+        `"${offender}", which a custom gate cannot contain. A custom gate is ` +
+        `a unitary block with no classical register of its own — copy the ` +
+        `fragment instead of packaging it.`,
+    })
+  }
+}
+
+/**
+ * The one rule that cannot be checked by looking at any single definition:
+ * how big the whole thing gets once flattened.
+ *
+ * The cycle check proves the definition graph terminates; it says nothing
+ * about size, because definitions form a DAG and a DAG doubles. Twenty
+ * definitions where each uses the previous one twice are forty operations of
+ * JSON and a million operations of circuit. §11 says a malformed circuit must
+ * not be able to provoke a giant allocation, so the ceiling is enforced by
+ * running the expander and letting it refuse — the same code path that will
+ * later do the work, so the check and the work cannot disagree about what is
+ * too big.
+ */
+function checkExpansion(circuit: Circuit, issues: ValidationIssue[]): void {
+  try {
+    expandCircuit(circuit)
+  } catch (cause) {
+    if (!(cause instanceof CircuitExpansionError)) throw cause
+    issues.push({
+      code:
+        cause.code === 'too-deep'
+          ? 'custom-gate-too-deep'
+          : 'custom-gate-too-large',
+      ...(cause.operationId === undefined
+        ? {}
+        : { operationId: cause.operationId }),
+      message: cause.message,
+    })
   }
 }
 
@@ -566,8 +699,13 @@ function checkParameterRefs(
       code: 'unknown-parameter',
       operationId: operation.id,
       message:
-        `Operation "${operation.id}" references parameter "${param}", which ` +
-        `is not declared in "parameters".`,
+        scope.parameterOwner === 'gate'
+          ? `Operation "${operation.id}" references parameter "${param}", ` +
+            `which this custom gate does not declare in "params". A ` +
+            `definition reads only its own parameters — never the ` +
+            `circuit's — so that it means the same thing in every document.`
+          : `Operation "${operation.id}" references parameter "${param}", ` +
+            `which is not declared in "parameters".`,
     })
   }
 }

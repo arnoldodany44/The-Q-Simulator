@@ -209,6 +209,72 @@
     "register-limit": "El circuito alcanzó su límite de qubits o de bits clásicos.",
     "nothing-to-undo": "No queda nada que deshacer.",
     "nothing-to-redo": "No queda nada que rehacer.",
-    "clbit-in-use": "Otra operación de esa columna ya escribe en ese bit clásico."
+    "clbit-in-use": "Otra operación de esa columna ya escribe en ese bit clásico.",
+    "custom-gate-too-deep": "Esos bloques están anidados demasiado profundo unos dentro de otros.",
+    "custom-gate-not-unitary": "Un bloque no puede contener una medición, un reset ni una compuerta condicionada.",
+    "custom-gate-too-large": "Esos bloques se expanden a más operaciones de las que puede tener un circuito.",
+    "custom-gate-name": "Un bloque necesita un nombre que empiece con letra y que no sea ya una compuerta.",
+    "custom-gate-exists": "Este circuito ya tiene un bloque con ese nombre.",
+    "custom-gate-not-found": "Este circuito no tiene ningún bloque con ese nombre.",
+    "custom-gate-in-use": "Ese bloque todavía se usa en este circuito. Expande primero sus usos.",
+    "custom-gate-reshaped": "Ese cambio altera los hilos o los parámetros con los que se colocaron los usos existentes.",
+    "fragment-not-rectangular": "La selección se salta una compuerta entre su primera y su última columna. Selecciona todo el rango.",
+    "not-a-custom-gate": "Esa compuerta no es un bloque, así que no hay nada que expandir.",
+    "definition-open": "Ya hay un bloque abierto para editar.",
+    "no-definition-open": "No hay ningún bloque abierto para editar."
+  },
+  "customGates": {
+    "title": "Bloques",
+    "summary": "Empaqueta un fragmento como bloque reutilizable con nombre e ícono.",
+    "empty": "Aún no hay bloques. Selecciona una serie de compuertas en el lienzo y empaquétala.",
+    "package": {
+      "heading": "Empaquetar la selección",
+      "name": "Nombre",
+      "namePlaceholder": "bellPair",
+      "symbol": "Ícono",
+      "symbolPlaceholder": "B",
+      "submit": "Empaquetar",
+      "hint": "La selección debe cubrir todas las compuertas entre su primera y su última columna."
+    },
+    "entry": {
+      "qubits_one": "{{value}} qubit",
+      "qubits_other": "{{value}} qubits",
+      "gates_one": "{{value}} compuerta",
+      "gates_other": "{{value}} compuertas",
+      "uses_one": "usado {{value}} vez aquí",
+      "uses_other": "usado {{value}} veces aquí",
+      "unused": "todavía sin usar aquí"
+    },
+    "actions": {
+      "place": "Colocar",
+      "edit": "Editar definición",
+      "duplicate": "Duplicar",
+      "remove": "Eliminar",
+      "inline": "Expandir en el lienzo"
+    },
+    "shared": {
+      "heading": "Una definición, todos los usos",
+      "body_one": "Editar esta definición cambia su {{value}} uso en este circuito. No hay forma de cambiar solo uno.",
+      "body_other": "Editar esta definición cambia sus {{value}} usos en este circuito. No hay forma de cambiar solo uno.",
+      "unused": "Nada usa todavía esta definición, así que editarla no cambia nada más.",
+      "escape": "Duplícala primero si quieres cambiar un uso y dejar el resto igual."
+    },
+    "editing": {
+      "heading": "Editando el bloque {{name}}",
+      "symbol": "Ícono",
+      "apply": "Aplicar a todos los usos",
+      "cancel": "Descartar los cambios",
+      "note": "Este lienzo es el cuerpo del bloque. Sus hilos son los hilos del bloque, y sus parámetros son los ángulos que aporta cada uso."
+    },
+    "done": {
+      "packaged": "Se empaquetó la selección como el bloque {{name}}.",
+      "placed": "Se colocó el bloque {{name}} en el lienzo.",
+      "opened": "Editando el bloque {{name}}. El lienzo ahora muestra su cuerpo en lugar del circuito.",
+      "applied": "Se aplicaron los cambios de {{name}} a todos sus usos.",
+      "discarded": "Se descartaron los cambios de {{name}}. El circuito volvió.",
+      "duplicated": "Se copió el bloque {{name}} como {{into}}.",
+      "inlined": "Se expandió un uso de {{name}} en las compuertas que representa.",
+      "removed": "Se eliminó el bloque {{name}}."
+    }
   }
 }

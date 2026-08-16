@@ -32,6 +32,29 @@ function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '')
 }
 
+/**
+ * The `/ws` origin, derived from the API's rather than configured separately.
+ *
+ * Derived, and that is the point: a second variable is a second thing to get
+ * wrong on a deploy, and the failure it produces is the worst kind — the REST
+ * calls work, so the app looks fine, and only the progress feed is silently
+ * pointed at the wrong host. The socket is served by the same Fastify process
+ * on the same origin (§8 puts `/ws` beside `/health`), so there is exactly one
+ * address here and one place it can be wrong.
+ *
+ * `http` becomes `ws` and `https` becomes `wss`, which is not cosmetic: a page
+ * served over TLS may not open an insecure socket, and a browser refuses it
+ * with a mixed-content error rather than a connection error — a message that
+ * points at the wrong problem.
+ */
+export function resolveSocketUrl(baseUrl: string): string {
+  const base = stripTrailingSlash(baseUrl)
+  if (base.startsWith('https:')) return `wss:${base.slice('https:'.length)}/ws`
+  if (base.startsWith('http:')) return `ws:${base.slice('http:'.length)}/ws`
+  // Already a socket scheme, or something this function has no opinion about.
+  return `${base}/ws`
+}
+
 export function resolveApiBaseUrl(env: ApiEnvSource = import.meta.env): string {
   const configured = env.VITE_API_URL?.trim() ?? ''
   if (configured !== '') return stripTrailingSlash(configured)

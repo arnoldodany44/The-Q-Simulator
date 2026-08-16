@@ -38,6 +38,29 @@
  * out of step with the engine.
  *
  * ────────────────────────────────────────────────────────────────────────
+ * THE COLUMNS ARE THE ENGINE'S, NOT THE DOCUMENT'S.
+ *
+ * `timelineLength` counts the columns of the **expanded** circuit, and a
+ * position is an expanded column. For a circuit with no blocks in it those are
+ * the same thing, and nothing changes. For one with a block they are not, and
+ * the difference is the whole point of §3.1 decision 2.
+ *
+ * That decision rejects executing a definition recursively, in as many words,
+ * because it would force a dilemma: "o el scrubber no puede detenerse dentro de
+ * él —y una teleportación empaquetada se vuelve un salto ilegible, justo la
+ * lección que la función existe para mostrar— o la caché necesita una segunda
+ * coordenada". Expansion is what escapes it: the engine's columns are real
+ * instants and the checkpoint cache stays one-dimensional. Counting the source
+ * document's columns here threw that away and re-created the dilemma's first
+ * horn — a five-gate teleportation packaged into one block offered two stops
+ * where the same five gates placed by hand offered six, and the four
+ * intermediate states were unreachable.
+ *
+ * So the bar walks instants. The canvas draws the playhead at the source column
+ * an instant belongs to (`sourceColumnOf`), which is the one place the two axes
+ * have to meet.
+ *
+ * ────────────────────────────────────────────────────────────────────────
  * EDITING WHILE SCRUBBED: THE POSITION IS CLAMPED, NOT RESET.
  *
  * The three candidates were reset-to-the-end, keep, and clamp.
@@ -60,7 +83,7 @@
  * reader was: undo restores the circuit, and the position comes back with it.
  */
 
-import type { Circuit } from '@qsim/schema'
+import { safeExpandCircuit, sourceColumnOf, type Circuit } from '@qsim/schema'
 
 import { columnCount } from './geometry'
 
@@ -114,7 +137,32 @@ export function stepPosition(
   return positionAt(stopOf(position, columns) + delta, columns)
 }
 
-/** Columns the circuit occupies — the length of its timeline. */
+/**
+ * Instants the circuit takes — the length of its timeline.
+ *
+ * The expanded circuit's columns, so a packaged fragment can be stepped through
+ * gate by gate. See the header. A circuit whose blocks are too large to expand
+ * falls back to its own columns: a scrubber that cannot be drawn must not be an
+ * exception, and such a circuit cannot be simulated either.
+ */
 export function timelineLength(circuit: Circuit): number {
-  return columnCount(circuit)
+  return columnCount(safeExpandCircuit(circuit)?.circuit ?? circuit)
+}
+
+/**
+ * The column the canvas should draw the playhead on for this position.
+ *
+ * The bar's axis is the engine's; the canvas's is the document's. An instant
+ * inside a block belongs to the block's own column, so the playhead sits on the
+ * block for as long as the block is running — which is what the reader needs to
+ * see while stepping through one.
+ */
+export function drawnColumnOf(
+  circuit: Circuit,
+  position: TimelinePosition
+): number | null {
+  if (position === null) return null
+  if (position < 0) return position
+  const expansion = safeExpandCircuit(circuit)
+  return expansion === null ? position : sourceColumnOf(expansion, position)
 }

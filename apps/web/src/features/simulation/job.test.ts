@@ -796,24 +796,94 @@ describe('failures come back as answers', () => {
     ).toMatchObject({ code: 'measurement-in-analytic-mode' })
   })
 
-  it('names the gate the engine cannot run', () => {
-    const custom = parseCircuit({
-      schemaVersion: 1,
-      qubits: 2,
-      operations: [{ id: 'a', gate: 'block', targets: [0, 1], column: 0 }],
-      customGates: {
-        block: {
-          qubits: 2,
-          operations: [{ id: 'inner', gate: 'h', targets: [0], column: 0 }],
-        },
-      },
-    })
-
+  it('refuses a circuit that does not survive the contract', () => {
     const reported = failure(
-      runJob(createCheckpoints(), simulate(custom), false)
+      runJob(
+        createCheckpoints(),
+        simulate({
+          ...BELL,
+          operations: [{ id: 'a', gate: 'nope', targets: [0], column: 0 }],
+        }),
+        false
+      )
     )
-    expect(reported.code).toBe('unsupported-operation')
+    expect(reported.code).toBe('invalid-circuit')
     // The canvas highlights the gate, so the id has to survive the trip.
     expect(reported.operationId).toBe('a')
+  })
+})
+
+/*
+ * M2.3. The engine has never heard of a custom gate and refuses one by name
+ * (`runner.ts`), so this seam is where a block becomes the primitives it stands
+ * for. These tests are here rather than in @qsim/schema because what is being
+ * checked is the *wiring* — that the expansion happens, and that the two column
+ * axes it creates are translated in the right direction on each side.
+ */
+describe('custom gates reach the engine as their primitives', () => {
+  /** A Bell pair packaged as a block, placed on wires 0 and 1. */
+  const PACKAGED = parseCircuit({
+    schemaVersion: 1,
+    qubits: 2,
+    operations: [{ id: 'a', gate: 'bell', targets: [0, 1], column: 0 }],
+    customGates: {
+      bell: {
+        qubits: 2,
+        operations: [
+          { id: 'b1', gate: 'h', targets: [0], column: 0 },
+          { id: 'b2', gate: 'cx', targets: [1], controls: [0], column: 1 },
+        ],
+      },
+    },
+  })
+
+  it('runs the block and gets the state the flat circuit gets', () => {
+    const packaged = analytic(
+      runJob(createCheckpoints(), simulate(PACKAGED), false)
+    )
+    expectProbabilities(decodeState(packaged.state), [0.5, 0, 0, 0.5])
+
+    const flat = analytic(runJob(createCheckpoints(), simulate(BELL), false))
+    expect([...decodeState(packaged.state).re]).toEqual([
+      ...decodeState(flat.state).re,
+    ])
+  })
+
+  /*
+   * The scrubber stops INSIDE a block, and that is the whole point of §3.1
+   * decision 2: expansion was chosen over recursive execution precisely so
+   * that "una teleportación empaquetada" does not become "un salto ilegible".
+   * A position is an instant of the expanded circuit, so a packaged Bell pair
+   * steps H, then CX — the same three states, in the same order, as the same
+   * two gates placed by hand.
+   */
+  it('stops inside a block, on the same states the flat circuit gives', () => {
+    for (const position of [-1, 0, 1]) {
+      const packaged = analytic(
+        runJob(createCheckpoints(), scrubbed(PACKAGED, position), false)
+      )
+      const flat = analytic(
+        runJob(createCheckpoints(), scrubbed(BELL, position), false)
+      )
+      expect([...decodeState(packaged.state).re]).toEqual([
+        ...decodeState(flat.state).re,
+      ])
+    }
+
+    // And the middle stop is a real instant rather than a repeat of an end:
+    // |00> + |10> is the state between the H and the CX.
+    const half = analytic(
+      runJob(createCheckpoints(), scrubbed(PACKAGED, 0), false)
+    )
+    expectProbabilities(decodeState(half.state), [0.5, 0.5, 0, 0])
+  })
+
+  it('resumes from a checkpoint the same way a flat circuit does', () => {
+    const cache = createCheckpoints({ interval: 1, limit: 8 })
+    const full = analytic(runJob(cache, simulate(PACKAGED), false))
+    const resumed = analytic(runJob(cache, simulate(PACKAGED, 1), false))
+    expect([...decodeState(resumed.state).re]).toEqual([
+      ...decodeState(full.state).re,
+    ])
   })
 })

@@ -114,8 +114,9 @@ import {
   type NoiseSettings,
 } from '../analysis/noiseSettings'
 import { DEFAULT_SAMPLE_SHOTS } from '../analysis/sampling'
+import { ServerRunPanel } from './ServerRunPanel'
 import { executionModeFor } from './mode'
-import type { NoiseRefusalCode } from './protocol'
+import { MAX_CLIENT_QUBITS, type NoiseRefusalCode } from './protocol'
 import { DEFAULT_SEED, type SimulationStatus } from './scheduler'
 import { useSimulation, type SimulationWorkerLike } from './useSimulation'
 
@@ -215,11 +216,26 @@ export function SimulationPanel({
   const trajectories =
     outcome !== null && outcome.mode === 'trajectories' ? outcome : null
   /**
+   * The third branch, and the only one this tab did not compute (§4). Narrowed
+   * exactly like the other two and for the same reason: the mode is what was
+   * asked for and the outcome is what came back, and for the frame between an
+   * edit that crosses the browser's ceiling and the answer to it, those two
+   * disagree.
+   */
+  const server = outcome !== null && outcome.mode === 'server' ? outcome : null
+  /**
    * The cut the answer on screen belongs to, or `null` for the end of the
    * circuit. Read off whichever outcome came back, never off the scrubber —
    * see the caption below.
+   *
+   * Always null for a server run, and that is the physics of the arrangement
+   * rather than an omission: the scrub position is not sent (`scheduler.ts`
+   * explains why there is no checkpoint cache on the other side), so a server
+   * answer always describes the whole circuit and captioning it with a column
+   * would be a lie about which instant is on screen.
    */
-  const moment = outcome === null ? null : outcome.throughColumn
+  const moment =
+    outcome === null || outcome.mode === 'server' ? null : outcome.throughColumn
   const state = analytic?.state ?? null
   /*
    * One extra pass over the amplitudes, and the histogram makes another to
@@ -249,6 +265,21 @@ export function SimulationPanel({
       <p className="simulation-panel__failure" role="status">
         {error === null ? '' : error.message}
       </p>
+
+      {/*
+       * Directly under the status line, because it *is* the status: while a
+       * server run is in flight the panel below is either empty or describes a
+       * previous circuit, and this is the only thing on screen that explains
+       * why. It stays after the run finishes, carrying the answer, so the
+       * reader can still see that this particular result came from elsewhere.
+       */}
+      <ServerRunPanel
+        serverRun={simulation.serverRun}
+        run={server?.run ?? null}
+        qubits={circuit.qubits}
+        clientLimit={MAX_CLIENT_QUBITS}
+        onCancel={simulation.cancel}
+      />
 
       <dl className="simulation-panel__facts">
         <div className="simulation-panel__fact">

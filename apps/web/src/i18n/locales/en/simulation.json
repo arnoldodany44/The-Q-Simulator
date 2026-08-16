@@ -31,6 +31,55 @@
     "density-too-large": "A density matrix for {{qubits}} qubits is past the {{limit}}-qubit ceiling of the noise mode. Sampled trajectories reach further, because they hold a statevector rather than a matrix.",
     "trajectories-too-large": "A sampled noisy run re-runs the whole circuit once per shot, so at {{qubits}} qubits and {{operations}} gates this browser could afford only {{shots}} shots — below the {{limit}} a sample needs to mean anything. Shorten the circuit or use fewer qubits.",
     "noise-out-of-memory": "This device could not reserve the memory the exact method needs for {{qubits}} qubits, even though it is inside the {{limit}}-qubit ceiling. Sampled trajectories need far less: they hold a statevector rather than a matrix.",
-    "noise-failed": "The noisy run did not finish. Everything above it describes the circuit as written and is unaffected."
+    "noise-failed": "The noisy run did not finish. Everything above it describes the circuit as written and is unaffected.",
+    "server-unavailable": "Server simulation is unavailable right now. This circuit is past what the browser can hold, so there is nothing to show until it comes back.",
+    "server-too-large": "The server refused this circuit: it is past a resource limit. Try fewer qubits, a shorter circuit, or fewer shots.",
+    "server-refused": "The server did not accept this run. Nothing was simulated.",
+    "sampling-too-large": "A sampling run re-runs the whole circuit once per shot, so {{shots}} shots of a {{qubits}}-qubit circuit with {{operations}} gates would take minutes in this tab — and a server would refuse work this size too. Use fewer qubits or a shorter circuit."
+  },
+  "server": {
+    "heading": "Run on the server",
+    "why": "This circuit has {{qubits}} qubits. The browser simulates up to {{limit}}, so this one was sent to a server — which is why it takes seconds rather than milliseconds.",
+    "state": {
+      "submitting": "Sending the circuit…",
+      "queued": "Waiting in the queue for a worker.",
+      "running": "Running on the server: {{phase}}."
+    },
+    "phase": {
+      "validating": "checking the circuit",
+      "simulating": "evolving the state",
+      "sampling": "drawing shots",
+      "summarising": "summarising the result"
+    },
+    "elapsed": "Elapsed",
+    "estimate": "Estimated run time",
+    "done": "Progress",
+    "runId": "Run",
+    "seconds": "{{seconds}} s",
+    "fraction": "{{completed}} of {{total}}",
+    "offline": "The progress feed dropped and is reconnecting. The run is unaffected; this page keeps checking on it.",
+    "stop": "Stop waiting",
+    "stopNote": "The run keeps going on the server and keeps its identifier — this only stops this page waiting for it.",
+    "summary": "{{qubits}} qubits, seed {{seed}}, {{milliseconds}} ms of engine time.",
+    "hidden": "{{states}} further basis states are not listed; between them they carry {{weight}} of the probability.",
+    "noResult": "The run finished but stored no readable result.",
+    "table": {
+      "caption": "Basis states the server reported, largest first",
+      "state": "State",
+      "probability": "Probability",
+      "count": "Count"
+    },
+    "failure": {
+      "INVALID_CIRCUIT": "The server refused this circuit: it does not match the format the simulator expects.",
+      "LIMIT_EXCEEDED": "The server refused this run: it is past a resource limit — the qubit ceiling, the gate count, the shots, or the time one run may take.",
+      "TIMED_OUT": "The run was still going when its time limit expired, and was stopped. Try fewer qubits, a shorter circuit, or fewer shots.",
+      "RESULT_TOO_LARGE": "The answer was too large to store. A register this size has more basis states than a stored result can carry.",
+      "ENGINE_FAILED": "The simulation engine failed on the server. That is a bug in this project rather than a problem with your circuit.",
+      "WORKER_CRASHED": "The process running this simulation died without answering — most likely it ran out of memory.",
+      "QUEUE_UNAVAILABLE": "The run was accepted but never reached a worker, so nothing ran it.",
+      "UNKNOWN": "The run did not finish, and the server gave no reason this page knows how to explain."
+    },
+    "stopped": "You stopped waiting. The run keeps going on the server and keeps its identifier.",
+    "stoppedWithId": "You stopped waiting. The run keeps going on the server as {{runId}}."
   }
 }

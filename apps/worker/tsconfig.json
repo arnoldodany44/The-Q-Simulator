@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@qsim/config/tsconfig/node.json",
+  /*
+   * No `tsconfig.build.json`, for the same reason `apps/api` has none: this is
+   * a deployable that Railway starts with `node dist/worker.js`, and `tsc`
+   * cannot produce a runnable one because the workspace packages it imports are
+   * TypeScript source with no emitted `.js` for Node to resolve. `build.js`
+   * explains that failure in full and bundles instead. This config exists for
+   * `tsc --noEmit` and for the editor.
+   */
+  "include": ["src/**/*", "vitest.config.ts", "vitest.perf.config.ts"]
+}

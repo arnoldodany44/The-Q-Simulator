@@ -77,6 +77,7 @@ import { useCircuitStore } from '../features/circuit-editor/useCircuitStore'
 import { useCircuitUrl } from '../features/circuit-editor/useCircuitUrl'
 import { useExample } from '../features/circuit-editor/useExample'
 import { ExportPanel } from '../features/export'
+import { ImportPanel } from '../features/import'
 import {
   SaveCircuitPanel,
   VersionHistoryPanel,
@@ -179,6 +180,14 @@ export function EditorRoute() {
          * including edits that have not been saved.
          */}
         <ExportPanel store={useCircuitStore} title={doc.detail?.title ?? ''} />
+        {/*
+         * Directly under the export, because they are the same question asked
+         * in both directions (§3.5) and a reader looking for one will look
+         * where the other is. Closed by default: it is the only panel here that
+         * *replaces* the document, so it should take a deliberate click to open
+         * rather than sit next to the canvas with a paste box open.
+         */}
+        <ImportPanel store={useCircuitStore} />
         <SaveCircuitPanel document={doc} carried={!url.tooLarge} />
         {/*
          * Only for a document that has a home. An unsaved circuit has no

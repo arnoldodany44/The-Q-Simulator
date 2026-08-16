@@ -41,12 +41,23 @@ import {
   type CheckpointCache,
   type Statevector,
 } from '@qsim/core'
-import { formatIssues, safeParseCircuit, type Circuit } from '@qsim/schema'
+import {
+  expandCircuit,
+  expandedFromColumn,
+  formatIssues,
+  safeParseCircuit,
+  sourceColumnOf,
+  sourceOperationId,
+  type Circuit,
+  type ExpandedCircuit,
+} from '@qsim/schema'
 
 import { runNoiseJob } from './noiseJob'
 import {
   MAX_CLIENT_QUBITS,
   clampShots,
+  idealTrajectoriesFit,
+  maxIdealTrajectoryShots,
   encodeState,
   type NoisePayload,
   type NoiseSpec,
@@ -92,7 +103,25 @@ export function runJob(
       detail: formatIssues(parsed.issues),
     })
   }
-  const circuit = parsed.circuit
+  /*
+   * Custom gates are flattened here and nowhere else on this side (M2.3). The
+   * engine has never heard of one and refuses it by name, so the seam that
+   * hands it a circuit is the seam that expands.
+   *
+   * The consequence the rest of this function has to live with: there are two
+   * column axes, and they meet here. `request.fromColumn` is the *editor's* —
+   * it comes from a diff of two documents, which is what the reader edited —
+   * and `expandedFromColumn` translates it. `request.throughColumn` is already
+   * an expanded column: the scrubber walks instants rather than source columns
+   * (see `timeline.ts`), because a stop the engine cannot stop at is a stop
+   * that does not exist.
+   *
+   * `safeParseCircuit` has already refused anything that expands past the
+   * contract's ceilings, so this cannot throw for a circuit that got here.
+   */
+  const expansion = expandCircuit(parsed.circuit)
+  const circuit = expansion.circuit
+  const throughColumn = request.throughColumn
 
   if (request.mode === 'trajectories' && circuit.clbits === 0) {
     return failed(id, {
@@ -100,6 +129,34 @@ export function runJob(
       detail:
         'A trajectories run reports counts of the classical register, and ' +
         'this circuit declares no classical bits.',
+    })
+  }
+
+  if (
+    request.mode === 'trajectories' &&
+    !idealTrajectoriesFit(
+      circuit.qubits,
+      circuit.operations.length,
+      request.shots
+    )
+  ) {
+    /*
+     * The register test is not the whole ceiling: this mode re-runs the entire
+     * circuit once per shot, so its cost is linear in shots and this is the
+     * side that would spend the minutes. The scheduler refuses it too — both
+     * checks are wanted, for the same reason the qubit ceiling has two.
+     */
+    return failed(id, {
+      code: 'sampling-too-large',
+      qubits: circuit.qubits,
+      operations: circuit.operations.length,
+      shots: request.shots,
+      limit: maxIdealTrajectoryShots(circuit.qubits, circuit.operations.length),
+      detail:
+        `Refusing ${String(request.shots)} shots of a ` +
+        `${String(circuit.qubits)}-qubit circuit with ` +
+        `${String(circuit.operations.length)} operations: past the sampled ` +
+        `work budget, and this worker cannot be interrupted.`,
     })
   }
 
@@ -117,7 +174,7 @@ export function runJob(
       // instant. `clbits` is untouched, so the table keeps its width and the
       // reader watches bits arrive rather than the columns change shape.
       const result = run(
-        through(circuit, request.throughColumn),
+        through(circuit, throughColumn),
         trajectoriesMode(request.shots, createRng(request.seed))
       )
       if (result.mode !== 'trajectories') {
@@ -142,9 +199,15 @@ export function runJob(
       }
     }
 
-    const fromColumn = Math.max(0, request.fromColumn)
+    const fromColumn = expandedFromColumn(
+      expansion,
+      Math.max(0, request.fromColumn)
+    )
     invalidateFrom(cache, fromColumn)
-    const resumedFromColumn = resumePoint(cache, circuit.qubits)
+    const resumedFromColumn = sourceColumnOf(
+      expansion,
+      resumePoint(cache, circuit.qubits)
+    )
     /*
      * The scrubber's step (M0.8) and the ordinary run are the same run asked
      * to stop in different places, and they share the one cache deliberately:
@@ -159,9 +222,9 @@ export function runJob(
      * and that is settled before either branch is chosen.
      */
     const state =
-      request.throughColumn === null
+      throughColumn === null
         ? runFrom(cache, circuit, fromColumn).state
-        : stateAfterColumn(cache, circuit, request.throughColumn)
+        : stateAfterColumn(cache, circuit, throughColumn)
     /*
      * Sampled before the state is encoded, and that order is not incidental.
      * On the transfer path `encodeState` hands the engine's own buffers to
@@ -179,7 +242,10 @@ export function runJob(
      * the encode both reads would find a zero-length array and report a
      * perfectly plausible fidelity of zero.
      */
-    const noise = runNoise(circuit, state, request)
+    const noise = runNoise(circuit, state, {
+      noise: request.noise,
+      throughColumn,
+    })
     const encoded = encodeState(state, sharedMemory)
     return {
       response: {
@@ -196,7 +262,7 @@ export function runJob(
       transfer: encoded.transfer,
     }
   } catch (cause) {
-    return failed(id, describe(cause))
+    return failed(id, describe(cause, expansion))
   }
 }
 
@@ -291,14 +357,28 @@ function resumePoint(cache: CheckpointCache, qubits: number): number {
   return last === undefined ? 0 : last + 1
 }
 
-function describe(cause: unknown): SimulationFailure {
+/**
+ * The engine's refusal, as a code the panel can translate.
+ *
+ * `operationId` is translated back through the expansion, because the engine
+ * names the operation *it* ran and the canvas can only highlight a gate the
+ * user placed. Without this, a broken definition would report an id like `~7`,
+ * which exists in no document the reader can see.
+ */
+function describe(
+  cause: unknown,
+  expansion: ExpandedCircuit
+): SimulationFailure {
   if (cause instanceof MidCircuitMeasurementError) {
     return { code: 'measurement-in-analytic-mode', detail: cause.message }
   }
   if (cause instanceof CircuitRunError) {
     return {
       code: 'unsupported-operation',
-      operationId: cause.operationId,
+      operationId:
+        cause.operationId === undefined
+          ? undefined
+          : sourceOperationId(expansion, cause.operationId),
       detail: cause.message,
     }
   }

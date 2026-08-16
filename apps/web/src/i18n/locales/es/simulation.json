@@ -31,6 +31,55 @@
     "density-too-large": "Una matriz de densidad para {{qubits}} qubits pasa el techo de {{limit}} qubits del modo ruido. Las trayectorias muestreadas llegan más lejos, porque guardan un vector de estado y no una matriz.",
     "trajectories-too-large": "Una corrida muestreada vuelve a ejecutar todo el circuito en cada tiro, así que con {{qubits}} qubits y {{operations}} compuertas este navegador solo alcanzaba para {{shots}} tiros, por debajo de los {{limit}} que necesita una muestra para decir algo. Acorta el circuito o usa menos qubits.",
     "noise-out-of-memory": "Este dispositivo no pudo reservar la memoria que el método exacto necesita para {{qubits}} qubits, aunque está dentro del techo de {{limit}} qubits. Las trayectorias muestreadas piden mucha menos: guardan un vector de estado y no una matriz.",
-    "noise-failed": "La corrida con ruido no terminó. Todo lo que está arriba describe el circuito tal como está escrito y no se ve afectado."
+    "noise-failed": "La corrida con ruido no terminó. Todo lo que está arriba describe el circuito tal como está escrito y no se ve afectado.",
+    "server-unavailable": "La simulación en el servidor no está disponible en este momento. Este circuito pasa lo que cabe en el navegador, así que no hay nada que mostrar hasta que vuelva.",
+    "server-too-large": "El servidor rechazó este circuito: pasa un límite de recursos. Prueba con menos qubits, un circuito más corto o menos tiros.",
+    "server-refused": "El servidor no aceptó esta ejecución. No se simuló nada.",
+    "sampling-too-large": "Una corrida por muestreo vuelve a ejecutar todo el circuito una vez por tiro, así que {{shots}} tiros de un circuito de {{qubits}} qubits con {{operations}} compuertas tardarían minutos en esta pestaña — y un servidor también rechazaría un trabajo de este tamaño. Usa menos qubits o un circuito más corto."
+  },
+  "server": {
+    "heading": "Ejecución en el servidor",
+    "why": "Este circuito tiene {{qubits}} qubits. El navegador simula hasta {{limit}}, así que este se envió a un servidor — por eso tarda segundos y no milisegundos.",
+    "state": {
+      "submitting": "Enviando el circuito…",
+      "queued": "En la cola, esperando a un trabajador.",
+      "running": "Ejecutándose en el servidor: {{phase}}."
+    },
+    "phase": {
+      "validating": "revisando el circuito",
+      "simulating": "evolucionando el estado",
+      "sampling": "tomando tiros",
+      "summarising": "resumiendo el resultado"
+    },
+    "elapsed": "Transcurrido",
+    "estimate": "Duración estimada",
+    "done": "Avance",
+    "runId": "Ejecución",
+    "seconds": "{{seconds}} s",
+    "fraction": "{{completed}} de {{total}}",
+    "offline": "El canal de avance se cayó y está reconectando. La ejecución no se ve afectada; esta página la sigue consultando.",
+    "stop": "Dejar de esperar",
+    "stopNote": "La ejecución continúa en el servidor y conserva su identificador — esto solo hace que esta página deje de esperarla.",
+    "summary": "{{qubits}} qubits, semilla {{seed}}, {{milliseconds}} ms de motor.",
+    "hidden": "Hay {{states}} estados de la base más que no se listan; entre todos llevan {{weight}} de la probabilidad.",
+    "noResult": "La ejecución terminó pero no guardó ningún resultado legible.",
+    "table": {
+      "caption": "Estados de la base que informó el servidor, de mayor a menor",
+      "state": "Estado",
+      "probability": "Probabilidad",
+      "count": "Conteo"
+    },
+    "failure": {
+      "INVALID_CIRCUIT": "El servidor rechazó este circuito: no corresponde al formato que espera el simulador.",
+      "LIMIT_EXCEEDED": "El servidor rechazó esta ejecución: pasa un límite de recursos — el techo de qubits, el número de compuertas, los tiros o el tiempo que puede durar una corrida.",
+      "TIMED_OUT": "La ejecución seguía corriendo cuando venció su límite de tiempo, y se detuvo. Prueba con menos qubits, un circuito más corto o menos tiros.",
+      "RESULT_TOO_LARGE": "La respuesta era demasiado grande para guardarse. Un registro de este tamaño tiene más estados de la base de los que cabe en un resultado.",
+      "ENGINE_FAILED": "El motor de simulación falló en el servidor. Es un error de este proyecto, no un problema de tu circuito.",
+      "WORKER_CRASHED": "El proceso que ejecutaba esta simulación murió sin responder — lo más probable es que se quedara sin memoria.",
+      "QUEUE_UNAVAILABLE": "La ejecución se aceptó pero nunca llegó a un trabajador, así que nadie la corrió.",
+      "UNKNOWN": "La ejecución no terminó, y el servidor no dio una razón que esta página sepa explicar."
+    },
+    "stopped": "Dejaste de esperar. La ejecución continúa en el servidor y conserva su identificador.",
+    "stoppedWithId": "Dejaste de esperar. La ejecución continúa en el servidor como {{runId}}."
   }
 }

@@ -225,15 +225,30 @@ describe('loadEnv', () => {
 })
 
 describe('configurationWarnings', () => {
-  it('is silent for a correctly configured pooler URL', () => {
+  it('is silent about the database for a correctly configured pooler URL', () => {
     const env = loadEnv(
       testEnvSource({
         DATABASE_URL:
           'postgresql://postgres@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1',
+        REDIS_URL: 'redis://localhost:6379',
       })
     )
 
     expect(configurationWarnings(env)).toEqual([])
+  })
+
+  it('warns that server simulation is off when no REDIS_URL is set', () => {
+    /*
+     * A warning and not a refusal to boot: Redis backs exactly one route, and
+     * an API that would not start without it would take the gallery, the
+     * editor's persistence and every sign-in down with a queue outage.
+     */
+    const env = loadEnv(testEnvSource({ REDIS_URL: undefined }))
+    const warnings = configurationWarnings(env)
+
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('REDIS_URL')
+    expect(warnings[0]).toContain('SIMULATION_UNAVAILABLE')
   })
 
   it('warns about the missing pgbouncer and connection_limit parameters', () => {
@@ -286,6 +301,7 @@ describe('configurationWarnings', () => {
     const env = loadEnv(
       testEnvSource({
         DATABASE_URL: 'postgresql://postgres@localhost:5432/qsim',
+        REDIS_URL: 'redis://localhost:6379',
       })
     )
 

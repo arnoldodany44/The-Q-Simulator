@@ -71,6 +71,7 @@ export const NAMESPACES = [
   'export',
   'gallery',
   'gates',
+  'import',
   'landing',
   'settings',
   'simulation',
@@ -252,6 +253,16 @@ export const EDITOR_NAMESPACES = [
    * string leaves the page it was rendered on.
    */
   'export',
+  /*
+   * `import` from M2.4, beside `export` and not inside it. They are two
+   * vocabularies, not one: an export names five formats and says what each is
+   * good for, while an import is almost entirely a list of ways a stranger's
+   * file can be refused — a line, a column and the name of an OpenQASM feature
+   * this contract has no shape for. Sharing a namespace would put a dozen
+   * failure sentences next to five format descriptions and make both harder to
+   * translate.
+   */
+  'import',
 ] as const
 
 /**

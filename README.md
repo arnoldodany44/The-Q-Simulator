@@ -43,9 +43,11 @@ pnpm --filter web exec playwright install chromium
 ```
 apps/web            React client (Vite)                    → Vercel
 apps/api            Fastify 5 REST service                 → Railway
+apps/worker         BullMQ simulation consumer             → Railway
 packages/qsim       @qsim/core     — simulation engine, zero dependencies
 packages/schema     @qsim/schema   — circuit JSON contract, Zod validators
 packages/contract   @qsim/contract — REST wire contract, shared by web and api
+packages/jobs       @qsim/jobs     — queue contract, shared by api and worker
 packages/qasm       @qsim/qasm     — OpenQASM 3, Qiskit and JSON serialisers
 packages/db         @qsim/db       — Prisma schema, migrations, client singleton
 packages/config     @qsim/config   — shared ESLint and TypeScript config
@@ -81,6 +83,31 @@ and never with display text, and `apps/web` translates that code into `es`,
 `en` and `fr` (D2), with a test that refuses a code no catalog has a sentence
 for. The client that consumes all of this is `apps/web/src/lib/api`, which is
 the only place in the frontend that builds a URL or sets a header.
+
+`apps/worker` is the third process, and it exists for the three cases §4 gives
+the server: a circuit past the client ceiling, a run that must be
+authoritative, and hardware. **Most simulation never reaches it** — the browser
+runs everything up to twenty qubits in a Web Worker, and that decision is the
+one the specification calls its most important, because it is what makes the
+app feel instant and the infrastructure cheap.
+
+What it does that no other process could is run a stranger's arithmetic where
+it can be stopped. A simulation is a synchronous kernel loop with no `await` in
+it, so no timer, no `AbortController` and no cooperative flag can interrupt one:
+the worker forks a **child process** per job and enforces the wall-clock bound
+with `SIGKILL`. That also keeps the parent's event loop free, which is what
+lets BullMQ go on renewing the job's lock — without it a slow circuit would look
+like a dead worker and the job would be handed to a second one while the first
+was still running it. `apps/worker/src/pool.ts` is the argument in full.
+
+`packages/jobs` is what the API and the worker agree on, and it is deliberately
+pure: the payload, the run state machine, the progress protocol, the cost model
+and the bounded result shape are arithmetic and data, so they are tested with
+nothing running. The connection, the blocking read and the Lua scripts stay in
+the two apps. The Redis behind it is one shared, metered instance, so every key
+is namespaced by `QUEUE_PREFIX` and the live-instance suite is behind
+`QSIM_QUEUE_INTEGRATION=1` — it writes under a unique prefix, deletes exactly
+what it wrote, and there is no `FLUSHALL` anywhere in this repository.
 
 `packages/db` is server-only and the browser never imports it. Its client is
 generated from `prisma/schema.prisma` into `src/generated/`, which is

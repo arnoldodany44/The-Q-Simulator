@@ -61,5 +61,22 @@ export async function createTestApp(options: TestAppOptions = {}) {
     database: options.database ?? { probe: () => Promise.resolve() },
     ...(options.jwks === undefined ? {} : { jwks: options.jwks }),
     ...(options.circuits === undefined ? {} : { circuits: options.circuits }),
+    ...(options.runs === undefined ? {} : { runs: options.runs }),
+    /*
+     * Deliberately not defaulted to a working queue. A test that does not say
+     * what the queue is gets `app.simulations === null`, which is the
+     * REDIS_URL-absent state — so the "server simulation is unavailable" path
+     * is the one every unrelated suite exercises by accident, and a route that
+     * started reaching for Redis without being asked would fail immediately.
+     */
+    ...(options.queue === undefined ? {} : { queue: options.queue }),
+    /*
+     * Defaulted to absent for the same reason the queue is: a test that does
+     * not say what the event bus is gets `app.runEvents === null`, which is the
+     * REDIS_URL-absent state — so a socket that started reaching for Redis
+     * without being asked would answer SIMULATION_UNAVAILABLE in every
+     * unrelated suite rather than opening a connection.
+     */
+    ...(options.events === undefined ? {} : { events: options.events }),
   })
 }
