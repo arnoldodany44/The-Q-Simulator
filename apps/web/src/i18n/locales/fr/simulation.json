@@ -15,6 +15,9 @@
     "moment": {
       "start": "L’état avant l’exécution de la colonne 0 — le point de départ du circuit.",
       "column": "L’état après la colonne {{column}}, et non à la fin du circuit."
+    },
+    "noise": {
+      "measuring": "Ce circuit mesure avant de se terminer, il n’a donc pas de distribution idéale unique — et le mode bruit compare une distribution bruitée à une distribution idéale. Retirez les mesures pour pouvoir les comparer."
     }
   },
   "errors": {
@@ -24,6 +27,10 @@
     "no-classical-bits": "L’échantillonnage rend compte du registre classique, et ce circuit ne déclare aucun bit classique. Ajoutez d’abord une mesure.",
     "unsupported-operation": "Le simulateur ne sait pas encore exécuter l’une des portes de ce circuit.",
     "worker-unavailable": "Ce navigateur n’a pas pu démarrer le simulateur. La simulation s’exécute sur un fil séparé, que cette page n’a pas réussi à créer.",
-    "worker-failed": "Le simulateur s’est arrêté de façon inattendue. Modifiez le circuit pour réessayer."
+    "worker-failed": "Le simulateur s’est arrêté de façon inattendue. Modifiez le circuit pour réessayer.",
+    "density-too-large": "Une matrice de densité pour {{qubits}} qubits dépasse le plafond de {{limit}} qubits du mode bruit. Les trajectoires échantillonnées vont plus loin, car elles conservent un vecteur d’état et non une matrice.",
+    "trajectories-too-large": "Une exécution échantillonnée rejoue tout le circuit à chaque tir : avec {{qubits}} qubits et {{operations}} portes, ce navigateur ne pouvait s’offrir que {{shots}} tirs, en deçà des {{limit}} qu’il faut pour qu’un échantillon dise quelque chose. Raccourcissez le circuit ou réduisez le registre.",
+    "noise-out-of-memory": "Cet appareil n’a pas pu réserver la mémoire que la méthode exacte demande pour {{qubits}} qubits, bien que ce soit sous le plafond de {{limit}} qubits. Les trajectoires échantillonnées en demandent bien moins : elles conservent un vecteur d’état et non une matrice.",
+    "noise-failed": "L’exécution bruitée ne s’est pas terminée. Tout ce qui la précède décrit le circuit tel qu’il est écrit et n’est pas affecté."
   }
 }

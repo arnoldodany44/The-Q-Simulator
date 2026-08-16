@@ -43,10 +43,13 @@ import {
 } from '@qsim/core'
 import { formatIssues, safeParseCircuit, type Circuit } from '@qsim/schema'
 
+import { runNoiseJob } from './noiseJob'
 import {
   MAX_CLIENT_QUBITS,
   clampShots,
   encodeState,
+  type NoisePayload,
+  type NoiseSpec,
   type RequestId,
   type SampleSpec,
   type SamplePayload,
@@ -168,6 +171,15 @@ export function runJob(
      * state in the same message, which is what makes the comparison honest.
      */
     const sampling = drawSample(state, request.sample)
+    /*
+     * Before `encodeState`, for the same reason the sample is: on the transfer
+     * path the engine's own buffers are handed to `postMessage`, which detaches
+     * them, and the noisy run reads those amplitudes twice — once for the ideal
+     * distribution the fidelity is measured against, once for ⟨ψ|ρ|ψ⟩. After
+     * the encode both reads would find a zero-length array and report a
+     * perfectly plausible fidelity of zero.
+     */
+    const noise = runNoise(circuit, state, request)
     const encoded = encodeState(state, sharedMemory)
     return {
       response: {
@@ -178,6 +190,7 @@ export function runJob(
         resumedFromColumn,
         throughColumn: request.throughColumn,
         sampling,
+        noise,
         durationMs: performance.now() - started,
       },
       transfer: encoded.transfer,
@@ -232,6 +245,35 @@ function drawSample(
     seed: spec.seed,
     counts: sampleShots(state, shots, createRng(spec.seed)),
   }
+}
+
+/**
+ * §3.3's second run, over the same cut of the same circuit — or `null` when
+ * nobody asked for one.
+ *
+ * THE SAME CUT. The ideal half answers for `throughColumn` (M0.8), so the noisy
+ * half is handed the circuit truncated to exactly that column by the same
+ * `through` the trajectories branch uses. A comparison whose two sides had run
+ * different numbers of columns would attribute the missing columns to noise,
+ * which is the one thing a noise panel must never be able to do.
+ *
+ * `runNoiseJob` returns its failures rather than throwing them, so nothing here
+ * can cost the reader the ideal answer this message already carries.
+ */
+function runNoise(
+  circuit: Circuit,
+  state: Statevector,
+  request: {
+    readonly noise: NoiseSpec | null
+    readonly throughColumn: number | null
+  }
+): NoisePayload | null {
+  if (request.noise === null) return null
+  return runNoiseJob(
+    through(circuit, request.throughColumn),
+    state,
+    request.noise
+  )
 }
 
 /**

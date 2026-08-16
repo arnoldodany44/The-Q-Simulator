@@ -86,6 +86,17 @@ async function rawKeysOn(page: Page): Promise<string[]> {
  * exactly the arrangement this file exists to catch. With no API behind this
  * suite it settles into its failure state, which is the state hardest to
  * remember to translate.
+ *
+ * M2.2 adds no address to this list, and that is worth writing down rather than
+ * leaving as an omission. The Q-sphere, the entanglement metrics and §3.3's
+ * noise mode all live inside the analysis panel of `/new` and `/c/:slug`, both
+ * of which are already here — so the two panels that render unconditionally are
+ * covered by this file as they stand. What this file *cannot* reach is the
+ * surface behind a control: the noise panel's fields, the comparison and the
+ * density heat map only exist once a checkbox is ticked, and a walk of the DOM
+ * as loaded will never see them. That is precisely the surface nobody opens
+ * while translating, so it has a suite of its own — `noise-mode.spec.ts` opens
+ * it in French and asserts the same shape-based property there.
  */
 const ROUTES = [
   '/',

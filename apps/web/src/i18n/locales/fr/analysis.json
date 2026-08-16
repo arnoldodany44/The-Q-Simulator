@@ -16,7 +16,9 @@
       "phase": "Phase",
       "remainder_one": "Le seul autre état de base",
       "remainder_other": "Les {{hidden}} autres états de base, réunis",
-      "mixedPhase": "Plusieurs phases"
+      "mixedPhase": "Plusieurs phases",
+      "comparedCaption": "Une ligne par état de base : sa probabilité sans bruit, avec bruit, et la différence entre les deux.",
+      "unreached": "Les états de base que ce circuit n’atteint jamais"
     }
   },
   "amplitudes": {
@@ -98,6 +100,222 @@
       "difference": "Écart",
       "remainder_one": "Le seul autre état de base",
       "remainder_other": "Les {{hidden}} autres états de base, réunis"
+    }
+  },
+  "qsphere": {
+    "heading": "Q-sphere",
+    "caption": {
+      "complete_one": "{{occupied}} état de base sur {{total}} a une amplitude non nulle, et il est dessiné sur la sphère.",
+      "complete_other": "{{occupied}} états de base sur {{total}} ont une amplitude non nulle, et tous sont dessinés sur la sphère.",
+      "capped_one": "{{occupied}} états de base sur {{total}} ont une amplitude non nulle. Les {{shown}} plus grands sont dessinés ; l’autre porte {{share}} et n’est pas sur la sphère.",
+      "capped_other": "{{occupied}} états de base sur {{total}} ont une amplitude non nulle. Les {{shown}} plus grands sont dessinés ; les {{hidden}} autres portent {{share}} à eux tous et ne sont pas sur la sphère."
+    },
+    "note": "Chaque état de base est un point. L’anneau sur lequel il repose indique combien de qubits valent 1 dans cet état, les zéros au pôle du haut et les uns au pôle du bas ; la taille du point est la taille de l’amplitude, et sa couleur est la phase. Deux points de couleurs opposées sont deux chemins qui s’annuleraient s’ils se rencontraient.",
+    "loading": "Dessin de la sphère…",
+    "unavailable": "Ce navigateur n’a pas pu ouvrir une vue 3D, la sphère n’est donc pas dessinée. Le tableau ci-dessous porte la même lecture.",
+    "table": {
+      "caption": "Une ligne par état de base dessiné : sur quel anneau il repose, la taille de son amplitude, sa probabilité et sa phase.",
+      "state": "État de base",
+      "ring": "Anneau",
+      "magnitude": "Amplitude",
+      "probability": "Probabilité",
+      "phase": "Phase",
+      "weight_one": "{{weight}} qubit sur {{total}} à 1",
+      "weight_other": "{{weight}} qubits sur {{total}} à 1"
+    }
+  },
+  "entanglement": {
+    "heading": "Intrication",
+    "summary": {
+      "product_one": "Ce registre a un seul qubit et il possède un état entièrement à lui.",
+      "product_other": "Les {{total}} qubits possèdent un état entièrement à eux, donc aucun n’est intriqué avec un autre.",
+      "entangled_one": "Un qubit sur {{total}} ne possède pas d’état entièrement à lui : une partie de ce qui le décrit est détenue conjointement avec le reste du registre.",
+      "entangled_other": "{{entangled}} qubits sur {{total}} ne possèdent pas d’état entièrement à eux : une partie de ce qui les décrit est détenue conjointement avec le reste du registre."
+    },
+    "table": {
+      "qubit": "Qubit",
+      "pair": "Paire",
+      "reading": "Lecture"
+    },
+    "entropy": {
+      "legend": "Entropie de von Neumann, qubit par qubit",
+      "caption": "Une ligne par qubit : son entropie de von Neumann en bits, et ce que ce nombre dit du qubit.",
+      "reading": {
+        "own": "0 bit : un état entièrement à lui",
+        "partial": "Entre 0 et 1 : en partie détenu avec le reste",
+        "none": "1 bit : ce qubit seul ne possède aucun état propre"
+      }
+    },
+    "pairs": {
+      "legend": "Concurrence, deux par deux",
+      "caption": "Une ligne par paire de qubits : la concurrence entre les deux, et ce que ce nombre dit de la paire.",
+      "single": "La concurrence est une propriété d’une paire, et ce registre n’a qu’un seul qubit.",
+      "tooWide": "Le tableau des paires s’arrête à {{limit}} qubits et ce registre en a {{qubits}}. Une concurrence est un calcul séparé pour chaque paire, et le nombre de paires croît comme le carré du registre : au-delà de cette limite, cela coûterait plus qu’une image. Les entropies ci-dessus n’ont pas ce plafond.",
+      "reading": {
+        "separable": "0 : ces deux-là ne partagent rien",
+        "partial": "Entre 0 et 1 : en partie intriqués l’un avec l’autre",
+        "maximal": "1 : aussi intriqués l’un avec l’autre que deux qubits peuvent l’être"
+      }
+    },
+    "shared": {
+      "none": "Des qubits ici ne possèdent aucun état propre, et pourtant aucune paire ne partage quoi que ce soit : l’intrication est répartie entre plus de deux d’entre eux à la fois. L’exemple classique est un état GHZ, où chaque qubit est intriqué sans qu’aucune paire n’en détienne quoi que ce soit."
+    }
+  },
+  "noise": {
+    "heading": "Bruit",
+    "intro": "Une machine réelle perd un peu de l’état à chaque étape. Choisissez un appareil et le circuit est exécuté une seconde fois sous ce modèle, pour que ce qu’une machine aurait mesuré se retrouve à côté de ce que dit la mathématique.",
+    "enable": "Exécuter ce circuit avec un modèle de bruit",
+    "profile": {
+      "label": "Appareil",
+      "ideal": {
+        "name": "Sans bruit",
+        "help": "Une machine parfaite : rien ne se désexcite, chaque porte est exacte et chaque lecture est juste. C’est la référence contre laquelle les autres profils sont tracés, il n’y a donc rien à comparer ici."
+      },
+      "superconducting": {
+        "name": "Supraconducteur",
+        "help": "Une machine de type transmon : des portes en dizaines de nanosecondes, une cohérence en centaines de microsecondes, et la lecture comme pire opération de la puce, de loin."
+      },
+      "trappedIon": {
+        "name": "Ions piégés",
+        "help": "Un piège à ions : une cohérence mesurée en secondes et des portes mesurées en microsecondes. Des portes bien meilleures que celles d’un transmon et bien plus lentes, ce qui est le compromis que font réellement les deux technologies."
+      },
+      "teaching": {
+        "name": "Pédagogique (exagéré)",
+        "help": "Bruyant à dessein, et à dessein pas une machine réelle. Sur du bon matériel, un circuit de dix portes perd environ une partie sur mille, invisible sur un graphique ; celui-ci en perd assez pour qu’une paire de Bell cesse visiblement d’en être une."
+      },
+      "custom": {
+        "name": "Personnalisé",
+        "help": "Vos propres chiffres, dans les unités qu’une machine publie. Changez un champ à la fois et regardez lequel déplace le graphique."
+      }
+    },
+    "custom": {
+      "legend": "Chiffres de l’appareil",
+      "invalid": "Ces chiffres ne décrivent pas un appareil physique, l’exécution bruitée n’a donc pas démarré. Le champ en cause est marqué."
+    },
+    "field": {
+      "t1Us": {
+        "label": "T1",
+        "unit": "µs",
+        "help": "Combien de temps un qubit reste excité avant de retomber. Plus il est court, plus vite l’état s’échappe."
+      },
+      "t2Us": {
+        "label": "T2",
+        "unit": "µs",
+        "help": "Combien de temps un qubit conserve sa phase. Il ne peut jamais dépasser le double de T1, parce que la désexcitation à elle seule coûte déjà la moitié de la cohérence."
+      },
+      "oneQubitGateNs": {
+        "label": "Durée d’une porte à un qubit",
+        "unit": "ns",
+        "help": "Combien de temps prend une porte sur un seul qubit. La décohérence facture le temps, donc une porte plus lente sur le même qubit est une porte plus bruitée."
+      },
+      "twoQubitGateNs": {
+        "label": "Durée d’une porte à deux qubits",
+        "unit": "ns",
+        "help": "La même chose pour une porte sur deux qubits. Elle est habituellement un ordre de grandeur plus longue, et c’est là l’essentiel de la raison pour laquelle les portes à deux qubits sont les coûteuses."
+      },
+      "oneQubitGateErrorPercent": {
+        "label": "Erreur d’une porte à un qubit",
+        "unit": "%",
+        "help": "Quelle part de l’état une porte à un qubit moyenne abîme, en plus de ce que coûte déjà sa durée. C’est le chiffre que rapporte le benchmarking randomisé."
+      },
+      "twoQubitGateErrorPercent": {
+        "label": "Erreur d’une porte à deux qubits",
+        "unit": "%",
+        "help": "La même chose pour une porte à deux qubits. Sur du matériel réel elle vaut dix à cinquante fois le chiffre à un qubit, et c’est elle qui décide jusqu’à quelle profondeur un circuit sert à quelque chose."
+      },
+      "readoutP0to1Percent": {
+        "label": "Lit 1 alors que c’était 0",
+        "unit": "%",
+        "help": "À quelle fréquence un qubit préparé dans l’état fondamental est lu comme excité. Cela se produit après que le qubit a disparu : c’est un classifieur qui se trompe, pas l’état qui change."
+      },
+      "readoutP1to0Percent": {
+        "label": "Lit 0 alors que c’était 1",
+        "unit": "%",
+        "help": "À quelle fréquence un qubit préparé dans l’état excité est lu comme fondamental. C’est habituellement la plus grande des deux, parce qu’un qubit peut se désexciter pendant la mesure elle-même."
+      }
+    },
+    "readout": {
+      "label": "Inclure l’erreur de lecture",
+      "help": "L’erreur de lecture est la dernière chose qui arrive et souvent la plus grande erreur isolée de l’histogramme. Désactivez-la pour voir ce que l’état aurait donné à lui seul."
+    },
+    "method": {
+      "legend": "Comment le calculer",
+      "density": {
+        "label": "Exact (matrice de densité)",
+        "help": "Tous les résultats du bruit à la fois, sans la moindre erreur d’échantillonnage. Elle retient un nombre par paire d’états de base : sa mémoire quadruple à chaque qubit ajouté et elle s’arrête à une douzaine — et les derniers qubits avant cet arrêt coûtent des secondes d’attente. C’est aussi la seule méthode capable de vous montrer la matrice elle-même."
+      },
+      "trajectories": {
+        "label": "Échantillonné (trajectoires)",
+        "help": "Exécute le circuit un grand nombre de fois, en tirant une erreur au hasard à chaque porte. Elle ne conserve qu’un vecteur d’état et atteint donc des registres hors de portée de la méthode exacte ; mais elle rejoue tout le circuit à chaque tir, si bien que sa limite à elle est le temps, et elle paie l’échantillonnage en erreur exactement comme les tirs."
+      }
+    },
+    "refusal": {
+      "tooLarge": "La méthode exacte retient un nombre par paire d’états de base : sa mémoire quadruple à chaque qubit et elle s’arrête à {{limit}}. Ce circuit compte {{qubits}} qubits, rien n’a donc été exécuté. Les trajectoires échantillonnées vont plus loin : elles gardent un vecteur d’état et paient en tirs.",
+      "tooSlow": "Les trajectoires échantillonnées rejouent tout le circuit à chaque tir : leur coût monte avec le registre et avec le circuit. Avec {{qubits}} qubits et {{operations}} portes, ce navigateur pouvait s’offrir {{shots}} tirs, et un échantillon ne dit rien en deçà de {{limit}} ; rien n’a donc été exécuté. Raccourcissez le circuit ou réduisez le registre.",
+      "switch": "Utiliser les trajectoires échantillonnées"
+    },
+    "slow": {
+      "density": "Avec {{qubits}} qubits, la méthode exacte prend plusieurs secondes, et elle repart de zéro à chaque modification comme à chaque pas de la frise : rien n’est repris comme dans l’exécution idéale. Les trajectoires échantillonnées répondent plus vite si l’attente gêne."
+    },
+    "shots": "Tirs",
+    "shotsCapped": "Avec {{qubits}} qubits et {{operations}} portes, une exécution échantillonnée est plafonnée à {{shots}} tirs, ce qui tient dans le temps que cet onglet peut dépenser sans cesser de répondre. Moins de qubits ou un circuit plus court relèvent ce plafond.",
+    "resample": "Tirer à nouveau",
+    "advanced": {
+      "label": "Afficher la matrice de densité (avancé)",
+      "help": "Une carte de chaleur de la matrice derrière l’exécution bruitée. Sa diagonale est l’histogramme ; tout ce qui est hors diagonale est de la cohérence, et c’est la première chose que le bruit emporte.",
+      "unavailable": "La matrice de densité n’existe que dans la méthode exacte. Les trajectoires échantillonnées n’en forment jamais, et c’est précisément ce qui les rend bon marché."
+    },
+    "comparison": {
+      "heading": "Idéal contre bruité",
+      "ranDensity": "Calculé de façon exacte, sans erreur d’échantillonnage : chaque chiffre ci-dessous est aussi précis que l’arithmétique le permet.",
+      "ranTrajectories": "Échantillonné sur {{shots}} exécutions, chaque chiffre ci-dessous porte donc une erreur d’environ {{typical}}. Augmentez les tirs pour la réduire.",
+      "fidelity": "Fidélité de distribution",
+      "moved": "Probabilité déplacée",
+      "stateFidelity": "Fidélité d’état",
+      "purity": "Pureté",
+      "column": {
+        "noisy": "Avec bruit",
+        "difference": "Différence"
+      },
+      "chart": {
+        "heading": "Le même graphique, avec la lecture bruitée dessus",
+        "summary": "Chaque barre est la probabilité idéale. Le repère est là où le bruit l’a mise, et l’éclat entre les deux est la différence : hors de la barre pour un résultat qui a gagné, taillé dedans pour un qui a perdu."
+      },
+      "movement": {
+        "none": "Rien n’a bougé : ce modèle de bruit a laissé la distribution exactement où elle était.",
+        "gainOnly": "{{state}} a gagné {{gain}}, et rien n’a perdu.",
+        "lossOnly": "{{state}} a perdu {{loss}}, et rien n’a gagné.",
+        "both": "{{lost}} a le plus perdu, {{loss}}, et {{gained}} a le plus gagné, {{gain}}.",
+        "others": "le reste de la distribution"
+      }
+    }
+  },
+  "density": {
+    "heading": "Matrice de densité",
+    "empty": "Cette matrice de densité ne porte de population nulle part, ce qui n’est pas un état que produit un circuit.",
+    "caption": {
+      "complete_one": "{{shown}} état de base porte de la population, et toute la matrice le concernant est dessinée.",
+      "complete_other": "{{shown}} états de base portent de la population, et toute la matrice les concernant est dessinée.",
+      "capped_one": "{{shown}} états de base sont dessinés, choisis par population. L’autre porte {{share}} et n’est pas sur la carte.",
+      "capped_other": "{{shown}} états de base sont dessinés, choisis par population. Les {{hidden}} autres portent {{share}} à eux tous et ne sont pas sur la carte."
+    },
+    "note": "La diagonale est l’histogramme : une entrée par état de base, portant sa probabilité. Tout ce qui est hors diagonale est une cohérence, ce dont une superposition est faite et la première chose que le bruit emporte.",
+    "scale": "La couleur est le signe et l’opacité est la taille, mesurée contre la plus grande entrée dessinée ici, {{peak}}.",
+    "part": {
+      "real": "Partie réelle",
+      "imaginary": "Partie imaginaire"
+    },
+    "table": {
+      "caption": "Une ligne par entrée de la matrice au-dessus du plancher de bruit : quels deux états de base elle relie, sa valeur, sa taille, et si c’est une population ou une cohérence.",
+      "row": "Ligne",
+      "column": "Colonne",
+      "value": "Valeur",
+      "magnitude": "Taille",
+      "kind": "Type",
+      "population": "Population",
+      "coherence": "Cohérence",
+      "negligible_one": "Une autre entrée du bloc dessiné est sous le plancher de bruit et n’est pas listée.",
+      "negligible_other": "{{negligible}} autres entrées du bloc dessiné sont sous le plancher de bruit et ne sont pas listées."
     }
   }
 }

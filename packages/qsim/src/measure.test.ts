@@ -23,6 +23,7 @@ import {
   measureQubit,
   orderedCounts,
   probabilities,
+  sampleIndex,
   sampleShots,
   trajectoriesMode,
   type ExecutionOptions,
@@ -74,6 +75,13 @@ function fixedRng(...values: number[]): Rng {
 
 function totalShots(counts: Readonly<Record<string, number>>): number {
   return Object.values(counts).reduce((sum, count) => sum + count, 0)
+}
+
+/** Highest qubit first, spelled out rather than taken from `formatKet`. */
+function ketLabel(index: number, qubits: number): string {
+  let out = ''
+  for (let qubit = qubits - 1; qubit >= 0; qubit--) out += bitOf(index, qubit)
+  return out
 }
 
 describe('Born rule', () => {
@@ -204,6 +212,67 @@ describe('shot sampling', () => {
     expect(sampleShots(state, 0, createRng(1))).toEqual({})
     expect(() => sampleShots(state, -1, createRng(1))).toThrow(RangeError)
     expect(() => sampleShots(state, 1.5, createRng(1))).toThrow(RangeError)
+  })
+})
+
+describe('drawing a single sample', () => {
+  /**
+   * `sampleIndex` exists for the noise trajectories of §5.4: every shot ends
+   * in a different final state, so there is nothing to amortise a cumulative
+   * array over and it would be built and thrown away once per shot.
+   *
+   * Its contract is that it agrees with `sampleShots` draw for draw. That is
+   * not a nicety — it is what lets a noisy run at a zero-noise profile be
+   * compared with an ordinary analytic run by *equality* rather than by χ²,
+   * which is the sharpest assertion in the noise suite.
+   */
+
+  it('agrees with sampleShots, draw for draw', () => {
+    const state = randomState(3, 20260816)
+    const shots = 500
+    const batched = sampleShots(state, shots, createRng(99))
+
+    const rng = createRng(99)
+    const tally: Record<string, number> = {}
+    for (let shot = 0; shot < shots; shot++) {
+      const index = sampleIndex(state, rng)
+      const label = ketLabel(index, state.qubits)
+      tally[label] = (tally[label] ?? 0) + 1
+    }
+    expect(tally).toEqual(batched)
+  })
+
+  it('lands on the first and last reachable outcome at the extremes', () => {
+    // The same boundary `sampleShots` is pinned at, on the same state: a draw
+    // of 0 is the lowest outcome with mass and a draw just under 1 the
+    // highest. |01⟩ and |10⟩ have none and must be unreachable from either
+    // end — 1 and 2 are exactly the indices an off-by-one would return.
+    const state = bellPair()
+    expect(sampleIndex(state, fixedRng(0))).toBe(0)
+    expect(sampleIndex(state, fixedRng(1 - Number.EPSILON))).toBe(3)
+  })
+
+  it('never returns an outcome the state forbids', () => {
+    const state = bellPair()
+    for (let step = 0; step <= 200; step++) {
+      const draw = step / 200
+      expect([0, 3], `draw ${draw}`).toContain(
+        sampleIndex(state, fixedRng(draw))
+      )
+    }
+  })
+
+  it('leaves the state untouched', () => {
+    const state = bellPair()
+    const before = Array.from(state.re)
+    sampleIndex(state, createRng(7))
+    expect(Array.from(state.re)).toEqual(before)
+  })
+
+  it('refuses a state with no probability', () => {
+    const empty = alloc(2)
+    empty.re[0] = 0
+    expect(() => sampleIndex(empty, createRng(1))).toThrow(RangeError)
   })
 })
 

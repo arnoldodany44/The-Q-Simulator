@@ -50,6 +50,7 @@ import {
   MAX_CLIENT_QUBITS,
   clampShots,
   decodeResult,
+  type NoiseSpec,
   type RequestId,
   type SimulateRequest,
   type SimulationFailure,
@@ -131,6 +132,17 @@ export interface RunOptions {
    * same silent falsehood as a stale intermediate state.
    */
   readonly throughColumn?: number | null
+  /**
+   * Run the circuit a second time under a noise model (§3.3), or `null`/absent
+   * for the ideal run alone.
+   *
+   * Ignored in trajectories mode, and that is a statement about the physics
+   * rather than a shortcut: §3.3's deliverable is the ideal distribution beside
+   * the noisy one, and a circuit that measures before it ends has no single
+   * ideal distribution to put beside anything (§5.3). The panel says so instead
+   * of asking for half a comparison.
+   */
+  readonly noise?: NoiseSpec | null
 }
 
 export interface SchedulerOptions {
@@ -451,6 +463,7 @@ interface ResolvedRun {
   readonly shots: number
   readonly seed: number
   readonly throughColumn: number | null
+  readonly noise: NoiseSpec | null
 }
 
 function resolveRun(run: RunOptions): ResolvedRun {
@@ -463,11 +476,53 @@ function resolveRun(run: RunOptions): ResolvedRun {
     shots: clampShots(run.shots ?? DEFAULT_SHOTS),
     seed: run.seed ?? DEFAULT_SEED,
     throughColumn: run.throughColumn ?? null,
+    noise: run.noise ?? null,
   }
+}
+
+/**
+ * Whether two noise specs ask the same question — compared field by field,
+ * never by identity.
+ *
+ * A caller that rebuilds the object every render is the normal thing, and an
+ * identity check would make every keystroke in the editor look like a change of
+ * noise model and re-run a density-matrix simulation. The profile is eight
+ * numbers and an id, all of them flat, so the comparison is exhaustive rather
+ * than a heuristic — a field added to `NoiseProfile` and forgotten here would be
+ * a slider the reader could drag with nothing happening, which is why the
+ * destructuring below names every one of them.
+ */
+function sameNoise(left: NoiseSpec | null, right: NoiseSpec | null): boolean {
+  if (left === null || right === null) return left === right
+  if (left.method !== right.method) return false
+  if (left.readout !== right.readout) return false
+  // Shots and the seed are questions only for the sampled method: the density
+  // method draws nothing, so re-running it because a shots slider moved would
+  // recompute a 4ⁿ evolution to produce the identical matrix.
+  if (left.method === 'trajectories') {
+    if (left.shots !== right.shots || left.seed !== right.seed) return false
+  }
+  const a = left.profile
+  const b = right.profile
+  return (
+    a.id === b.id &&
+    a.t1Ns === b.t1Ns &&
+    a.t2Ns === b.t2Ns &&
+    a.oneQubitGateNs === b.oneQubitGateNs &&
+    a.twoQubitGateNs === b.twoQubitGateNs &&
+    a.oneQubitGateError === b.oneQubitGateError &&
+    a.twoQubitGateError === b.twoQubitGateError &&
+    a.readoutP0to1 === b.readoutP0to1 &&
+    a.readoutP1to0 === b.readoutP1to0
+  )
 }
 
 function sameRun(left: ResolvedRun, right: ResolvedRun): boolean {
   if (left.mode !== right.mode) return false
+  // Compared before the mode split below, because a noise model is a question
+  // about the circuit rather than about the sampling: switching profiles with
+  // shot sampling switched off still has to dispatch.
+  if (!sameNoise(left.noise, right.noise)) return false
   // A scrub step asks a different question of the same circuit, so it is a
   // different run — this comparison is what makes moving the timeline schedule
   // anything at all when nothing about the document changed. It is compared in
@@ -544,6 +599,7 @@ function buildRequest(
     mode: 'analytic',
     throughColumn: run.throughColumn,
     sample: run.sample ? { shots: run.shots, seed: run.seed } : null,
+    noise: run.noise,
   }
 }
 

@@ -53,19 +53,12 @@
  */
 
 import { blochVectors, type Statevector } from '@qsim/core'
-import {
-  Component,
-  Suspense,
-  lazy,
-  useCallback,
-  useMemo,
-  useState,
-} from 'react'
-import type { ErrorInfo, ReactNode } from 'react'
+import { Suspense, lazy, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Notation } from '../../components/Notation'
 import { usePrefersReducedMotion } from '../../lib/usePrefersReducedMotion'
+import { SceneBoundary } from './SceneBoundary'
 import {
   qubitName,
   readingOf,
@@ -137,7 +130,7 @@ export function BlochSpheres({ state }: BlochSpheresProps) {
         <Suspense
           fallback={<p className="bloch__pending">{t('bloch.loading')}</p>}
         >
-          <SceneBoundary onFailure={giveUpDrawing}>
+          <SceneBoundary onFailure={giveUpDrawing} scene="Bloch scene">
             <BlochScene
               vectors={vectors}
               grid={grid}
@@ -234,45 +227,5 @@ function readingKey(reading: BlochReading): string {
       return 'bloch.reading.centre'
     default:
       return 'bloch.reading.shortened'
-  }
-}
-
-interface SceneBoundaryProps {
-  readonly children: ReactNode
-  readonly onFailure: () => void
-}
-
-/**
- * Turns anything the 3D chunk throws into the numeric rendering.
- *
- * Two failures reach here that `onUnavailable` cannot: the dynamic import
- * itself failing (a stale deploy, a dropped request — the same failure mode
- * `loadCatalogs` guards against), and three.js throwing during render on a
- * platform it cannot support. Both would otherwise unmount the whole analysis
- * panel and take the histogram, the amplitude table and the shots control
- * with them, because an uncaught error in a subtree destroys the tree above
- * it. A picture is not allowed to cost the reader their numbers.
- *
- * A class because that is still the only way to catch a render error. It is
- * deliberately not a general-purpose boundary: it recovers by telling its
- * parent to stop asking for a scene, which is a decision only this panel can
- * make.
- */
-class SceneBoundary extends Component<SceneBoundaryProps, { failed: boolean }> {
-  override state = { failed: false }
-
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true }
-  }
-
-  override componentDidCatch(error: Error, info: ErrorInfo): void {
-    // Reported, never swallowed: the reader gets a sentence, and whoever has
-    // to fix it gets the stack. `no-console` allows `error` for exactly this.
-    console.error('The Bloch scene failed to render', error, info)
-    this.props.onFailure()
-  }
-
-  override render(): ReactNode {
-    return this.state.failed ? null : this.props.children
   }
 }

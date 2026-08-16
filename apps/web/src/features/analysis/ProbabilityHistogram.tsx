@@ -45,6 +45,16 @@
  * effect, for the reason given there; the hue rides on `--row-hue`, a
  * registered `@property` that inherits, which is what lets one write per row
  * tint three marks and still interpolate.
+ *
+ * ── One chart, two distributions (M2.2) ─────────────────────────────────
+ *
+ * §3.3 asks for the ideal distribution beside the noisy one, and this chart is
+ * what draws it — extended with an `overlay`, never duplicated. Two adjacent
+ * charts would show two sets of lengths and leave the reader subtracting them
+ * across a gap; on one track the difference is a mark. `HistogramOverlay` in
+ * `histogram.ts` argues it at length, and `Move` below is the four lines that
+ * draw it. Everything above is unchanged when no overlay is passed, which is
+ * every caller but one.
  */
 
 import type { Statevector } from '@qsim/core'
@@ -59,10 +69,12 @@ import {
   formatDegrees,
   formatPhaseReading,
   formatProbability,
+  formatProbabilityDelta,
   pluralCount,
 } from './format'
 import {
   DEFAULT_BAR_LIMIT,
+  PROBABILITY_FLOOR,
   buildHistogram,
   histogramLayout,
   ket,
@@ -70,6 +82,7 @@ import {
   unwrapRotation,
   type HistogramBar,
   type HistogramLayout,
+  type HistogramOverlay,
 } from './histogram'
 
 export interface ProbabilityHistogramProps {
@@ -94,6 +107,20 @@ export interface ProbabilityHistogramProps {
   readonly heading?: string
   /** Overrides the sentence beside the title. Pass with `heading`. */
   readonly summary?: string
+  /**
+   * A second reading of the same basis states, drawn on the same tracks —
+   * §3.3's noisy distribution against this ideal one. See `HistogramOverlay`
+   * for why it is a mark on this chart rather than a chart of its own.
+   *
+   * Its presence changes one more thing, and deliberately: the accessible table
+   * below stops being `visually-hidden`. A bar's length is a quantity a sighted
+   * reader can compare by eye, which is what lets the table be an alternative
+   * rather than the rendering — but a two-pixel sliver between a bar's end and
+   * a tick is not, so with an overlay the numbers *are* the reading and they
+   * are shown. Same ruling the Bloch panel makes about its own table, and the
+   * same one §10 makes about the `--wire` token.
+   */
+  readonly overlay?: HistogramOverlay
 }
 
 export function ProbabilityHistogram({
@@ -103,6 +130,7 @@ export function ProbabilityHistogram({
   phasors = true,
   heading,
   summary,
+  overlay,
 }: ProbabilityHistogramProps) {
   const { t, i18n } = useTranslation('analysis')
   const language = i18n.language
@@ -112,12 +140,29 @@ export function ProbabilityHistogram({
     () => buildHistogram(state, { limit: barLimit, fullBasis }),
     [state, barLimit, fullBasis]
   )
-  const remainder = model.hidden > 0
+  /*
+   * A remainder row exists for either of two reasons, and the second one only
+   * with an overlay. The first is the cap: states the chart chose not to draw,
+   * which is what `model.hidden` counts. The second is *probability the second
+   * reading put where the first one has none* — an outcome noise created out of
+   * nothing. Rows are chosen by the ideal distribution (which is what keeps the
+   * chart from reordering itself on every slider tick), so such an outcome has
+   * no bar of its own and would otherwise be drawn nowhere at all: the chart
+   * would show a distribution losing probability to a place it never names.
+   */
+  const overlayRemainder = overlay?.remainder ?? 0
+  const remainder = model.hidden > 0 || overlayRemainder > PROBABILITY_FLOOR
   const rows = model.bars.length + (remainder ? 1 : 0)
   const angles = frozen && phasors
+  const comparing = overlay !== undefined
   const layout = useMemo(
-    () => histogramLayout(model.qubits, rows, { angles, phasors }),
-    [model.qubits, rows, angles, phasors]
+    () =>
+      histogramLayout(model.qubits, rows, {
+        angles,
+        phasors,
+        comparison: comparing,
+      }),
+    [model.qubits, rows, angles, phasors, comparing]
   )
 
   const caption =
@@ -179,6 +224,7 @@ export function ProbabilityHistogram({
               frozen={frozen}
               phasors={phasors}
               language={language}
+              second={overlay?.probabilities.get(bar.index) ?? null}
             />
           ))}
 
@@ -188,6 +234,7 @@ export function ProbabilityHistogram({
               layout={layout}
               probability={model.hiddenProbability}
               language={language}
+              second={overlay === undefined ? null : overlayRemainder}
             />
           ) : null}
         </svg>
@@ -213,13 +260,23 @@ export function ProbabilityHistogram({
        * `display: table` and, with it, the table semantics that are the
        * entire reason this rendering exists.
        */}
-      <div className="visually-hidden">
+      <div className={comparing ? 'histogram__viewport' : 'visually-hidden'}>
         <table className="histogram__table">
-          <caption>{t('histogram.table.caption')}</caption>
+          <caption className={comparing ? 'visually-hidden' : undefined}>
+            {comparing
+              ? t('histogram.table.comparedCaption')
+              : t('histogram.table.caption')}
+          </caption>
           <thead>
             <tr>
               <th scope="col">{t('histogram.table.state')}</th>
               <th scope="col">{t('histogram.table.probability')}</th>
+              {overlay === undefined ? null : (
+                <>
+                  <th scope="col">{overlay.label}</th>
+                  <th scope="col">{overlay.deltaLabel}</th>
+                </>
+              )}
               {/* The phase column follows the phasors: a caller that suppressed
                   them has a chart with no phase on it, and a described table
                   that carried one anyway would describe a different picture. */}
@@ -230,11 +287,19 @@ export function ProbabilityHistogram({
           </thead>
           <tbody>
             {model.bars.map((bar) => (
-              <tr key={bar.index}>
+              <tr className="histogram__table-row" key={bar.index}>
                 <th scope="row">
                   <Notation value={ket(bar.label)} />
                 </th>
-                <td>{formatProbability(bar.probability, language)}</td>
+                <td className="histogram__cell">
+                  {formatProbability(bar.probability, language)}
+                </td>
+                <SecondCells
+                  ideal={bar.probability}
+                  second={overlay?.probabilities.get(bar.index) ?? null}
+                  present={overlay !== undefined}
+                  language={language}
+                />
                 {phasors ? (
                   <td>
                     <Notation value={formatPhaseReading(bar.phase, language)} />
@@ -244,14 +309,27 @@ export function ProbabilityHistogram({
             ))}
 
             {remainder ? (
-              <tr>
+              <tr className="histogram__table-row">
                 <th scope="row">
-                  {t('histogram.table.remainder', {
-                    count: pluralCount(model.hidden),
-                    hidden: formatCount(model.hidden, language),
-                  })}
+                  {model.hidden > 0
+                    ? t('histogram.table.remainder', {
+                        count: pluralCount(model.hidden),
+                        hidden: formatCount(model.hidden, language),
+                      })
+                    : /* Nothing was capped away, so this row stands for the
+                         outcomes the circuit never reaches — the ones the
+                         second reading put probability into. */
+                      t('histogram.table.unreached')}
                 </th>
-                <td>{formatProbability(model.hiddenProbability, language)}</td>
+                <td className="histogram__cell">
+                  {formatProbability(model.hiddenProbability, language)}
+                </td>
+                <SecondCells
+                  ideal={model.hiddenProbability}
+                  second={overlay === undefined ? null : overlayRemainder}
+                  present={overlay !== undefined}
+                  language={language}
+                />
                 {phasors ? <td>{t('histogram.table.mixedPhase')}</td> : null}
               </tr>
             ) : null}
@@ -262,6 +340,53 @@ export function ProbabilityHistogram({
   )
 }
 
+/**
+ * The overlay's two cells, or nothing at all.
+ *
+ * A component rather than an inline fragment because it is rendered from two
+ * places — the bars and the remainder row — and a table whose two branches
+ * disagreed about how many cells a row has is a table that reads back to front
+ * for a screen reader from the mismatch onwards.
+ */
+function SecondCells({
+  ideal,
+  second,
+  present,
+  language,
+}: {
+  readonly ideal: number
+  readonly second: number | null
+  readonly present: boolean
+  readonly language: string
+}) {
+  if (!present) return null
+  const value = second ?? 0
+  const delta = value - ideal
+  return (
+    <>
+      <td className="histogram__cell">{formatProbability(value, language)}</td>
+      <td className={`histogram__cell ${deltaClass(delta)}`}>
+        {formatProbabilityDelta(delta, language)}
+      </td>
+    </>
+  )
+}
+
+/**
+ * Which way a row moved, as a class.
+ *
+ * Colour is the *third* carrier here and never the only one (§10): the drawing
+ * puts a gain outside the end of its bar and a loss inside it, the number
+ * carries an explicit sign through `signDisplay: 'exceptZero'`, and this hue is
+ * the reinforcement. A row that did not move gets neither class, so `0 %` is
+ * printed in ink rather than in a colour that would imply a direction.
+ */
+function deltaClass(delta: number): string {
+  if (delta > 0) return 'histogram__delta--gain'
+  if (delta < 0) return 'histogram__delta--loss'
+  return 'histogram__delta--level'
+}
+
 interface BarRowProps {
   readonly bar: HistogramBar
   readonly row: number
@@ -269,9 +394,19 @@ interface BarRowProps {
   readonly frozen: boolean
   readonly phasors: boolean
   readonly language: string
+  /** The overlay's reading of this state, or null when there is no overlay. */
+  readonly second: number | null
 }
 
-function BarRow({ bar, row, layout, frozen, phasors, language }: BarRowProps) {
+function BarRow({
+  bar,
+  row,
+  layout,
+  frozen,
+  phasors,
+  language,
+  second,
+}: BarRowProps) {
   const centre = rowCentreY(layout, row)
   const top = centre - layout.barHeight / 2
   const group = usePhasorRotation(phasorRotation(bar.phase))
@@ -310,6 +445,15 @@ function BarRow({ bar, row, layout, frozen, phasors, language }: BarRowProps) {
         rx={2}
       />
 
+      <Move
+        ideal={bar.probability}
+        second={second}
+        layout={layout}
+        top={top}
+        centre={centre}
+        language={language}
+      />
+
       <NotationText
         className="histogram__value"
         value={formatProbability(bar.probability, language)}
@@ -338,11 +482,70 @@ function BarRow({ bar, row, layout, frozen, phasors, language }: BarRowProps) {
   )
 }
 
+interface MoveProps {
+  readonly ideal: number
+  readonly second: number | null
+  readonly layout: HistogramLayout
+  readonly top: number
+  readonly centre: number
+  readonly language: string
+}
+
+/**
+ * How far this outcome moved between the two readings — §3.3's whole point,
+ * drawn as one sliver on the track the bar already occupies.
+ *
+ * THREE MARKS, IN §10's ORDER. The sliver's *side* of the bar's end is the
+ * primary channel and needs no colour vision at all: a gain grows out past the
+ * end of the bar, into track that was empty; a loss is cut out of the bar
+ * itself. The tick is where the second reading actually lands, so the eye has a
+ * position and not only a length. The signed percentage in the reserved column
+ * is the number, and it carries its own `+` or `−`. The hue is last, and it is
+ * the only one of the four a colour-blind reader loses.
+ *
+ * Nothing is drawn for a state that did not move: a zero-width rectangle and a
+ * tick sitting exactly on the bar's end are what "these two agree" looks like,
+ * and the printed `0 %` is what says so.
+ */
+function Move({ ideal, second, layout, top, centre, language }: MoveProps) {
+  if (second === null) return null
+  const delta = second - ideal
+  const idealX = layout.trackX + ideal * layout.trackWidth
+  const secondX = layout.trackX + second * layout.trackWidth
+
+  return (
+    <>
+      <rect
+        className={`histogram__move ${deltaClass(delta)}`}
+        x={Math.min(idealX, secondX)}
+        y={top}
+        width={Math.abs(secondX - idealX)}
+        height={layout.barHeight}
+      />
+      <line
+        className="histogram__second"
+        x1={secondX}
+        y1={top - 2}
+        x2={secondX}
+        y2={top + layout.barHeight + 2}
+      />
+      <NotationText
+        className={`histogram__delta ${deltaClass(delta)}`}
+        value={formatProbabilityDelta(delta, language)}
+        x={layout.deltaX}
+        y={centre}
+      />
+    </>
+  )
+}
+
 interface RemainderRowProps {
   readonly row: number
   readonly layout: HistogramLayout
   readonly probability: number
   readonly language: string
+  /** The overlay's share of the same states, or null when there is none. */
+  readonly second: number | null
 }
 
 /**
@@ -359,6 +562,7 @@ function RemainderRow({
   layout,
   probability,
   language,
+  second,
 }: RemainderRowProps) {
   const centre = rowCentreY(layout, row)
   const top = centre - layout.barHeight / 2
@@ -386,6 +590,20 @@ function RemainderRow({
         width={probability * layout.trackWidth}
         height={layout.barHeight}
         rx={2}
+      />
+      {/*
+       * The remainder moves too, and on a large register it is where most of
+       * the movement is: an outcome the noise created out of nothing has no bar
+       * of its own — the rows are chosen by *ideal* probability — so this is
+       * the row that says "probability arrived where the circuit put none".
+       */}
+      <Move
+        ideal={probability}
+        second={second}
+        layout={layout}
+        top={top}
+        centre={centre}
+        language={language}
       />
       <NotationText
         className="histogram__value"

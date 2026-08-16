@@ -113,6 +113,7 @@ export function useSimulation(
     shots,
     seed,
     throughColumn,
+    noise,
     debounceMs,
     createWorker,
   } = options
@@ -187,9 +188,15 @@ export function useSimulation(
     }
   }, [scheduler, spawn])
 
+  /*
+   * `noise` is a fresh object on most renders — the panel rebuilds it from its
+   * own state — so this memo is not what stops the re-dispatch. The scheduler's
+   * `sameNoise` compares field by field and drops the request when nothing
+   * moved; this list only decides how often it is asked.
+   */
   const runOptions = useMemo<RunOptions>(
-    () => ({ mode, sample, shots, seed, throughColumn }),
-    [mode, sample, shots, seed, throughColumn]
+    () => ({ mode, sample, shots, seed, throughColumn, noise }),
+    [mode, sample, shots, seed, throughColumn, noise]
   )
 
   useEffect(() => {

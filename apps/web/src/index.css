@@ -230,6 +230,28 @@
   --diff-changed-hue: 275;
 
   /*
+   * ---- which way a probability moved under noise (M2.2, §3.3) ----
+   *
+   * Hues only, again, and they inherit the same proof: the sweep in
+   * `verification/design/token-contrast.test.ts` shows every hue at 85 %/66 %
+   * clears 3:1 on all three surfaces, so choosing a hue here needs no
+   * measurement of its own.
+   *
+   * They are written separately from the diff hues above rather than aliased to
+   * them, although the numbers are the same today. "Added to a circuit" and
+   * "gained probability under a channel" are two different statements, and a
+   * shared token would make re-tuning one of them silently re-tune the other.
+   *
+   * Colour is the third carrier here and never the distinction itself (§10).
+   * A gain is drawn *outside* the end of its bar and a loss is cut *out* of it,
+   * so the side of the bar's edge says which it is with no colour vision at
+   * all; the signed percentage beside it says it again in words the reader can
+   * check.
+   */
+  --noise-gain-hue: 100;
+  --noise-loss-hue: 0;
+
+  /*
    * Named so the focus indicator is a token rather than a colour repeated
    * at every `:focus-visible`. It is deliberately the accent, which measures
    * 9.17:1 on --bg-panel: focus is the one indicator that must never be
@@ -1297,6 +1319,23 @@ body {
   color: var(--accent);
 }
 
+/*
+ * A noisy run that was refused, and the sentence explaining why the noise
+ * controls are absent on a measuring circuit (M2.2). Both are qualifications
+ * of one panel rather than failures of the simulation, so neither takes the
+ * accent the failure line above wears — the ideal answer beside them is
+ * perfectly good, which is the entire point of carrying a refusal instead of
+ * throwing one.
+ */
+.simulation-panel__noise-refusal,
+.simulation-panel__noise-absent {
+  margin: 1rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--chart-grid);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
 .simulation-panel__facts {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1933,6 +1972,587 @@ body {
 }
 
 .bloch__reading {
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * The comparison overlay on the histogram (M2.2) — §3.3
+ *
+ * §3.3 asks for the ideal distribution beside the noisy one, and this is what
+ * "beside" turns into: one track carrying two marks, never two charts. The bar
+ * stays the ideal probability with its phasor and its hue; the tick is where
+ * the noise put it; the sliver between them is the move.
+ *
+ * The sliver is painted at 85 %/66 % — the phase palette's own saturation and
+ * lightness, so it inherits the measured 3:1 the whole circle clears — and it
+ * is drawn *after* the fill, because a loss sits on top of the bar while a gain
+ * sits on empty track.
+ * ------------------------------------------------------------------ */
+
+.histogram__move {
+  fill: hsl(var(--move-hue) var(--phase-saturation) var(--phase-lightness));
+  fill-opacity: 0.85;
+}
+
+.histogram__move.histogram__delta--gain {
+  --move-hue: var(--noise-gain-hue);
+}
+
+.histogram__move.histogram__delta--loss {
+  --move-hue: var(--noise-loss-hue);
+}
+
+/*
+ * A row that did not move has a zero-width rectangle, which paints nothing —
+ * so this only has to keep it from inheriting a hue it would never show.
+ */
+.histogram__move.histogram__delta--level {
+  --move-hue: 0;
+  fill-opacity: 0;
+}
+
+/*
+ * Where the second reading actually lands. Drawn after the sliver so it stays
+ * visible where the two coincide, which is what "the noise changed nothing
+ * here" looks like — the same ruling the shots control makes about its own
+ * exact-value tick.
+ */
+.histogram__second {
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.histogram__delta {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  fill: var(--text-muted);
+}
+
+.histogram__delta--gain {
+  fill: hsl(
+    var(--noise-gain-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+.histogram__delta--loss {
+  fill: hsl(
+    var(--noise-loss-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+/*
+ * The table, when it stops being `visually-hidden`. A chart carrying two
+ * readings prints its numbers, because a sliver between a bar and a tick is not
+ * a length anyone can measure by eye — the Bloch panel's argument, applied to
+ * the one case where this chart is in the Bloch panel's position.
+ */
+.histogram__table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--text-data);
+}
+
+.histogram__table th,
+.histogram__table td {
+  padding: 0.2rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.histogram__table thead th {
+  border-bottom: 1px solid var(--chart-grid);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.histogram__table thead th:first-child {
+  text-align: left;
+}
+
+.histogram__cell {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.histogram__table-row:nth-child(even) {
+  background: var(--bg-elevated);
+}
+
+td.histogram__delta--gain {
+  color: hsl(
+    var(--noise-gain-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+td.histogram__delta--loss {
+  color: hsl(
+    var(--noise-loss-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * The Q-sphere (M2.2) — §3.2
+ *
+ * The same two layers the Bloch grid uses and for the same reasons: a WebGL
+ * canvas three.js draws into, an SVG of pole labels over it, both
+ * `aria-hidden`, and a visible table below carrying the meaning. One sphere
+ * rather than a grid, so the stage is a fixed square that shrinks on a narrow
+ * screen and never grows past its own resolution.
+ * ------------------------------------------------------------------ */
+
+.qsphere,
+.entanglement,
+.noise,
+.noise-comparison,
+.density {
+  margin: 1rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--chart-grid);
+}
+
+.qsphere__caption,
+.density__caption {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.qsphere__title,
+.density__title {
+  display: block;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.qsphere__disclosure,
+.density__disclosure {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.qsphere__stage {
+  position: relative;
+  margin: 0.5rem auto 0;
+  width: 100%;
+}
+
+.qsphere__canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Exactly over the canvas, and transparent to the pointer — see `.bloch__labels`. */
+.qsphere__labels {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.qsphere__pole {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  fill: var(--text);
+}
+
+.qsphere__pending,
+.qsphere__unavailable,
+.qsphere__note {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.qsphere__viewport,
+.entanglement__viewport,
+.density__viewport {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.qsphere__grid,
+.entanglement__grid,
+.density__grid-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--text-data);
+}
+
+.qsphere__grid th,
+.qsphere__grid td,
+.entanglement__grid th,
+.entanglement__grid td,
+.density__grid-table th,
+.density__grid-table td {
+  padding: 0.2rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.qsphere__grid thead th,
+.entanglement__grid thead th,
+.density__grid-table thead th {
+  border-bottom: 1px solid var(--chart-grid);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.qsphere__grid thead th:first-child,
+.entanglement__grid thead th:first-child,
+.entanglement__grid thead th:last-child,
+.density__grid-table thead th:first-child,
+.density__grid-table thead th:nth-child(2),
+.density__grid-table thead th:last-child {
+  text-align: left;
+}
+
+.qsphere__state,
+.density__state,
+.entanglement__name {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-regular);
+  color: var(--text);
+}
+
+.qsphere__number,
+.entanglement__number,
+.density__number {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.qsphere__row:nth-child(even),
+.entanglement__row:nth-child(even),
+.density__row:nth-child(even) {
+  background: var(--bg-elevated);
+}
+
+/* ------------------------------------------------------------------ *
+ * Entanglement metrics (M2.2) — §3.2
+ *
+ * Two tables and no picture: the numbers *are* the deliverable here, and the
+ * sentence beside each one is what makes it teach. Nothing is `aria-hidden`,
+ * because there is nothing here a screen reader cannot read.
+ * ------------------------------------------------------------------ */
+
+.entanglement__heading,
+.noise__heading,
+.noise-comparison__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.entanglement__summary,
+.entanglement__note,
+.noise__intro,
+.noise__help,
+/* The shot cap explains where the slider's track stops, so it reads as help
+   text beside the control rather than as a refusal: the run still happens. */
+.noise__cap,
+.noise-comparison__method,
+.noise-comparison__summary,
+.density__note,
+.density__scale,
+.density__empty {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.entanglement__block {
+  margin: 0.75rem 0 0;
+}
+
+.entanglement__legend,
+.density__part-title {
+  margin: 0;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.entanglement__reading {
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * The noise controls (M2.2) — §3.3
+ *
+ * A form of datasheet numbers, not of channel parameters. Every field is
+ * label, input, unit and a sentence, in a row that wraps on a narrow screen
+ * rather than shrinking the input below what a number needs.
+ * ------------------------------------------------------------------ */
+
+.noise__controls {
+  margin-top: 0.5rem;
+}
+
+.noise__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.noise__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  font-size: var(--text-body);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.noise__toggle input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+}
+
+.noise__label {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.noise__select,
+.noise__input {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--wire);
+  border-radius: 4px;
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+}
+
+.noise__input {
+  width: 8rem;
+  text-align: right;
+}
+
+/*
+ * The one field the profile is unphysical in. Colour is not the carrier:
+ * `aria-invalid` is what a screen reader announces, and the live region below
+ * the fieldset is what says so in a sentence. This is the reinforcement.
+ */
+.noise__input[aria-invalid='true'] {
+  border-color: hsl(
+    var(--noise-loss-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+}
+
+.noise__fields,
+.noise__methods {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border: 1px solid var(--chart-grid);
+  border-radius: 6px;
+}
+
+.noise__legend {
+  padding: 0 0.35rem;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.noise__field {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) auto auto;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* The sentence spans the row under the control it describes. */
+.noise__field .noise__help {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.noise__unit {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.noise__invalid {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: hsl(
+    var(--noise-loss-hue) var(--phase-saturation) var(--phase-lightness)
+  );
+  /* Always in the DOM, empty when there is nothing to say: a live region that
+     appears at the same moment as its text is one some readers never hear. */
+  min-height: 1lh;
+}
+
+/*
+ * The exact method's own cost, before it is paid. Not a refusal — this register
+ * is inside §3.3's range and the answer is exact — so it is marked out from the
+ * help text around it by a rule rather than by the refusal's full border. What
+ * it warns about is a wait of seconds that repeats on every edit and every step
+ * of the timeline, which nothing else on screen states.
+ */
+.noise__slow {
+  margin: 0.75rem 0 0;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--wire);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/*
+ * The ceiling, stated. A bordered block rather than another muted paragraph,
+ * because it is the one thing on this panel that says a request was *not*
+ * made — and the button beside it is the way out, not a suggestion.
+ */
+.noise__refusal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid
+    hsl(var(--noise-loss-hue) var(--phase-saturation) var(--phase-lightness));
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+
+.noise__refusal-text {
+  margin: 0;
+  flex: 1 1 16rem;
+  font-size: var(--text-caption);
+  color: var(--text);
+}
+
+.noise__switch,
+.noise__resample {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--wire);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.noise__switch:hover,
+.noise__resample:hover {
+  border-color: var(--accent);
+}
+
+.noise__slider {
+  flex: 1 1 8rem;
+  accent-color: var(--accent);
+}
+
+.noise__reading {
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------------ *
+ * Ideal against noisy (M2.2) — §3.3
+ * ------------------------------------------------------------------ */
+
+.noise-comparison__figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+}
+
+.noise-comparison__figure {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--chart-grid);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+
+.noise-comparison__figure dt {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.noise-comparison__figure dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lead);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------------ *
+ * The density heat map (M2.2) — §3.2, advanced mode
+ *
+ * Two square grids side by side where there is room, stacked where there is
+ * not. The cells fade with their magnitude and their outlines do not, which is
+ * the same division `--chart-track` already makes: fill for the hint, hairline
+ * for the boundary.
+ * ------------------------------------------------------------------ */
+
+.density__grids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.density__part {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.density__plot {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: 0.25rem;
+}
+
+.density__cell {
+  stroke: var(--chart-grid);
+  stroke-width: 0.5;
+}
+
+/*
+ * The diagonal is the histogram, and everything off it is what this picture
+ * exists for — so the line is a reference mark rather than data, in the axis
+ * colour and dashed so it cannot be mistaken for a row of cells.
+ */
+.density__diagonal {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+
+.density__tick {
+  fill: var(--chart-grid);
+}
+
+.density__kind {
   color: var(--text-muted);
 }
 

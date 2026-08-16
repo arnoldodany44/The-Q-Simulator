@@ -65,6 +65,7 @@ function resultFor(id: number) {
     resumedFromColumn: 0,
     throughColumn: null,
     sampling: null,
+    noise: null,
     durationMs: 3,
   } as const
 }

@@ -104,6 +104,45 @@ export interface HistogramModel {
 }
 
 /**
+ * A second reading of the same basis states, drawn on the same rows — §3.3's
+ * ideal-against-noisy comparison, and the reason this chart is extended rather
+ * than a second one drawn beside it.
+ *
+ * TWO ADJACENT CHARTS LEAVE THE READER DOING THE SUBTRACTION. The question
+ * §3.3 asks is not "what do these two distributions look like" but "which
+ * outcomes gained probability and which lost it", and that is a quantity no
+ * pair of charts states: it is the difference between a bar here and a bar over
+ * there, held in the reader's head across a gap. On one track it is a mark —
+ * the bar is still the ideal probability, with its phasor and its hue, and the
+ * second reading is a tick with a coloured sliver between the two. A gain grows
+ * out of the end of the bar; a loss is eaten out of it.
+ *
+ * This is the same ruling the shots control makes ("one track, two marks",
+ * §3.2) applied to a second question, and it is one chart rather than two for
+ * the same reason: what closes, or opens, is a *gap*.
+ *
+ * THE BAR STAYS THE IDEAL ONE, and that is not arbitrary. The row's hue and its
+ * phasor are the phase of an *amplitude*, and a noisy state has no single
+ * amplitude per basis state — painting the noisy probability in the ideal
+ * state's phase colour would be a claim about the mixed state that nothing
+ * supports.
+ *
+ * The two labels arrive already translated because this module has no i18next
+ * and never will (see the header); the caller that knows what the second
+ * reading is called is the one that asked for it.
+ */
+export interface HistogramOverlay {
+  /** The second reading of each drawn basis state, by statevector index. */
+  readonly probabilities: ReadonlyMap<number, number>
+  /** The second reading's share of everything the cap left out. */
+  readonly remainder: number
+  /** What the second reading is called. Already translated. */
+  readonly label: string
+  /** Header for the signed-difference column. Already translated. */
+  readonly deltaLabel: string
+}
+
+/**
  * Basis states carrying any probability.
  *
  * One pass with no allocation, rather than the engine's `probabilities()`,
@@ -249,6 +288,8 @@ export interface HistogramLayout {
   readonly hubRadius: number
   /** Centre of the numeric-angle column. Only meaningful when frozen. */
   readonly angleX: number
+  /** Centre of the signed-difference column. Only meaningful with an overlay. */
+  readonly deltaX: number
 }
 
 const ROW_HEIGHT = 24
@@ -256,6 +297,8 @@ const BAR_HEIGHT = 12
 const TRACK_WIDTH = 220
 const VALUE_WIDTH = 62
 const ANGLE_WIDTH = 54
+/** Wider than the angle column: a signed percentage carries a sign and a unit. */
+const DELTA_WIDTH = 68
 const HUB_RADIUS = 10
 const GAP = 10
 const PAD = 8
@@ -275,6 +318,8 @@ export interface HistogramLayoutOptions {
   readonly angles?: boolean
   /** The phasor hub. Off for a chart of a state with nothing to say about phase. */
   readonly phasors?: boolean
+  /** The signed-difference column, printed when an overlay is drawn (§3.3). */
+  readonly comparison?: boolean
 }
 
 export function histogramLayout(
@@ -282,7 +327,7 @@ export function histogramLayout(
   rows: number,
   options: HistogramLayoutOptions = {}
 ): HistogramLayout {
-  const { angles = false, phasors = true } = options
+  const { angles = false, phasors = true, comparison = false } = options
   // `|` + one digit per qubit + `⟩`. The closing bracket comes from a system
   // fallback font (§10: no Latin subset carries U+27E9), so it is budgeted a
   // full monospace advance it may well exceed — hence the extra padding.
@@ -292,11 +337,16 @@ export function histogramLayout(
   const valueX = trackX + TRACK_WIDTH + GAP + VALUE_WIDTH / 2
   const hubX = valueX + VALUE_WIDTH / 2 + GAP + HUB_RADIUS
   const angleX = hubX + HUB_RADIUS + GAP + ANGLE_WIDTH / 2
-  const right = !phasors
+  // The last column of whatever precedes the difference, so a chart with no
+  // phasors puts its deltas straight after the probabilities rather than after
+  // a gap the size of a phasor hub that was never drawn.
+  const beforeDelta = !phasors
     ? valueX + VALUE_WIDTH / 2
     : angles
       ? angleX + ANGLE_WIDTH / 2
       : hubX + HUB_RADIUS
+  const deltaX = beforeDelta + GAP + DELTA_WIDTH / 2
+  const right = comparison ? deltaX + DELTA_WIDTH / 2 : beforeDelta
 
   return {
     width: right + PAD,
@@ -310,6 +360,7 @@ export function histogramLayout(
     hubX,
     hubRadius: HUB_RADIUS,
     angleX,
+    deltaX,
   }
 }
 

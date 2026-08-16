@@ -46,6 +46,12 @@ const CATALOGS: Record<Language, typeof enSimulation> = {
   fr: frSimulation,
 }
 
+const CATALOGS_ANALYSIS: Record<Language, typeof enAnalysis> = {
+  en: enAnalysis,
+  es: esAnalysis,
+  fr: frAnalysis,
+}
+
 class FakeWorker implements SimulationWorkerLike {
   readonly sent: SimulationRequest[] = []
   onmessage: ((event: MessageEvent<SimulationResponse>) => void) | null = null
@@ -174,6 +180,7 @@ function resultFor(
               createRng(sample.seed)
             ),
           },
+    noise: null,
     durationMs: 2,
   }
 }
@@ -192,6 +199,21 @@ afterEach(() => {
   cleanup()
   vi.useRealTimers()
 })
+
+/**
+ * The shots control's own checkbox, addressed by its label.
+ *
+ * By name rather than by role: since M2.2 the panel also carries the noise
+ * mode's switch, and `getByRole('checkbox')` finding two of them is the whole
+ * of what this helper exists to prevent — a test that clicked whichever came
+ * first in the DOM would silently start exercising the wrong feature the next
+ * time a control is added above it.
+ */
+function enableSampling(): HTMLElement {
+  return screen.getByRole('checkbox', {
+    name: CATALOGS_ANALYSIS.en.sampling.enable,
+  })
+}
 
 /** The value of a fact, addressed by the term it is filed under. */
 function fact(view: ReturnType<typeof mount>['view'], term: string): string {
@@ -293,7 +315,7 @@ describe('the shots control', () => {
     worker.reply(resultFor(worker.simulations[0]!.id, circuit))
 
     act(() => {
-      fireEvent.click(screen.getByRole('checkbox'))
+      fireEvent.click(enableSampling())
     })
     tick()
 
@@ -311,7 +333,7 @@ describe('the shots control', () => {
     worker.reply(resultFor(worker.simulations[0]!.id, circuit))
 
     act(() => {
-      fireEvent.click(screen.getByRole('checkbox'))
+      fireEvent.click(enableSampling())
     })
     tick()
     const request = worker.simulations.at(-1)!

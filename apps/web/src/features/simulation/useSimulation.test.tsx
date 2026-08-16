@@ -89,6 +89,7 @@ function resultFor(id: number): SimulationResponse {
     resumedFromColumn: 0,
     throughColumn: null,
     sampling: null,
+    noise: null,
     durationMs: 2,
   }
 }

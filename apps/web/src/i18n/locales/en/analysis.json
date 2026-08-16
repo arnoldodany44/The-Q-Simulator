@@ -16,7 +16,9 @@
       "phase": "Phase",
       "remainder_one": "The other basis state, on its own",
       "remainder_other": "The other {{hidden}} basis states, together",
-      "mixedPhase": "Several phases"
+      "mixedPhase": "Several phases",
+      "comparedCaption": "One row per basis state: its probability without noise, with noise, and the difference between the two.",
+      "unreached": "The basis states this circuit never reaches"
     }
   },
   "amplitudes": {
@@ -98,6 +100,222 @@
       "difference": "Difference",
       "remainder_one": "The other basis state, on its own",
       "remainder_other": "The other {{hidden}} basis states, together"
+    }
+  },
+  "qsphere": {
+    "heading": "Q-sphere",
+    "caption": {
+      "complete_one": "{{occupied}} of {{total}} basis states has a non-zero amplitude, and it is drawn on the sphere.",
+      "complete_other": "{{occupied}} of {{total}} basis states have a non-zero amplitude, and every one of them is drawn on the sphere.",
+      "capped_one": "{{occupied}} of {{total}} basis states have a non-zero amplitude. The {{shown}} largest are drawn; the other one holds {{share}} and is not on the sphere.",
+      "capped_other": "{{occupied}} of {{total}} basis states have a non-zero amplitude. The {{shown}} largest are drawn; the other {{hidden}} hold {{share}} between them and are not on the sphere."
+    },
+    "note": "Every basis state is a point. Which ring it sits on is how many of the qubits are 1 in it, with all zeros at the top pole and all ones at the bottom; the size of the point is the size of the amplitude, and its colour is the phase. Two points of opposite colour are two paths that would cancel if they met.",
+    "loading": "Drawing the sphere…",
+    "unavailable": "This browser could not open a 3D view, so the sphere is not drawn. The table below carries the same reading.",
+    "table": {
+      "caption": "One row per drawn basis state: which ring it sits on, the size of its amplitude, its probability and its phase.",
+      "state": "Basis state",
+      "ring": "Ring",
+      "magnitude": "Amplitude",
+      "probability": "Probability",
+      "phase": "Phase",
+      "weight_one": "{{weight}} of {{total}} qubits at 1",
+      "weight_other": "{{weight}} of {{total}} qubits at 1"
+    }
+  },
+  "entanglement": {
+    "heading": "Entanglement",
+    "summary": {
+      "product_one": "This register has one qubit and it has a state entirely of its own.",
+      "product_other": "All {{total}} qubits have a state entirely of their own, so none of them is entangled with another.",
+      "entangled_one": "One qubit of {{total}} does not have a state entirely of its own: part of what describes it is held jointly with the rest of the register.",
+      "entangled_other": "{{entangled}} qubits of {{total}} do not have a state entirely of their own: part of what describes them is held jointly with the rest of the register."
+    },
+    "table": {
+      "qubit": "Qubit",
+      "pair": "Pair",
+      "reading": "Reading"
+    },
+    "entropy": {
+      "legend": "Von Neumann entropy, one qubit at a time",
+      "caption": "One row per qubit: its von Neumann entropy in bits, and what that number says about the qubit.",
+      "reading": {
+        "own": "0 bits: a state entirely of its own",
+        "partial": "Between 0 and 1: partly held with the rest",
+        "none": "1 bit: this qubit alone has no state of its own"
+      }
+    },
+    "pairs": {
+      "legend": "Concurrence, two qubits at a time",
+      "caption": "One row per pair of qubits: the concurrence between the two, and what that number says about the pair.",
+      "single": "Concurrence is a property of a pair, and this register has only one qubit.",
+      "tooWide": "The pair table stops at {{limit}} qubits and this register has {{qubits}}. A concurrence is a separate calculation for every pair, and the number of pairs grows as the square of the register, so past that limit it would cost more than a frame. The entropies above have no such ceiling.",
+      "reading": {
+        "separable": "0: these two share nothing",
+        "partial": "Between 0 and 1: partly entangled with each other",
+        "maximal": "1: as entangled with each other as two qubits can be"
+      }
+    },
+    "shared": {
+      "none": "Qubits here have no state of their own, and yet no pair shares anything: the entanglement is spread across more than two of them at once. A GHZ state is the standard example, where every qubit is entangled and no two of them hold any of it between them."
+    }
+  },
+  "noise": {
+    "heading": "Noise",
+    "intro": "A real machine loses a little of the state at every step. Choose a device and the circuit is run a second time under it, so that what a machine would have measured sits beside what the mathematics says.",
+    "enable": "Run this circuit under a noise model",
+    "profile": {
+      "label": "Device",
+      "ideal": {
+        "name": "No noise",
+        "help": "A perfect machine: nothing decays, every gate is exact and every reading is right. It is the baseline the other profiles are drawn against, so there is nothing here to compare."
+      },
+      "superconducting": {
+        "name": "Superconducting",
+        "help": "A transmon-class machine: gates in tens of nanoseconds, coherence in the hundreds of microseconds, and readout the worst operation on the chip by a wide margin."
+      },
+      "trappedIon": {
+        "name": "Trapped ion",
+        "help": "An ion-trap machine: coherence measured in seconds and gates measured in microseconds. Much better gates than a transmon and much slower ones, which is the trade the two technologies actually make."
+      },
+      "teaching": {
+        "name": "Teaching (exaggerated)",
+        "help": "Deliberately noisy, and deliberately not a real machine. On good hardware a ten-gate circuit loses about one part in a thousand, which is invisible on a chart; this one loses enough that a Bell pair visibly stops being a Bell pair."
+      },
+      "custom": {
+        "name": "Custom",
+        "help": "Your own numbers, in the units a machine publishes them in. Change one field at a time and watch which of them moves the chart."
+      }
+    },
+    "custom": {
+      "legend": "Device numbers",
+      "invalid": "These numbers do not describe a physical device, so the noisy run was not started. The field in question is marked."
+    },
+    "field": {
+      "t1Us": {
+        "label": "T1",
+        "unit": "µs",
+        "help": "How long a qubit stays excited before it decays back down. The shorter it is, the faster the state leaks away."
+      },
+      "t2Us": {
+        "label": "T2",
+        "unit": "µs",
+        "help": "How long a qubit keeps its phase. It can never be more than twice T1, because decay on its own already costs half the coherence."
+      },
+      "oneQubitGateNs": {
+        "label": "One-qubit gate time",
+        "unit": "ns",
+        "help": "How long a gate on a single qubit takes. Time is what decoherence charges for, so a slower gate on the same qubit is a noisier gate."
+      },
+      "twoQubitGateNs": {
+        "label": "Two-qubit gate time",
+        "unit": "ns",
+        "help": "The same for a gate on two qubits. It is usually an order of magnitude longer, which is most of why two-qubit gates are the expensive ones."
+      },
+      "oneQubitGateErrorPercent": {
+        "label": "One-qubit gate error",
+        "unit": "%",
+        "help": "How much of the state an average one-qubit gate spoils, over and above what its duration alone costs. This is the figure randomised benchmarking reports."
+      },
+      "twoQubitGateErrorPercent": {
+        "label": "Two-qubit gate error",
+        "unit": "%",
+        "help": "The same for a two-qubit gate. On real hardware it is ten to fifty times the one-qubit figure, and it is what decides how deep a circuit can usefully go."
+      },
+      "readoutP0to1Percent": {
+        "label": "Reads 1 when it was 0",
+        "unit": "%",
+        "help": "How often a qubit prepared in the ground state is read as excited. This happens after the qubit is gone: it is a classifier making a mistake, not the state changing."
+      },
+      "readoutP1to0Percent": {
+        "label": "Reads 0 when it was 1",
+        "unit": "%",
+        "help": "How often a qubit prepared in the excited state is read as the ground one. It is usually the larger of the two, because a qubit can decay during the measurement itself."
+      }
+    },
+    "readout": {
+      "label": "Include readout error",
+      "help": "Readout error is the last thing that happens and often the largest single error in the histogram. Turn it off to see what the state itself would have given."
+    },
+    "method": {
+      "legend": "How to compute it",
+      "density": {
+        "label": "Exact (density matrix)",
+        "help": "Every outcome of the noise at once, with no sampling error at all. It holds one number for each pair of basis states, so its memory grows fourfold with every qubit added and it stops at a dozen — and the last few qubits before that stop cost seconds of waiting. It is also the only method that can show you the matrix itself."
+      },
+      "trajectories": {
+        "label": "Sampled (trajectories)",
+        "help": "Run the circuit many times over, drawing one random error per gate. It keeps only a statevector, so it reaches registers the exact method cannot — but it re-runs the whole circuit on every shot, so its own limit is time, and it pays for the sampling in error exactly the way shots do."
+      }
+    },
+    "refusal": {
+      "tooLarge": "The exact method holds one number for each pair of basis states, so its memory grows fourfold with every qubit and it stops at {{limit}}. This circuit has {{qubits}} qubits, so nothing was run. Sampled trajectories reach further: they keep a statevector and pay in shots instead.",
+      "tooSlow": "Sampled trajectories re-run the whole circuit once per shot, so their cost rises with the register and with the circuit. At {{qubits}} qubits and {{operations}} gates this browser could afford {{shots}} shots, and a sample says nothing below {{limit}} — so nothing was run. Shorten the circuit or use fewer qubits.",
+      "switch": "Use sampled trajectories"
+    },
+    "slow": {
+      "density": "At {{qubits}} qubits the exact method takes seconds, and it starts over on every edit and every step of the timeline — nothing is resumed the way the ideal run is. Sampled trajectories answer faster if the wait gets in the way."
+    },
+    "shots": "Shots",
+    "shotsCapped": "At {{qubits}} qubits and {{operations}} gates a sampled run is capped at {{shots}} shots, which is what fits in the time this tab can spend without stopping. Fewer qubits or a shorter circuit raises it.",
+    "resample": "Draw again",
+    "advanced": {
+      "label": "Show the density matrix (advanced)",
+      "help": "A heat map of the matrix behind the noisy run. Its diagonal is the histogram; everything off the diagonal is coherence, which is what noise takes away first.",
+      "unavailable": "The density matrix exists only in the exact method. Sampled trajectories never form one, and that is exactly what makes them cheap."
+    },
+    "comparison": {
+      "heading": "Ideal against noisy",
+      "ranDensity": "Computed exactly, with no sampling error: every figure below is as precise as the arithmetic allows.",
+      "ranTrajectories": "Sampled over {{shots}} runs, so every figure below carries an error of roughly {{typical}}. Raise the shots to shrink it.",
+      "fidelity": "Distribution fidelity",
+      "moved": "Probability that moved",
+      "stateFidelity": "State fidelity",
+      "purity": "Purity",
+      "column": {
+        "noisy": "With noise",
+        "difference": "Difference"
+      },
+      "chart": {
+        "heading": "The same chart, with the noisy reading on it",
+        "summary": "Each bar is the ideal probability. The tick is where the noise put it, and the sliver between the two is the difference: outside the bar for an outcome that gained, cut out of it for one that lost."
+      },
+      "movement": {
+        "none": "Nothing moved: this noise model left the distribution exactly where it was.",
+        "gainOnly": "{{state}} gained {{gain}}, and nothing lost any.",
+        "lossOnly": "{{state}} lost {{loss}}, and nothing gained any.",
+        "both": "{{lost}} lost the most, {{loss}}, and {{gained}} gained the most, {{gain}}.",
+        "others": "the outcomes not drawn"
+      }
+    }
+  },
+  "density": {
+    "heading": "Density matrix",
+    "empty": "This density matrix carries no population anywhere, which is not a state a circuit produces.",
+    "caption": {
+      "complete_one": "{{shown}} basis state carries any population, and the whole of the matrix for it is drawn.",
+      "complete_other": "{{shown}} basis states carry population, and the whole of the matrix for them is drawn.",
+      "capped_one": "{{shown}} basis states are drawn, chosen by population. The other one holds {{share}} and is not on the map.",
+      "capped_other": "{{shown}} basis states are drawn, chosen by population. The other {{hidden}} hold {{share}} between them and are not on the map."
+    },
+    "note": "The diagonal is the histogram: one entry per basis state, holding its probability. Everything off the diagonal is a coherence, which is what a superposition is made of and the first thing noise takes away.",
+    "scale": "Colour is the sign and opacity is the size, measured against the largest entry drawn here, {{peak}}.",
+    "part": {
+      "real": "Real part",
+      "imaginary": "Imaginary part"
+    },
+    "table": {
+      "caption": "One row per entry of the matrix above the noise floor: which two basis states it connects, its value, its size, and whether it is a population or a coherence.",
+      "row": "Row",
+      "column": "Column",
+      "value": "Value",
+      "magnitude": "Size",
+      "kind": "Kind",
+      "population": "Population",
+      "coherence": "Coherence",
+      "negligible_one": "One further entry of the drawn block is below the noise floor and is not listed.",
+      "negligible_other": "{{negligible}} further entries of the drawn block are below the noise floor and are not listed."
     }
   }
 }

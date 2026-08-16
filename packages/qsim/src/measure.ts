@@ -38,6 +38,13 @@
  *    `measure` or a conditioned gate. It narrows its argument, so the runner
  *    obtains the RNG *by* passing the check.
  *
+ * A NOISE CHANNEL IS THE THIRD MEMBER OF THIS FAMILY. `trajectories.ts` draws
+ * a Kraus operator with a probability that depends on the state, applies it
+ * and renormalises — which is what `measureQubit` does with the projectors
+ * {|0⟩⟨0|, |1⟩⟨1|}, a trace-preserving Kraus set whose weights are the Born
+ * probabilities. So a noisy run is a trajectories run: same mode, same `Rng`,
+ * same loop, one more kind of random event inside it.
+ *
  * ────────────────────────────────────────────────────────────────────────
  * SAMPLING. `sampleShots` builds the cumulative distribution once — O(2ⁿ) —
  * and binary searches it per shot, O(log 2ⁿ) = O(n). The alias method the
@@ -187,6 +194,57 @@ export function sampleShots(
     counts[formatKet(index, state.qubits)] = count
   }
   return counts
+}
+
+/**
+ * Draw **one** basis state from `state`'s distribution and return its index.
+ *
+ * `sampleShots` samples one state many times and amortises a 2ⁿ cumulative
+ * array over the shots. This is the opposite shape: a noise trajectory ends
+ * every shot in a *different* final state and reads exactly one sample from
+ * it (`runNoisy`, `runner.ts`), so the array would be built and thrown away
+ * once per sample. Two passes over the state with no allocation is strictly
+ * less work than one pass plus a 2ⁿ array, and at 18 qubits it is 4 MB of
+ * allocation per shot that never happens.
+ *
+ * IT MUST AGREE WITH `sampleShots` DRAW FOR DRAW, and the tests pin that: the
+ * cumulative sum is accumulated in the same order, the draw is scaled by the
+ * same total, and the comparison is the same strict `<`. That equality is
+ * what lets the noise mode at a zero-noise profile be checked against an
+ * ordinary analytic run *bit for bit* rather than statistically — the whole
+ * value of which is that it turns "the noiseless limit looks about right"
+ * into an exact assertion.
+ *
+ * Returns an index, not a label, because the caller's next step is usually
+ * `sampleReadout`, which flips bits of the integer.
+ */
+export function sampleIndex(state: Statevector, rng: Rng): number {
+  const { re, im, size } = state
+
+  // The last index with any mass, tracked on the way past: it is the answer
+  // for a draw that rounds up onto the total, and it must be an outcome that
+  // can actually occur — falling back to `size - 1` would emit a basis state
+  // of probability zero, which is the one thing a sampler may never do.
+  let total = 0
+  let last = -1
+  for (let i = 0; i < size; i++) {
+    const mass = re[i] * re[i] + im[i] * im[i]
+    total += mass
+    if (mass > 0) last = i
+  }
+  if (!(total > 0) || !Number.isFinite(total) || last < 0) {
+    throw new RangeError(
+      `Cannot sample a state whose total probability is ${total}.`
+    )
+  }
+
+  const target = rng.next() * total
+  let cumulative = 0
+  for (let i = 0; i < size; i++) {
+    cumulative += re[i] * re[i] + im[i] * im[i]
+    if (target < cumulative) return i
+  }
+  return last
 }
 
 /**

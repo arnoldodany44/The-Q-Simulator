@@ -17,9 +17,30 @@
  * the only part that loads code on demand: three.js is in a chunk of its own
  * (§9), so this panel is on screen and answering before it arrives.
  *
- * WHAT IS STILL MISSING, and deliberately: the Q-sphere, the entanglement
- * metrics and the density heat map. They are separate slices of §3.2 and they
- * hang off the same `outcome`; nothing here has to move to admit them.
+ * M2.2 added the rest of §3.2 and the whole of §3.3, and it cost this file the
+ * same kind of lines: the Q-sphere and the entanglement metrics hang off the
+ * same `outcome` every other chart does, and the noise mode hangs off one piece
+ * of state and one field on the request. Four things about it are worth knowing
+ * from here, and each is argued where it lives.
+ *
+ *   - **The noisy run travels in the ideal run's message.** It is a field on
+ *     the analytic request (`protocol.ts`), not a request of its own, for the
+ *     reason shot sampling is: §3.3's whole deliverable is one distribution
+ *     against another, and asking for them separately would let an edit land in
+ *     between — the panel would then draw the noisy answer of one circuit
+ *     against the ideal answer of another, a discrepancy that looks exactly
+ *     like noise and is not.
+ *   - **The noise mode is analytic-only, and says so.** A circuit that measures
+ *     before it ends has no single ideal distribution (§5.3), so there is
+ *     nothing for a noisy one to sit beside. The panel prints a sentence rather
+ *     than offering half a comparison.
+ *   - **The ceiling is refused before it is requested.** ρ is 4ⁿ complex
+ *     numbers; `specOf` returns null past the limit and `NoisePanel` shows the
+ *     register, the limit and the way out. The worker refuses it again on its
+ *     own account.
+ *   - **A noise failure never costs the ideal answer.** It arrives as a payload
+ *     on a perfectly good response, so a thirteen-qubit circuit still has its
+ *     histogram, its table, its spheres and its Q-sphere.
  *
  * THE MODE IS READ OFF THE CIRCUIT (M0.9). A circuit that measures before it
  * ends has no single final state, so analytic mode refuses it (§5.3) — and
@@ -78,12 +99,23 @@ import { useTranslation } from 'react-i18next'
 
 import { AmplitudeTable } from '../analysis/AmplitudeTable'
 import { BlochSpheres } from '../analysis/BlochSpheres'
+import { DensityHeatmap } from '../analysis/DensityHeatmap'
+import { EntanglementPanel } from '../analysis/EntanglementPanel'
 import { MeasurementCounts } from '../analysis/MeasurementCounts'
+import { NoiseComparisonPanel } from '../analysis/NoiseComparisonPanel'
+import { NoisePanel } from '../analysis/NoisePanel'
 import { ProbabilityHistogram } from '../analysis/ProbabilityHistogram'
+import { QSpherePanel } from '../analysis/QSpherePanel'
 import { ShotSampler, type SamplingSettings } from '../analysis/ShotSampler'
 import { occupiedStates } from '../analysis/histogram'
+import {
+  INITIAL_NOISE,
+  specOf,
+  type NoiseSettings,
+} from '../analysis/noiseSettings'
 import { DEFAULT_SAMPLE_SHOTS } from '../analysis/sampling'
 import { executionModeFor } from './mode'
+import type { NoiseRefusalCode } from './protocol'
 import { DEFAULT_SEED, type SimulationStatus } from './scheduler'
 import { useSimulation, type SimulationWorkerLike } from './useSimulation'
 
@@ -117,16 +149,36 @@ export function SimulationPanel({
 }: SimulationPanelProps) {
   const { t, i18n } = useTranslation('simulation')
   const [sampling, setSampling] = useState<SamplingSettings>(INITIAL_SAMPLING)
+  const [noise, setNoise] = useState<NoiseSettings>(INITIAL_NOISE)
   // Asked of the document, not of the last failure: a circuit that measures is
   // known to need trajectories before it is ever sent, so the reader never
   // sees the round trip that would have refused it.
   const mode = executionModeFor(circuit)
+  /*
+   * Memoised so the scheduler is asked once per change rather than once per
+   * render: `specOf` builds a fresh object, and the effect that calls
+   * `schedule` is keyed on the options it goes into. The scheduler compares
+   * noise specs field by field and would drop the duplicate anyway — this is
+   * about not asking, not about not dispatching.
+   *
+   * `null` in trajectories mode, and that is the physics rather than a
+   * shortcut: §3.3 compares a noisy distribution against an ideal one, and a
+   * measuring circuit has no single ideal distribution to compare against.
+   */
+  const noiseSpec = useMemo(
+    () =>
+      mode === 'analytic'
+        ? specOf(noise, circuit.qubits, circuit.operations.length)
+        : null,
+    [mode, noise, circuit.qubits, circuit.operations.length]
+  )
   const simulation = useSimulation(circuit, {
     mode,
     sample: sampling.enabled,
     shots: sampling.shots,
     seed: sampling.seed,
     throughColumn,
+    noise: noiseSpec,
     ...(createWorker === undefined ? {} : { createWorker }),
   })
   const headingId = useId()
@@ -262,13 +314,72 @@ export function SimulationPanel({
            * of one wire, and the shots are a sample of the whole thing.
            */}
           <BlochSpheres state={analytic.state} />
+          <QSpherePanel state={analytic.state} />
+          <EntanglementPanel state={analytic.state} />
           <ShotSampler
             state={analytic.state}
             settings={sampling}
             onChange={setSampling}
             sampling={analytic.sampling}
           />
+
+          {/*
+           * §3.3 last, because it is the only reading that is not about the
+           * state on screen: everything above describes the circuit as written,
+           * and this describes what a device would have done to it.
+           */}
+          <NoisePanel
+            settings={noise}
+            onChange={setNoise}
+            qubits={circuit.qubits}
+            operations={circuit.operations.length}
+          />
+          {analytic.noise === null ? null : analytic.noise.ok ? (
+            <>
+              <NoiseComparisonPanel
+                state={analytic.state}
+                reading={analytic.noise.reading}
+              />
+              {noise.advanced && analytic.noise.reading.density !== null ? (
+                <DensityHeatmap block={analytic.noise.reading.density} />
+              ) : null}
+            </>
+          ) : (
+            /*
+             * A refusal the worker made on its own account — the ceiling
+             * checked on the side that would have allocated, or a failure this
+             * app did not foresee. It is a live region because it appears in
+             * answer to a request the reader made and there is nothing else on
+             * screen that announces it; and it is a paragraph beside a perfectly
+             * good histogram, which is the whole point of carrying a refusal
+             * instead of throwing one.
+             */
+            <p className="simulation-panel__noise-refusal" role="status">
+              {t(noiseRefusalKey(analytic.noise.refusal.code), {
+                qubits: numbers.format(analytic.noise.refusal.qubits ?? 0),
+                limit: numbers.format(analytic.noise.refusal.limit ?? 0),
+                // Carried by the sampled method's ceiling only; a sentence that
+                // does not name them simply never reads them.
+                shots: numbers.format(analytic.noise.refusal.shots ?? 0),
+                operations: numbers.format(
+                  analytic.noise.refusal.operations ?? 0
+                ),
+              })}
+            </p>
+          )}
         </>
+      )}
+
+      {/*
+       * The noise controls are absent in trajectories mode and the sentence
+       * says why. §3.3's deliverable is two distributions side by side, and a
+       * circuit that measures before it ends has no single ideal one — offering
+       * the controls anyway would promise a comparison the physics cannot make.
+       */}
+      {trajectories === null ? null : (
+        <p className="simulation-panel__noise-absent">
+          {t('panel.noise.measuring')}
+        </p>
       )}
 
       {/*
@@ -291,6 +402,23 @@ export function SimulationPanel({
  * names the state, and the failure line under it gives the reason, so the
  * two do not say the same thing at different lengths.
  */
+/**
+ * The sentence for a refused noisy run, as a lookup rather than an interpolated
+ * key — same reason `stateKey` below is one.
+ */
+function noiseRefusalKey(code: NoiseRefusalCode): string {
+  switch (code) {
+    case 'density-too-large':
+      return 'errors.density-too-large'
+    case 'trajectories-too-large':
+      return 'errors.trajectories-too-large'
+    case 'noise-out-of-memory':
+      return 'errors.noise-out-of-memory'
+    default:
+      return 'errors.noise-failed'
+  }
+}
+
 function stateKey(status: SimulationStatus): string {
   switch (status) {
     case 'scheduled':

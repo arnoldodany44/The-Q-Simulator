@@ -15,6 +15,9 @@
     "moment": {
       "start": "The state before column 0 runs — where the circuit starts.",
       "column": "The state after column {{column}}, not at the end of the circuit."
+    },
+    "noise": {
+      "measuring": "This circuit measures before it ends, so it has no single ideal distribution — and the noise mode compares a noisy distribution against an ideal one. Remove the measurements to compare them."
     }
   },
   "errors": {
@@ -24,6 +27,10 @@
     "no-classical-bits": "Sampling reports the classical register, and this circuit declares no classical bits. Add a measurement first.",
     "unsupported-operation": "The simulator cannot run one of the gates in this circuit yet.",
     "worker-unavailable": "This browser could not start the simulator. Simulation runs on a separate thread, and this page failed to create one.",
-    "worker-failed": "The simulator stopped unexpectedly. Edit the circuit to try again."
+    "worker-failed": "The simulator stopped unexpectedly. Edit the circuit to try again.",
+    "density-too-large": "A density matrix for {{qubits}} qubits is past the {{limit}}-qubit ceiling of the noise mode. Sampled trajectories reach further, because they hold a statevector rather than a matrix.",
+    "trajectories-too-large": "A sampled noisy run re-runs the whole circuit once per shot, so at {{qubits}} qubits and {{operations}} gates this browser could afford only {{shots}} shots — below the {{limit}} a sample needs to mean anything. Shorten the circuit or use fewer qubits.",
+    "noise-out-of-memory": "This device could not reserve the memory the exact method needs for {{qubits}} qubits, even though it is inside the {{limit}}-qubit ceiling. Sampled trajectories need far less: they hold a statevector rather than a matrix.",
+    "noise-failed": "The noisy run did not finish. Everything above it describes the circuit as written and is unaffected."
   }
 }

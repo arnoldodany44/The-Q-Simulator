@@ -71,6 +71,7 @@ function ask(
     mode: 'analytic',
     throughColumn,
     sample: null,
+    noise: null,
   }
   const { response } = runJob(cache, request, false)
   if (response.kind !== 'result' || response.mode !== 'analytic') {

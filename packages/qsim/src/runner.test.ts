@@ -27,11 +27,14 @@ import {
   trajectoriesMode,
   type ShotCounts,
 } from './measure.js'
+import { NOISE_PROFILES, NoiseProfileError } from './noise.js'
 import { createRng, type Rng } from './rng.js'
 import {
   CircuitRunError,
   formatRegister,
   run,
+  runNoisy,
+  runNoisyDensity,
   runTrajectory,
   type CircuitLike,
   type OperationLike,
@@ -680,5 +683,179 @@ describe('a circuit that uses every kind of operation at once', () => {
     // Only c0 varies: c1 is the reset qubit, which cannot read 1.
     const tally = counts(circuit, 200, 99)
     expect(Object.keys(tally).sort()).toEqual(['00', '01'])
+  })
+})
+
+describe('the noise mode (specification §3.3)', () => {
+  const teaching = { profile: NOISE_PROFILES.teaching }
+  const ideal = { profile: NOISE_PROFILES.ideal }
+
+  it('tallies the whole quantum register, with or without clbits', () => {
+    // Unlike `run(…, trajectoriesMode(…))`, which reports what the circuit's
+    // own measurements wrote and refuses a circuit with no clbits, a noisy run
+    // reads every qubit at the end of every shot: §3.3's deliverable is the
+    // noisy distribution over basis states beside the ideal one.
+    const result = runNoisy(BELL, {
+      ...teaching,
+      shots: 500,
+      rng: createRng(1),
+    })
+    expect(result.mode).toBe('noisyTrajectories')
+    expect(result.shots).toBe(500)
+    let total = 0
+    for (const [label, count] of Object.entries(result.counts)) {
+      expect(label).toHaveLength(2)
+      total += count
+    }
+    expect(total).toBe(500)
+    // A noisy Bell pair still lands mostly on the two correlated outcomes.
+    expect(
+      (result.counts['00'] ?? 0) + (result.counts['11'] ?? 0)
+    ).toBeGreaterThan(400)
+  })
+
+  it('refuses a shot count that is not one', () => {
+    for (const shots of [0, -1, 1.5, Number.NaN]) {
+      expect(() =>
+        runNoisy(BELL, { ...teaching, shots, rng: createRng(1) })
+      ).toThrow(RangeError)
+    }
+  })
+
+  it('refuses a profile that is not physical, before running anything', () => {
+    const impossible = { ...NOISE_PROFILES.teaching, t2Ns: 1e9 }
+    expect(() =>
+      runNoisy(BELL, { profile: impossible, shots: 1, rng: createRng(1) })
+    ).toThrow(NoiseProfileError)
+    expect(() => runNoisyDensity(BELL, { profile: impossible })).toThrow(
+      NoiseProfileError
+    )
+  })
+
+  it('measures mid-circuit and applies noise in the same trajectory', () => {
+    // The two kinds of randomness share a run and a generator. With no noise
+    // the correlation this circuit builds is exact: q1 is flipped exactly when
+    // the measurement of q0 read 1, so the register can only be 00 or 11.
+    const circuit: CircuitLike = {
+      qubits: 2,
+      clbits: 1,
+      operations: [
+        op('h', [0], 0),
+        op('measure', [0], 1, { clbitTargets: [0] }),
+        op('x', [1], 2, { condition: { clbit: 0, equals: 1 } }),
+      ],
+    }
+    const clean = runNoisy(circuit, { ...ideal, shots: 400, rng: createRng(7) })
+    expect(Object.keys(clean.counts).sort()).toEqual(['00', '11'])
+    expect(clean.counts['00']).toBeGreaterThan(150)
+    expect(clean.counts['11']).toBeGreaterThan(150)
+
+    // Under noise the same circuit still runs, and the correlation degrades
+    // rather than disappearing — which is the whole point of the mode.
+    const noisy = runNoisy(circuit, {
+      ...teaching,
+      shots: 400,
+      rng: createRng(7),
+    })
+    const correlated = (noisy.counts['00'] ?? 0) + (noisy.counts['11'] ?? 0)
+    expect(correlated).toBeGreaterThan(280)
+    expect(correlated).toBeLessThan(400)
+  })
+
+  it('refuses a mid-circuit measurement on a density matrix', () => {
+    const circuit: CircuitLike = {
+      qubits: 1,
+      clbits: 1,
+      operations: [
+        op('h', [0], 0),
+        op('measure', [0], 1, { clbitTargets: [0] }),
+      ],
+    }
+    expect(() => runNoisyDensity(circuit, teaching)).toThrow(
+      MidCircuitMeasurementError
+    )
+  })
+
+  it('resets a qubit the same way in both representations', () => {
+    // ρ takes the reset as amplitude damping at γ = 1; a trajectory takes it as
+    // a measurement and a conditional flip. Both must end in |0⟩ with
+    // certainty, and at the ideal profile they must do it exactly.
+    const circuit: CircuitLike = {
+      qubits: 1,
+      operations: [op('h', [0], 0), op('reset', [0], 1)],
+    }
+    const exact = runNoisyDensity(circuit, ideal)
+    expect(exact.distribution[0]).toBeCloseTo(1, DIGITS)
+    expect(exact.distribution[1]).toBeCloseTo(0, DIGITS)
+
+    const sampled = runNoisy(circuit, {
+      ...ideal,
+      shots: 200,
+      rng: createRng(3),
+    })
+    expect(sampled.counts).toEqual({ '0': 200 })
+  })
+
+  it('charges no noise to the identity placeholder', () => {
+    // `i` is a hole in the circuit the editor draws a box around, not a
+    // scheduled delay: a register of identities under the worst profile must
+    // come back in exactly |000⟩, not slightly excited.
+    const circuit: CircuitLike = {
+      qubits: 3,
+      operations: [op('i', [0], 0), op('i', [1], 0), op('i', [2], 1)],
+    }
+    const exact = runNoisyDensity(circuit, { ...teaching, readout: false })
+    expect(exact.distribution[0]).toBe(1)
+    const sampled = runNoisy(circuit, {
+      ...teaching,
+      readout: false,
+      shots: 50,
+      rng: createRng(2),
+    })
+    expect(sampled.counts).toEqual({ '000': 50 })
+
+    // The reading is still not certain, and that is not a contradiction: the
+    // state is exactly |000⟩ and the amplifier misreads each wire with
+    // probability p0to1 = 0.03, so the register comes back clean 0.97³ of the
+    // time. Readout error is the one term that is not decoherence.
+    const read = runNoisyDensity(circuit, teaching)
+    expect(read.distribution[0]).toBeCloseTo(0.97 ** 3, DIGITS)
+  })
+
+  it('applies readout error to the outcome and not to the state', () => {
+    // The profile misreads a 1 as a 0 more often than the reverse (relaxation
+    // during integration), so reading a certain |1⟩ has to be biased towards 0
+    // — and the bias must be exactly p1to0, since the state itself is
+    // untouched by the misreading.
+    const circuit: CircuitLike = { qubits: 1, operations: [op('x', [0], 0)] }
+    const profile = {
+      ...NOISE_PROFILES.ideal,
+      readoutP0to1: 0.01,
+      readoutP1to0: 0.2,
+    }
+    const exact = runNoisyDensity(circuit, { profile })
+    expect(exact.distribution[0]).toBeCloseTo(0.2, DIGITS)
+    // ρ itself is |1⟩⟨1|: the misread happened after the state was gone.
+    expect(exact.rho.re[3]).toBeCloseTo(1, DIGITS)
+
+    const shots = 20_000
+    const sampled = runNoisy(circuit, { profile, shots, rng: createRng(11) })
+    const misread = (sampled.counts['0'] ?? 0) / shots
+    expect(Math.abs(misread - 0.2)).toBeLessThan(0.01)
+
+    // …and switching it off leaves the answer certain again.
+    const clean = runNoisy(circuit, {
+      profile,
+      readout: false,
+      shots: 100,
+      rng: createRng(11),
+    })
+    expect(clean.counts).toEqual({ '1': 100 })
+  })
+
+  it('runs one noisy trajectory at a time, state and register both', () => {
+    const { state, register } = runTrajectory(BELL, createRng(5), teaching)
+    expect(norm(state)).toBeCloseTo(1, DIGITS)
+    expect(register).toHaveLength(0)
   })
 })

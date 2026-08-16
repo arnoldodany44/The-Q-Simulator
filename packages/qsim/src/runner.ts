@@ -51,11 +51,50 @@
  * cannot be the same thing. `runTrajectory()` exposes a single trajectory,
  * state and register both, which is what the timeline of M0.8 needs to scrub
  * through a circuit that measures.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * THE NOISE MODE IS THE SAME CIRCUIT TWICE — §3.3, AND IT HAD TO BE
+ *
+ * `runNoisyDensity()` carries ρ and applies the Kraus channels of `noise.ts`
+ * exactly; `runNoisy()` carries a statevector and *samples* them, once per
+ * shot (`trajectories.ts`). They answer the same question at different prices
+ * — 4ⁿ memory and no sampling error, against 2ⁿ memory and a 1/√N one — and
+ * the only reason to trust either is that they agree, which
+ * `verification/noise-trajectories.test.ts` asserts on a circuit small enough
+ * for both.
+ *
+ * That agreement is a statement about the *circuit*, so the two paths cannot
+ * be allowed to differ about what the circuit says. Everything above the
+ * kernel is therefore shared and not copied: `planColumns`, `resolveParams`,
+ * `controlsOf`, the arity checks, and `applyUnitaryTo` — one dispatch, two
+ * `GateBackend`s. If they disagreed about which matrix a `crz` is or which
+ * wires a `cswap` touches, the comparison would report a physics bug that is
+ * really a bookkeeping one, and the milestone's strongest test would be
+ * testing nothing.
+ *
+ * WHERE THEY LEGITIMATELY DIFFER. A trajectory can measure mid-circuit,
+ * because a collapse is just another sampled Kraus operator; the density path
+ * refuses, exactly as analytic mode does, because tracking a classical bit
+ * that later gates read means branching on it and ρ has no branch. So
+ * `runNoisy()` accepts every circuit `run(…, trajectoriesMode(…))` accepts,
+ * and `runNoisyDensity()` accepts every circuit analytic mode accepts.
  */
 
 import { apply1q, applyControlled, applyISwap, applySwap } from './apply.js'
 import type { ControlSpec } from './apply.js'
+import { formatKet } from './conventions.js'
+import {
+  alloc as densityAlloc,
+  applyControlled as densityApplyControlled,
+  applyISwap as densityApplyISwap,
+  applySwap as densityApplySwap,
+  probabilities as densityProbabilities,
+  renormalize as densityRenormalize,
+  assertDensityFits,
+  type DensityMatrix,
+} from './density.js'
 import { GATE_MATRICES, isOneQubitGateId, matrixFor } from './gates.js'
+import type { Matrix2 } from './gates.js'
 import {
   MidCircuitMeasurementError,
   analyticMode,
@@ -63,6 +102,7 @@ import {
   collapse,
   marginalProbability,
   measureQubit,
+  sampleIndex,
   trajectoriesMode,
   type AnalyticResult,
   type ExecutionOptions,
@@ -70,6 +110,19 @@ import {
   type ShotCounts,
   type TrajectoriesOptions,
 } from './measure.js'
+import {
+  amplitudeDampingChannel,
+  applyChannel,
+  applyChannels,
+  applyReadoutError,
+  channelsForGate,
+  readoutErrorsFor,
+  sampleReadout,
+  validateProfile,
+  type KrausChannel,
+  type NoiseProfile,
+  type ReadoutError,
+} from './noise.js'
 import type { Rng } from './rng.js'
 import {
   RENORMALIZE_INTERVAL,
@@ -79,6 +132,8 @@ import {
   reset as resetToGround,
   type Statevector,
 } from './statevector.js'
+import { applyTrajectoryChannels, prepareChannels } from './trajectories.js'
+import type { TrajectoryChannel } from './trajectories.js'
 
 /* ─────────────────────── the contract, mirrored ─────────────────────── */
 
@@ -342,21 +397,293 @@ export function stateAfterColumn(
 
 /**
  * One independent trajectory: collapses drawn from `rng`, classical register
- * filled in as the circuit measures.
+ * filled in as the circuit measures, and — when a `model` is given — a sampled
+ * Kraus operator after every gate.
  *
  * This is what `run()` repeats once per shot, exposed because a single
  * trajectory is the only meaningful "final state" a measuring circuit has —
  * the scrubber and any per-shot inspection need it, and tallying counts would
- * throw it away.
+ * throw it away. Under noise that is truer still: one trajectory is a state
+ * the device could genuinely have been in, which is something ρ cannot show
+ * (a mixture has no vector), so this is the only way to look at a noisy run
+ * one shot at a time.
  */
-export function runTrajectory(circuit: CircuitLike, rng: Rng): TrajectoryRun {
+export function runTrajectory(
+  circuit: CircuitLike,
+  rng: Rng,
+  model?: NoiseModel
+): TrajectoryRun {
   const plan = planColumns(circuit)
   const options = trajectoriesMode(1, rng)
   const machine = createMachine(circuit)
-  const context = createContext(circuit, options, plan.length, undefined)
+  const noise =
+    model === undefined ? undefined : prepareNoise(model.profile, rng)
+  const context = createContext(circuit, options, plan.length, undefined, noise)
   evolve(machine, plan, 0, plan.length, context)
   return { state: machine.state, register: machine.register }
 }
+
+/* ──────────────────────────── the noise mode ────────────────────────────── */
+
+/**
+ * Which device to imitate, and whether to imitate its readout too — the
+ * argument both noise modes take, so that "the same circuit and profile" is a
+ * statement a caller can make in one object.
+ *
+ * WHAT CARRIES NOISE, AND WHAT DOES NOT. Every unitary operation is followed
+ * by the profile's channels on each wire it touched. A `barrier`, an `i` and a
+ * `measure` are not, and neither is the wait a qubit spends while other wires
+ * are busy: a barrier and an identity are drawings rather than pulses (see
+ * `applyUnitaryTo`), a `NoiseProfile` has no measurement duration or reset
+ * error to derive a channel from, and idling needs a schedule the circuit
+ * contract (§6) does not carry — `channelsForIdle` is there for a caller that
+ * has one. This is the same per-instruction model the mainstream simulators
+ * use, and it is an approximation in the direction of optimism: a real qubit
+ * decoheres while its neighbours work.
+ */
+export interface NoiseModel {
+  readonly profile: NoiseProfile
+  /**
+   * Corrupt the outcome with the profile's readout error. Defaults to `true`:
+   * §3.3 lists readout error as part of the mode, a device report publishes
+   * it beside T1, and on most hardware it is the largest single error in the
+   * histogram. Set `false` to see the state's own distribution — which is a
+   * different question, and worth being able to ask separately, because
+   * readout error is the one term that is not decoherence (`noise.ts`).
+   */
+  readonly readout?: boolean
+}
+
+/** A noisy trajectories run: a `NoiseModel`, a shot count and a generator. */
+export interface NoisyOptions extends NoiseModel {
+  readonly shots: number
+  readonly rng: Rng
+}
+
+/**
+ * The counts of a noisy trajectories run.
+ *
+ * `counts` is keyed by the **ket label of the full quantum register**
+ * (`formatKet`), not by the classical register `run(…, trajectoriesMode(…))`
+ * tallies. The two modes are answering different questions and the keys say
+ * so: there, the answer is what the circuit's own `measure` operations wrote,
+ * and a circuit with no clbits has nothing to report; here, the answer is
+ * §3.3's noisy distribution over basis states, which is what sits beside the
+ * ideal one, so every qubit is read at the end of every shot whether the
+ * circuit measures or not.
+ */
+export interface NoisyResult {
+  readonly mode: 'noisyTrajectories'
+  readonly shots: number
+  readonly counts: ShotCounts
+}
+
+/** The exact answer: ρ after the circuit, and the distribution it implies. */
+export interface NoisyDensityResult {
+  readonly mode: 'noisyDensity'
+  /** The final ρ. Fidelity, purity and the heat map of §3.2 read this. */
+  readonly rho: DensityMatrix
+  /**
+   * The Born distribution over basis states, **with readout error applied**
+   * when the model asks for it — so it is comparable entry for entry with the
+   * frequencies of `runNoisy`, and not with the diagonal of `rho`.
+   */
+  readonly distribution: Float64Array
+}
+
+/**
+ * Run `shots` Monte Carlo trajectories of a noisy circuit — §5.4's escape from
+ * the 4ⁿ ceiling, and the only mode in which a noisy 18-qubit circuit runs at
+ * all.
+ *
+ * Each shot walks the circuit on its own statevector: every gate is followed
+ * by one sampled Kraus operator per channel per wire (`trajectories.ts`), a
+ * mid-circuit `measure` collapses as it always did, and at the end the whole
+ * register is read once. The counts are the empirical distribution, and they
+ * approach `runNoisyDensity`'s exact one as 1/√shots.
+ *
+ * MEMORY. 2ⁿ × 16 bytes for the one statevector, whatever the shot count — 4 MB
+ * at 18 qubits, where ρ would be a terabyte. The ceiling is `MAX_QUBITS` and it
+ * is checked by `alloc` before anything is reserved, so a register too large is
+ * a typed refusal and not a tab that stops responding.
+ *
+ * SHOTS ARE THE PRICE. A frequency measured over N shots has a standard error
+ * of about 1/(2√N) at its worst, so 10 000 shots resolve a probability to
+ * roughly half a percent — enough to see a noisy distribution's shape and not
+ * enough to read a fidelity to four digits. That is the trade §5.4 names, and
+ * `runNoisyDensity` is what to reach for when the register is small enough to
+ * avoid paying it.
+ */
+export function runNoisy(
+  circuit: CircuitLike,
+  options: NoisyOptions
+): NoisyResult {
+  const { profile, shots, rng } = options
+  // Before allocating anything: an impossible profile and an impossible shot
+  // count are both cheap to detect and expensive to discover mid-run.
+  validateProfile(profile)
+  const trajectories = trajectoriesMode(shots, rng)
+
+  const plan = planColumns(circuit)
+  const noise = prepareNoise(profile, rng)
+  const readout = readoutFor(circuit, options)
+  const machine = createMachine(circuit)
+  const context = createContext(
+    circuit,
+    trajectories,
+    plan.length,
+    undefined,
+    noise
+  )
+
+  // Tallied by index and formatted once per distinct outcome, as `sampleShots`
+  // does and for the same reason: building an n-character label per shot would
+  // cost more than the trajectory that produced it.
+  const tally = new Map<number, number>()
+  for (let shot = 0; shot < shots; shot++) {
+    resetToGround(machine.state)
+    machine.register.fill(0)
+    machine.gates = 0
+    evolve(machine, plan, 0, plan.length, context)
+    let outcome = sampleIndex(machine.state, rng)
+    if (readout.length > 0) outcome = sampleReadout(outcome, readout, rng)
+    tally.set(outcome, (tally.get(outcome) ?? 0) + 1)
+  }
+
+  const counts: Record<string, number> = {}
+  for (const [index, count] of tally) {
+    counts[formatKet(index, circuit.qubits)] = count
+  }
+  return { mode: 'noisyTrajectories', shots, counts }
+}
+
+/**
+ * Run the circuit exactly, on a density matrix — §3.3's reference answer.
+ *
+ * Same circuit, same profile, same channels in the same order as `runNoisy`,
+ * evaluated rather than sampled: ρ → UρU† for each gate and ρ → Σ Kₖ ρ Kₖ† for
+ * each channel on each wire it touched. There is no shot noise in the result
+ * and no seed in the arguments.
+ *
+ * MEMORY IS THE LIMIT, AND IT IS CHECKED FIRST. ρ is 4ⁿ × 16 bytes: 256 MB at
+ * twelve qubits and four times that for each qubit after. `assertDensityFits`
+ * runs before the plan is built and before a byte is reserved, so thirteen
+ * qubits is a `DensityTooLargeError` naming the budget — which the panel can
+ * translate (D2) and answer with `runNoisy`, the mode that has no such
+ * ceiling.
+ *
+ * MID-CIRCUIT MEASUREMENT IS REFUSED, exactly as in analytic mode: a
+ * measurement makes the state depend on a coin flip, and ρ carries an average
+ * rather than a branch. `runNoisy` takes those circuits.
+ */
+export function runNoisyDensity(
+  circuit: CircuitLike,
+  model: NoiseModel
+): NoisyDensityResult {
+  validateProfile(model.profile)
+  // Before the plan, before the allocation, and before the circuit is walked:
+  // the answer to "is this register too large" is arithmetic on one integer.
+  assertDensityFits(circuit.qubits)
+  rejectMidCircuit(circuit)
+
+  const plan = planColumns(circuit)
+  const context = createContext(circuit, analyticMode(), plan.length, undefined)
+  const oneQubit = channelsForGate(model.profile, 1)
+  const twoQubit = channelsForGate(model.profile, 2)
+  const rho = densityAlloc(circuit.qubits)
+
+  let gates = 0
+  for (const planned of plan) {
+    for (const operation of planned.operations) {
+      if (operation.gate === 'barrier') continue
+      if (operation.gate === 'reset') {
+        resetDensity(rho, operation)
+        continue
+      }
+      const wires = applyUnitaryTo(DENSITY_GATES, rho, operation, context)
+      if (wires === undefined) continue
+      const channels = wires.length === 1 ? oneQubit : twoQubit
+      for (const wire of wires) applyChannels(rho, channels, wire)
+
+      // D6's interval, applied to the trace instead of the norm. Both a
+      // unitary and a trace-preserving channel hold Tr(ρ) = 1 exactly in
+      // exact arithmetic and drift by an ulp in Float64.
+      gates++
+      if (gates >= RENORMALIZE_INTERVAL) {
+        densityRenormalize(rho)
+        gates = 0
+      }
+    }
+  }
+
+  const distribution = densityProbabilities(rho)
+  const readout = readoutFor(circuit, model)
+  return {
+    mode: 'noisyDensity',
+    rho,
+    distribution:
+      readout.length > 0
+        ? applyReadoutError(distribution, readout)
+        : distribution,
+  }
+}
+
+/**
+ * Reset on a density matrix: amplitude damping at γ = 1.
+ *
+ * Not a coincidence and not a trick. A reset is "throw the qubit's state away
+ * and hand back |0⟩", whose Kraus set is {|0⟩⟨0|, |0⟩⟨1|} — and that is
+ * exactly `amplitudeDampingChannel(1)`, a qubit that emits with certainty. The
+ * trajectory path spells the same map the other way, measuring the qubit and
+ * flipping it when the answer was 1 (`resetQubit`), which is the unravelling
+ * of this channel into its two branches. The two agree in the ensemble, and
+ * the convergence test is where that stops being an assertion in a comment.
+ */
+function resetDensity(rho: DensityMatrix, operation: OperationLike): void {
+  const [target] = requireTargets(operation, 1)
+  applyChannel(rho, RESET_CHANNEL, target)
+}
+
+/** Built once: γ = 1 has no parameter to vary and the operators are constants. */
+const RESET_CHANNEL: KrausChannel = amplitudeDampingChannel(1)
+
+/**
+ * The profile's channels, derived once and prepared once for a whole run.
+ *
+ * `channelsForGate` drops channels whose parameter is zero, so the ideal
+ * profile yields two empty lists and the noisy path becomes the clean one —
+ * not approximately, but as the same arithmetic in the same order. That is
+ * what makes "at zero noise, trajectories reproduce the noiseless result
+ * exactly" a testable claim rather than a hope.
+ */
+function prepareNoise(profile: NoiseProfile, rng: Rng): TrajectoryNoise {
+  return {
+    oneQubit: prepareChannels(channelsForGate(profile, 1)),
+    twoQubit: prepareChannels(channelsForGate(profile, 2)),
+    rng,
+  }
+}
+
+/**
+ * The readout errors to apply, or an empty list.
+ *
+ * ENTRIES WITH NOTHING TO SAY ARE DROPPED, and that is not tidiness:
+ * `sampleReadout` draws once per entry whatever the probability, so an ideal
+ * profile keeping n zero-probability entries would consume n random numbers
+ * per shot and shift the whole stream. The exactness test — same seed, noisy
+ * run at zero noise, clean run, identical counts — would then fail for a
+ * reason that has nothing to do with noise.
+ */
+function readoutFor(
+  circuit: CircuitLike,
+  model: NoiseModel
+): readonly ReadoutError[] {
+  if (model.readout === false) return NO_READOUT
+  const errors = readoutErrorsFor(model.profile, circuit.qubits)
+  return errors.filter((error) => error.p0to1 > 0 || error.p1to0 > 0)
+}
+
+const NO_READOUT: readonly ReadoutError[] = []
 
 /**
  * A classical register as a bitstring, highest clbit first — the same reading
@@ -409,6 +736,23 @@ interface RunContext {
   readonly checkpoints: CheckpointCache | undefined
   /** Number of planned columns, for the end-anchored checkpoint below. */
   readonly columns: number
+  /** Sampled channels to apply after each gate, or `undefined` for a clean run. */
+  readonly noise: TrajectoryNoise | undefined
+}
+
+/**
+ * A profile's channels, prepared once for the whole run and reused by every
+ * gate of every shot — see `prepareChannel` for what preparation buys.
+ *
+ * Two lists because a device reports two error rates and `channelsForGate`
+ * derives a different group from each. Which one a gate gets is decided by how
+ * many wires it touched, not by its name: a `cz` and a `swap` are both
+ * two-qubit operations on this chip whatever the editor calls them.
+ */
+interface TrajectoryNoise {
+  readonly oneQubit: readonly TrajectoryChannel[]
+  readonly twoQubit: readonly TrajectoryChannel[]
+  readonly rng: Rng
 }
 
 function clbitCount(circuit: CircuitLike): number {
@@ -429,7 +773,8 @@ function createContext(
   circuit: CircuitLike,
   options: ExecutionOptions,
   columns: number,
-  checkpoints: CheckpointCache | undefined
+  checkpoints: CheckpointCache | undefined,
+  noise?: TrajectoryNoise
 ): RunContext {
   return {
     options,
@@ -437,6 +782,7 @@ function createContext(
     clbits: clbitCount(circuit),
     checkpoints,
     columns,
+    noise,
   }
 }
 
@@ -656,12 +1002,98 @@ function passesCondition(
   return machine.snapshot[condition.clbit] === condition.equals
 }
 
+/**
+ * The three kernel entry points a unitary operation can reach, for whichever
+ * representation is being evolved.
+ *
+ * `apply.ts` and `density.ts` already expose the same three signatures — that
+ * is not a coincidence, it is `density.ts`'s stated design ("the mixed-state
+ * mirror of statevector.ts + apply.ts") — so the backends below are the
+ * functions themselves and not adapters. What the indirection buys is that
+ * `applyUnitaryTo` exists once: the gate table, the control arity checks and
+ * the parameter resolution cannot say one thing to a statevector and another
+ * to a ρ, which is the precondition for comparing the two modes at all.
+ *
+ * A megamorphic call site costs something against the direct call it replaces.
+ * It is two virtual dispatches per *gate*, against O(2ⁿ) or O(4ⁿ) inside them;
+ * at the four qubits where that ratio is worst the whole run is microseconds.
+ */
+interface GateBackend<S> {
+  readonly applyControlled: (
+    state: S,
+    matrix: Matrix2,
+    target: number,
+    controls: readonly ControlSpec[]
+  ) => void
+  readonly applySwap: (
+    state: S,
+    q0: number,
+    q1: number,
+    controls: readonly ControlSpec[]
+  ) => void
+  readonly applyISwap: (state: S, q0: number, q1: number) => void
+}
+
+const STATEVECTOR_GATES: GateBackend<Statevector> = {
+  applyControlled,
+  applySwap,
+  applyISwap,
+}
+
+const DENSITY_GATES: GateBackend<DensityMatrix> = {
+  applyControlled: densityApplyControlled,
+  applySwap: densityApplySwap,
+  applyISwap: densityApplyISwap,
+}
+
 function applyUnitary(
   machine: Machine,
   operation: OperationLike,
   context: RunContext
 ): void {
-  const state = machine.state
+  const wires = applyUnitaryTo(
+    STATEVECTOR_GATES,
+    machine.state,
+    operation,
+    context
+  )
+  if (wires === undefined) return
+  countGate(machine)
+
+  const noise = context.noise
+  if (noise === undefined) return
+  // After the gate, on every wire it touched — controls included, because a
+  // control is a qubit the pulse acted on and not a spectator. `noise.ts`
+  // derives the group from the reported error rate of a gate of this arity and
+  // says to apply it to each wire separately.
+  //
+  // ANYTHING WIDER THAN TWO WIRES IS CHARGED AS TWO, because a datasheet
+  // publishes two numbers and there is no third to derive from. That is
+  // optimistic for a Toffoli, which no device runs natively: hardware
+  // decomposes it into about six two-qubit gates, so a real one costs several
+  // times what this model charges. The alternative would be inventing a
+  // three-qubit error rate, which is a number with nothing behind it.
+  const channels = wires.length === 1 ? noise.oneQubit : noise.twoQubit
+  for (const wire of wires) {
+    applyTrajectoryChannels(machine.state, channels, wire, noise.rng)
+  }
+}
+
+/**
+ * Apply one unitary operation to either representation and return **the wires
+ * it touched**, or `undefined` when it did nothing.
+ *
+ * The return value is what the noise model consumes, and it is deliberately
+ * the wires rather than a count: the channels go on the qubits, one at a time.
+ * `targets` is returned by identity when there are no controls, so the common
+ * one-qubit gate allocates nothing here.
+ */
+function applyUnitaryTo<S>(
+  backend: GateBackend<S>,
+  state: S,
+  operation: OperationLike,
+  context: RunContext
+): readonly number[] | undefined {
   const gate = operation.gate
   const controls = controlsOf(operation)
 
@@ -669,12 +1101,17 @@ function applyUnitary(
     // The identity is a placeholder in the editor, and running it through the
     // kernel would be 2ⁿ reads and writes to change nothing. Controls cannot
     // make it do something either.
-    if (gate === 'i') return
+    //
+    // It draws no noise for the same reason: it is a hole in the circuit that
+    // the editor draws a box around, not a scheduled delay. The channel for a
+    // qubit that idles while other wires work is `channelsForIdle`, it needs a
+    // duration this contract does not carry, and inventing one here would
+    // charge a placeholder for decoherence nobody asked for.
+    if (gate === 'i') return undefined
     const [target] = requireTargets(operation, 1)
     const matrix = matrixFor(gate, resolveParams(operation, context))
-    applyControlled(state, matrix, target, controls)
-    countGate(machine)
-    return
+    backend.applyControlled(state, matrix, target, controls)
+    return wiresOf(operation.targets, controls)
   }
 
   switch (gate) {
@@ -686,13 +1123,13 @@ function applyUnitary(
     case 'ccx': {
       const [target] = requireTargets(operation, 1)
       requireControls(operation, controls, gate === 'ccx' ? 2 : 1)
-      applyControlled(state, GATE_MATRICES.x, target, controls)
+      backend.applyControlled(state, GATE_MATRICES.x, target, controls)
       break
     }
     case 'cz': {
       const [target] = requireTargets(operation, 1)
       requireControls(operation, controls, 1)
-      applyControlled(state, GATE_MATRICES.z, target, controls)
+      backend.applyControlled(state, GATE_MATRICES.z, target, controls)
       break
     }
     case 'crz':
@@ -703,20 +1140,20 @@ function applyUnitary(
       // Via `matrixFor` rather than `rzMatrix`/`pMatrix` directly, so the
       // parameter count and finiteness are checked in one place.
       const matrix = matrixFor(gate === 'crz' ? 'rz' : 'p', params)
-      applyControlled(state, matrix, target, controls)
+      backend.applyControlled(state, matrix, target, controls)
       break
     }
     case 'swap':
     case 'cswap': {
       const [first, second] = requireTargets(operation, 2)
       requireControls(operation, controls, gate === 'cswap' ? 1 : 0)
-      applySwap(state, first, second, controls)
+      backend.applySwap(state, first, second, controls)
       break
     }
     case 'iswap': {
       const [first, second] = requireTargets(operation, 2)
       requireControls(operation, controls, 0)
-      applyISwap(state, first, second)
+      backend.applyISwap(state, first, second)
       break
     }
     default:
@@ -727,7 +1164,29 @@ function applyUnitary(
         operation.id
       )
   }
-  countGate(machine)
+  return wiresOf(operation.targets, controls)
+}
+
+/**
+ * The qubits an operation acted on: its targets, plus its controls.
+ *
+ * A control is not a spectator. The two-qubit error rate a device publishes is
+ * measured on the pair, and `localDepolarizingFromPairError` splits it between
+ * *both* wires — a model that noised only the target would report half the
+ * error the datasheet does while looking entirely reasonable on a histogram.
+ *
+ * Returns `targets` itself when there is nothing to add, which is the case for
+ * every plain one-qubit gate: the caller reads the array and discards it, and
+ * a trajectory run reaches this line once per gate per shot.
+ */
+function wiresOf(
+  targets: readonly number[],
+  controls: readonly ControlSpec[]
+): readonly number[] {
+  if (controls.length === 0) return targets
+  const wires = [...targets]
+  for (const control of controls) wires.push(control.qubit)
+  return wires
 }
 
 /**

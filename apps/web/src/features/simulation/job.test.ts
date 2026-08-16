@@ -62,6 +62,7 @@ function simulate(
     mode: 'analytic',
     throughColumn: null,
     sample: null,
+    noise: null,
   }
 }
 
@@ -672,6 +673,80 @@ describe('sampled runs', () => {
       )
       expect(response.counts).toEqual({ '00': 50 })
     })
+  })
+})
+
+describe('the noisy run that rides along (§3.3)', () => {
+  /** The teaching profile, written out rather than imported — see the header. */
+  const TEACHING = {
+    id: 'teaching',
+    t1Ns: 20_000,
+    t2Ns: 15_000,
+    oneQubitGateNs: 50,
+    twoQubitGateNs: 400,
+    oneQubitGateError: 0.01,
+    twoQubitGateError: 0.05,
+    readoutP0to1: 0.03,
+    readoutP1to0: 0.05,
+  } as const
+
+  function noisy(circuit: Circuit, throughColumn: number | null) {
+    const request: AnalyticRequest = {
+      ...simulate(circuit),
+      throughColumn,
+      noise: {
+        profile: TEACHING,
+        readout: true,
+        method: 'density',
+        shots: 500,
+        seed: 1,
+      },
+    }
+    const response = analytic(runJob(createCheckpoints(), request, false))
+    if (response.noise === null || !response.noise.ok) {
+      throw new Error('expected a noisy reading')
+    }
+    return response.noise.reading
+  }
+
+  it('answers with nothing when nobody asked', () => {
+    expect(
+      analytic(runJob(createCheckpoints(), simulate(BELL), false)).noise
+    ).toBeNull()
+  })
+
+  it('describes the same cut of the circuit the state does', () => {
+    /*
+     * The scrubber applies to §3.3 as it applies to everything else (M0.9c). A
+     * comparison whose two halves had run different numbers of columns would
+     * attribute the missing columns to noise — which is the one thing a noise
+     * panel must never be able to do, and the failure would look exactly like
+     * decoherence.
+     *
+     * Before the CNOT the register is |0⟩+|1⟩ on wire 0 alone, so |10⟩ and |11⟩
+     * carry nothing; after it, the state is a Bell pair and |01⟩ and |10⟩ carry
+     * nothing instead. The two noisy distributions are therefore different in a
+     * way no amount of noise could produce from the wrong one.
+     */
+    const before = noisy(BELL, 0)
+    const after = noisy(BELL, null)
+
+    // At column 0 the second wire has not been touched, so it reads 0 up to
+    // readout error: |00⟩ and |01⟩ hold nearly everything.
+    expect(before.distribution?.[0]).toBeGreaterThan(0.4)
+    expect(before.distribution?.[1]).toBeGreaterThan(0.4)
+    expect(after.distribution?.[1]).toBeLessThan(0.1)
+  })
+
+  it('measures its fidelity against the state in the same message', () => {
+    // Both halves of the comparison come out of one response precisely so they
+    // cannot describe different circuits, so the cut has to move both.
+    const before = noisy(BELL, 0)
+    const after = noisy(BELL, null)
+    for (const reading of [before, after]) {
+      expect(reading.distributionFidelity).toBeGreaterThan(0)
+      expect(reading.distributionFidelity).toBeLessThanOrEqual(1)
+    }
   })
 })
 

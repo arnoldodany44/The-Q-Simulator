@@ -15,6 +15,9 @@
     "moment": {
       "start": "El estado antes de que corra la columna 0 — de donde parte el circuito.",
       "column": "El estado después de la columna {{column}}, no al final del circuito."
+    },
+    "noise": {
+      "measuring": "Este circuito mide antes de terminar, así que no tiene una única distribución ideal — y el modo ruido compara una distribución ruidosa contra una ideal. Quita las mediciones para poder compararlas."
     }
   },
   "errors": {
@@ -24,6 +27,10 @@
     "no-classical-bits": "El muestreo informa del registro clásico, y este circuito no declara ningún bit clásico. Añade primero una medición.",
     "unsupported-operation": "El simulador todavía no puede ejecutar una de las compuertas de este circuito.",
     "worker-unavailable": "Este navegador no pudo iniciar el simulador. La simulación corre en un hilo aparte y esta página no consiguió crearlo.",
-    "worker-failed": "El simulador se detuvo de forma inesperada. Edita el circuito para volver a intentarlo."
+    "worker-failed": "El simulador se detuvo de forma inesperada. Edita el circuito para volver a intentarlo.",
+    "density-too-large": "Una matriz de densidad para {{qubits}} qubits pasa el techo de {{limit}} qubits del modo ruido. Las trayectorias muestreadas llegan más lejos, porque guardan un vector de estado y no una matriz.",
+    "trajectories-too-large": "Una corrida muestreada vuelve a ejecutar todo el circuito en cada tiro, así que con {{qubits}} qubits y {{operations}} compuertas este navegador solo alcanzaba para {{shots}} tiros, por debajo de los {{limit}} que necesita una muestra para decir algo. Acorta el circuito o usa menos qubits.",
+    "noise-out-of-memory": "Este dispositivo no pudo reservar la memoria que el método exacto necesita para {{qubits}} qubits, aunque está dentro del techo de {{limit}} qubits. Las trayectorias muestreadas piden mucha menos: guardan un vector de estado y no una matriz.",
+    "noise-failed": "La corrida con ruido no terminó. Todo lo que está arriba describe el circuito tal como está escrito y no se ve afectado."
   }
 }
