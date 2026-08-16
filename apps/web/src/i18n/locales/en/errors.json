@@ -24,5 +24,6 @@
   "USERNAME_TAKEN": "That handle belongs to another account. Try a different one.",
   "COLLECTION_FULL": "This collection is full. Remove a circuit before adding another.",
   "SIMULATION_TOO_LARGE": "This circuit is too large for the server to simulate. Reduce the qubits, the gates or the shots.",
-  "SIMULATION_UNAVAILABLE": "Server simulation is temporarily unavailable. Everything else still works, and you can run this in your browser."
+  "SIMULATION_UNAVAILABLE": "Server simulation is temporarily unavailable. Everything else still works, and you can run this in your browser.",
+  "API_NOT_CONFIGURED": "This build has no server, so accounts, the gallery and server simulation are unavailable. Circuits still run in this tab and travel inside their link."
 }

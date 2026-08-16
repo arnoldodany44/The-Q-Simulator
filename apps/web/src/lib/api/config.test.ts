@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   DEV_API_BASE_URL,
@@ -26,13 +26,19 @@ describe('resolveApiBaseUrl', () => {
     expect(resolveApiBaseUrl({ VITE_API_URL: '   ' })).toBe(DEV_API_BASE_URL)
   })
 
-  it('refuses to build a production client with no origin configured', () => {
+  it('gives a production build with no origin no origin at all', () => {
     /*
-     * Left to default, every request would go to the Vercel origin, where the
-     * SPA rewrite serves index.html — and the failure would surface as "the
-     * API sent an unexpected response" for what is a deployment problem.
+     * Corrected to the right expectation rather than deleted, because the
+     * concern that produced the old one is still real: left to DEFAULT, every
+     * request would go to the Vercel origin, where the SPA rewrite serves
+     * index.html, and the failure would surface as "the API sent an
+     * unexpected response" for what is a deployment problem.
+     *
+     * The answer to that is `null` — which `createApiClient` refuses on, by
+     * name, before it builds a URL — and not a throw. A throw at module load
+     * takes the page with it; see the block at the end of this file.
      */
-    expect(() => resolveApiBaseUrl({ PROD: true })).toThrow('VITE_API_URL')
+    expect(resolveApiBaseUrl({ PROD: true })).toBeNull()
   })
 })
 
@@ -66,5 +72,35 @@ describe('resolveSocketUrl', () => {
     expect(resolveSocketUrl('https://api.example.test/')).toBe(
       'wss://api.example.test/ws'
     )
+  })
+})
+
+/*
+ * The regression this file exists for after the fact.
+ *
+ * Phase 1 shipped a `resolveApiBaseUrl` that threw on a production build with
+ * no `VITE_API_URL`. The throw happened while the module graph was loading, so
+ * React never mounted and the entire site rendered a white page — including
+ * the landing and the editor, neither of which touches the API. Phase 0 had
+ * been live and went down the moment Phase 1 merged, over one absent variable
+ * in a dashboard.
+ *
+ * A configuration mistake may degrade the app. It may not delete it.
+ */
+describe('a production build with no API origin', () => {
+  it('answers null rather than throwing', () => {
+    expect(() => resolveApiBaseUrl({ PROD: true })).not.toThrow()
+    expect(resolveApiBaseUrl({ PROD: true })).toBeNull()
+    expect(resolveApiBaseUrl({ PROD: true, VITE_API_URL: '   ' })).toBeNull()
+  })
+
+  it('says so once, naming the variable and not a value', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    resolveApiBaseUrl({ PROD: true })
+
+    const message = String(warn.mock.calls[0]?.[0] ?? '')
+    expect(message).toContain('VITE_API_URL')
+    expect(message).toMatch(/link|tab/i)
+    warn.mockRestore()
   })
 })

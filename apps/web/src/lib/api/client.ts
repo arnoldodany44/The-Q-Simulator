@@ -34,7 +34,15 @@ import { ApiRequestError, errorCodeForStatus } from './errors.js'
 import { currentAccessTokenProvider } from './session.js'
 import type { AccessTokenProvider } from './session.js'
 
-export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+/**
+ * `PUT` arrives with the lesson bookmark (Phase 3) and is the only verb here
+ * whose *meaning* is load-bearing rather than conventional: that route's
+ * address is (the caller, the lesson slug), so the client knows the whole
+ * address before it writes and writing twice has to be writing once. Sending
+ * it as a `POST` would have been a lie about that, and the retry the player
+ * does when a write is lost would have created a second row.
+ */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 /** Values a query string can carry. `undefined` means "omit the parameter". */
 export type QueryParams = Readonly<
@@ -88,7 +96,13 @@ export interface RequestSpec<T> {
 }
 
 export interface ApiClient {
-  readonly baseUrl: string
+  /**
+   * `null` on a build with no API origin, which is a real deployment rather
+   * than a broken one: circuits still run in the tab and travel in the link.
+   * A caller that renders server-backed UI should check this and offer the
+   * offline story instead of a control that can only fail.
+   */
+  readonly baseUrl: string | null
   request: {
     <T>(spec: RequestSpec<T> & { schema: ResponseSchema<T> }): Promise<T>
     (spec: RequestSpec<void> & { schema: null }): Promise<void>
@@ -188,6 +202,16 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   }
 
   async function request<T>(spec: RequestSpec<T>): Promise<T | void> {
+    /*
+     * Refused before anything else, including the token. With no origin the
+     * template below would build "null/api/v1/…", a relative URL that Vercel's
+     * SPA rewrite happily answers with index.html — so the request would
+     * "succeed" and fail schema parsing, reporting a malformed response for
+     * what is a missing environment variable. Failing here names the real
+     * cause and costs no round trip.
+     */
+    if (baseUrl === null) throw new ApiRequestError('API_NOT_CONFIGURED')
+
     const token = await accessToken()
 
     const headers: Record<string, string> = { Accept: 'application/json' }

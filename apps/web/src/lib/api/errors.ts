@@ -55,6 +55,18 @@ export const CLIENT_ERROR_CODES = [
    * the public view with no explanation.
    */
   'SESSION_UNAVAILABLE',
+  /**
+   * This build has no API origin at all — `VITE_API_URL` was absent when it
+   * was compiled, so there is nowhere to send the request.
+   *
+   * Distinct from NETWORK_UNREACHABLE, which is a server that exists and did
+   * not answer. Nothing is wrong with the network here and retrying cannot
+   * help; the deployment is simply the no-server one, where circuits still run
+   * in the tab and travel in the link but accounts, the gallery and server
+   * simulation do not exist. Saying "check your connection" would send the
+   * reader looking in the wrong place.
+   */
+  'API_NOT_CONFIGURED',
 ] as const
 
 export type ClientErrorCode = (typeof CLIENT_ERROR_CODES)[number]

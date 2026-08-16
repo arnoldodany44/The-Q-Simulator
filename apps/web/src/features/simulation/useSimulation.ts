@@ -250,17 +250,27 @@ export function useSimulation(
    * client from context and on nothing else.
    */
   useEffect(() => {
-    if (client === null) {
-      // Not a failure. A reader with no API is a reader for whom the browser's
-      // ceiling really is the ceiling, which is what the scheduler then says.
+    /*
+     * Two ways to have no server, and they mean the same thing here. `client
+     * === null` is no provider mounted; a null `baseUrl` is a build compiled
+     * with no `VITE_API_URL`, which is the deployment the landing page and the
+     * editor are perfectly happy in.
+     *
+     * Not a failure either way. A reader with no API is a reader for whom the
+     * browser's ceiling really is the ceiling, which is what the scheduler
+     * then says.
+     */
+    if (client === null || client.baseUrl === null) {
       scheduler.connectServer(null)
       return
     }
 
+    const socketOrigin = client.baseUrl
+
     const socket =
       createSocket === undefined
         ? createRunSocket({
-            url: resolveSocketUrl(client.baseUrl),
+            url: resolveSocketUrl(socketOrigin),
             // Read per connection, never captured: a reconnect an hour later
             // must not present the token this socket was opened with, and the
             // reader may have signed in or out in between.
