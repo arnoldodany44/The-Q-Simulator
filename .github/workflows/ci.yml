@@ -110,11 +110,29 @@ jobs:
         with:
           workspaces: packages/qsim-wasm/crate
 
+      # Both commands print exactly what to change — the rustfmt diff, the
+      # clippy span — and both were throwing that away. A failure here reached
+      # the run summary as "Process completed with exit code 1", and the log
+      # that held the detail needs admin rights on the repository to download,
+      # so the one person most likely to be reading it (a contributor without
+      # a Rust toolchain, which is everyone here by design — see the header)
+      # could not act on it. Re-emitting the output as an annotation costs
+      # nothing and makes the fix readable from the summary. `%0A` is how a
+      # workflow command encodes a newline; without it an annotation is one
+      # line and a diff is unreadable.
       - name: Format and lint the crate
         working-directory: packages/qsim-wasm/crate
         run: |
-          cargo fmt --check
-          cargo clippy --all-targets -- -D warnings
+          cargo fmt --check >"$RUNNER_TEMP/fmt.txt" 2>&1 || {
+            cat "$RUNNER_TEMP/fmt.txt"
+            echo "::error title=cargo fmt --check::$(sed 's/%/%25/g' "$RUNNER_TEMP/fmt.txt" | head -c 6000 | awk 1 ORS='%0A')"
+            exit 1
+          }
+          cargo clippy --all-targets -- -D warnings >"$RUNNER_TEMP/clippy.txt" 2>&1 || {
+            cat "$RUNNER_TEMP/clippy.txt"
+            echo "::error title=cargo clippy::$(sed 's/%/%25/g' "$RUNNER_TEMP/clippy.txt" | tail -c 6000 | awk 1 ORS='%0A')"
+            exit 1
+          }
 
       # Native, not wasm32: the kernel module is plain Rust over `&mut [f64]`
       # with no WebAssembly in it, so its arithmetic can be tested on the host
