@@ -3334,42 +3334,45 @@ td.histogram__delta--loss {
  * ------------------------------------------------------------------ */
 
 /*
- * Columns rather than a grid, because these panels have wildly uneven
- * heights and a grid has no way to absorb that.
+ * Two columns, and the split is decided in the markup rather than here.
  *
- * The export card carries five formats with a sentence of explanation each,
- * which makes it roughly three times the height of the share card. In a grid
- * that costs twice: the row stretches every panel to the tallest, so the
- * short ones became mostly empty boxes, and fixing that with `align-items:
- * start` only moved the emptiness — the next row still cannot begin until the
- * tallest panel in the previous one ends, leaving a gap the width of two
- * columns under the short cards.
+ * These panels have wildly uneven heights: the export card carries five
+ * formats with a sentence of explanation each, which makes it roughly three
+ * times the height of the share card. Neither of the two obvious layouts can
+ * both absorb that *and* say which panel goes where.
  *
- * Multi-column flows each panel into the shortest available column instead,
- * so a tall card is simply a tall card and the ones beside it stack to fill
- * the same vertical space. `columns: 20rem` keeps the responsive behaviour
- * the grid had — the browser fits as many 20rem columns as there is room for,
- * and drops to one on a narrow screen — without naming a count.
+ *  - A grid shares its rows across columns, so the row is as tall as its
+ *    tallest member. Left alone it stretched the short panels into mostly
+ *    empty boxes; `align-items: start` stopped the stretching but not the
+ *    emptiness, because the next row still cannot begin until the tallest
+ *    panel above it ends.
+ *  - Multi-column packs perfectly but balances by height, and there is no way
+ *    to tell it "export alone on the right". It put whatever fit wherever.
  *
- * The cost is that reading order becomes column-major, so "beside" and
- * "under" in the comments around these panels in routes/editor.tsx are now
- * approximate. Focus order is unaffected: it follows the DOM, which is
- * unchanged.
+ * So: a grid of two independent column *elements*, each a flex stack. The
+ * grid never sees the panels, only the two columns, so there are no shared
+ * rows to equalise, and `routes/editor.tsx` decides membership — export in
+ * one, everything else in the other.
+ *
+ * `auto-fit` with a 22rem floor keeps the responsive behaviour: two columns
+ * where there is room, one below roughly 46rem, where the two flex stacks
+ * simply run on after each other.
  */
 .document-bar {
-  columns: 20rem;
-  column-gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+  gap: 0.75rem;
+  align-items: start;
   margin: 0.75rem 0;
 }
 
-/*
- * A panel split across a column break would be unreadable — a heading at the
- * bottom of one column and its buttons at the top of the next. The margin is
- * what the grid's `gap` used to provide vertically.
- */
-.document-bar > * {
-  break-inside: avoid;
-  margin-bottom: 0.75rem;
+.document-bar__column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  /* Grid items floor at their content's min-width; without this a long
+     unbroken string in a panel widens the column past its share. */
+  min-width: 0;
 }
 
 .preset-picker,

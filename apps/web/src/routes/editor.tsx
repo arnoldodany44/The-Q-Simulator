@@ -294,96 +294,107 @@ export function EditorRoute() {
         <p className="editor__document-title">{doc.detail.title}</p>
       )}
 
+      {/*
+       * Two columns, and which panel is in which is decided here rather than
+       * in the stylesheet — see the `.document-bar` block in index.css for why
+       * neither a plain grid nor multi-column could both pack these heights
+       * and place them.
+       *
+       * The export panel is alone on the right because it is the outlier: five
+       * formats, each with a sentence explaining it, make it about three times
+       * the height of anything beside it. Everything else stacks on the left,
+       * where the panels are short and of a kind — what this circuit is, where
+       * it goes, whether it is saved.
+       */}
       <div className="document-bar">
-        <PresetPicker store={useCircuitStore} />
-        <ShareLink url={url} />
-        {/*
-         * Beside the share control, because both answer "how do I get this
-         * circuit out of here" — one as a link back into this app, the other
-         * as a file for somewhere else (M1.7). It reads the document from the
-         * store rather than from `doc`, so it exports the circuit on screen
-         * including edits that have not been saved.
-         */}
-        <ExportPanel store={useCircuitStore} title={doc.detail?.title ?? ''} />
-        {/*
-         * Directly under the export, because they are the same question asked
-         * in both directions (§3.5) and a reader looking for one will look
-         * where the other is. Closed by default: it is the only panel here that
-         * *replaces* the document, so it should take a deliberate click to open
-         * rather than sit next to the canvas with a paste box open.
-         */}
-        <ImportPanel store={useCircuitStore} />
-        {/*
-         * Beside the share control and the export, because it is the third
-         * answer to "how do I get this circuit out of here" — a link, a file,
-         * and a frame in somebody else's page (§3.4).
-         *
-         * Only for a circuit that has a home. Unlike the export, an embed is
-         * a pointer rather than a copy: it names a slug the server resolves on
-         * every load, so there is nothing for it to point at until the
-         * document is saved. It reads `doc.detail` rather than the store for
-         * the same reason — what a reader of the blog post will see is the
-         * *saved* version, not the unsaved edit on this screen, and offering a
-         * snippet built from the latter would promise something else.
-         */}
-        {doc.detail === null ? null : (
-          <EmbedSnippet
-            slug={doc.detail.slug}
-            title={doc.detail.title}
-            qubitCount={doc.detail.qubitCount}
-            visibility={doc.detail.visibility}
-            origin={window.location.origin}
-          />
-        )}
-        <SaveCircuitPanel document={doc} carried={!url.tooLarge} />
-        {/*
-         * Only for a document that has a home. An unsaved circuit has no
-         * versions, and a panel that could only ever say "nothing here" is
-         * worse than no panel: it invites a click that answers nothing.
-         */}
-        {base === null ? null : (
-          <VersionHistoryPanel
-            handle={base.slug}
-            currentVersion={base.versionNum}
-            selection={selection}
-            onSelect={select}
-          />
-        )}
-
-        {/*
-         * Star and fork, for a circuit that has a home (M1.5b). Both are
-         * addressed by *slug*, which is what makes them work on an UNLISTED
-         * circuit somebody was sent a link to — an id reaches only what a
-         * listing may show (`idAddressableCircuitFilter`).
-         *
-         * The fork is offered on somebody else's circuit and not on your own:
-         * forking your own is a duplicate rather than a fork, the API would
-         * happily do it, and the attribution sentence it lands on — "your copy
-         * of X, by you" — is a thing no reader needs to be told. The star is
-         * offered on both, because starring your own work is ordinary.
-         *
-         * The ownership test is a convenience and never a check: §11 puts
-         * authorisation on the server, and the point of hiding a control is
-         * that a button which can only produce a 403 is worse than no button.
-         */}
-        {doc.detail === null ? null : (
-          <div className="document-bar__social">
-            <StarButton
+        <div className="document-bar__column">
+          <PresetPicker store={useCircuitStore} />
+          <ShareLink url={url} />
+          <ImportPanel store={useCircuitStore} />
+          {/*
+           * Beside the share control and the export, because it is the third
+           * answer to "how do I get this circuit out of here" — a link, a file,
+           * and a frame in somebody else's page (§3.4).
+           *
+           * Only for a circuit that has a home. Unlike the export, an embed is
+           * a pointer rather than a copy: it names a slug the server resolves on
+           * every load, so there is nothing for it to point at until the
+           * document is saved. It reads `doc.detail` rather than the store for
+           * the same reason — what a reader of the blog post will see is the
+           * *saved* version, not the unsaved edit on this screen, and offering a
+           * snippet built from the latter would promise something else.
+           */}
+          {doc.detail === null ? null : (
+            <EmbedSnippet
               slug={doc.detail.slug}
-              circuitId={doc.detail.id}
-              starred={doc.starred}
-              starCount={doc.detail.starCount}
+              title={doc.detail.title}
+              qubitCount={doc.detail.qubitCount}
+              visibility={doc.detail.visibility}
+              origin={window.location.origin}
             />
-            {doc.ownedBy(session.user?.id ?? null) ? null : (
-              <ForkButton
+          )}
+          <SaveCircuitPanel document={doc} carried={!url.tooLarge} />
+          {/*
+           * Only for a document that has a home. An unsaved circuit has no
+           * versions, and a panel that could only ever say "nothing here" is
+           * worse than no panel: it invites a click that answers nothing.
+           */}
+          {base === null ? null : (
+            <VersionHistoryPanel
+              handle={base.slug}
+              currentVersion={base.versionNum}
+              selection={selection}
+              onSelect={select}
+            />
+          )}
+
+          {/*
+           * Star and fork, for a circuit that has a home (M1.5b). Both are
+           * addressed by *slug*, which is what makes them work on an UNLISTED
+           * circuit somebody was sent a link to — an id reaches only what a
+           * listing may show (`idAddressableCircuitFilter`).
+           *
+           * The fork is offered on somebody else's circuit and not on your own:
+           * forking your own is a duplicate rather than a fork, the API would
+           * happily do it, and the attribution sentence it lands on — "your copy
+           * of X, by you" — is a thing no reader needs to be told. The star is
+           * offered on both, because starring your own work is ordinary.
+           *
+           * The ownership test is a convenience and never a check: §11 puts
+           * authorisation on the server, and the point of hiding a control is
+           * that a button which can only produce a 403 is worse than no button.
+           */}
+          {doc.detail === null ? null : (
+            <div className="document-bar__social">
+              <StarButton
                 slug={doc.detail.slug}
-                title={doc.detail.title}
-                username={doc.detail.owner.username}
-                variant="primary"
+                circuitId={doc.detail.id}
+                starred={doc.starred}
+                starCount={doc.detail.starCount}
               />
-            )}
-          </div>
-        )}
+              {doc.ownedBy(session.user?.id ?? null) ? null : (
+                <ForkButton
+                  slug={doc.detail.slug}
+                  title={doc.detail.title}
+                  username={doc.detail.owner.username}
+                  variant="primary"
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="document-bar__column">
+          {/*
+           * Alone in its column, and the only panel here that is. It reads the
+           * document from the store rather than from `doc`, so it exports the
+           * circuit on screen including edits that have not been saved.
+           */}
+          <ExportPanel
+            store={useCircuitStore}
+            title={doc.detail?.title ?? ''}
+          />
+        </div>
       </div>
 
       {doc.status === 'unavailable' ? (
