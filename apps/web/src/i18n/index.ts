@@ -84,6 +84,7 @@ export const NAMESPACES = [
   'auth',
   'challenges',
   'circuits',
+  'collab',
   'collections',
   'common',
   'editor',
@@ -235,6 +236,22 @@ export const EDITOR_NAMESPACES = [
   'editor',
   'gates',
   'simulation',
+  /*
+   * `collab` from M5.3. Its own namespace rather than a block inside `editor`
+   * because it is a vocabulary about *people* — who is here, what they are doing,
+   * where they are looking, and the three sentences a screen reader is told out
+   * loud — while `editor` is about a circuit and the commands that change one. It
+   * also travels further than the canvas will: Fase 5's comments are the same
+   * subject and belong beside these strings rather than inside a catalog that is
+   * already the largest in the product.
+   *
+   * It is in the editor's set rather than the shell's for the reason every other
+   * deferred namespace is: a reader who never opens a circuit never downloads it.
+   * And it is *needed* here even though a solo session renders none of it — the
+   * presence layer and the roster mount inside the editor's page, so a session that
+   * gains a second person must not have to fetch a catalog before it can say so.
+   */
+  'collab',
   /*
    * `circuits` is here from M1.4a because the save control lives in the
    * editor, and every word it says — the visibility choices, the conflict

@@ -111,6 +111,24 @@ export {
   updateCollection,
 } from './collections.js'
 
+export {
+  deleteComment,
+  listComments,
+  postComment,
+  setThreadResolution,
+} from './comments.js'
+export {
+  useComments,
+  useDeleteComment,
+  usePostComment,
+  useResolveThread,
+} from './useComments.js'
+export type {
+  DeleteCommentVariables,
+  PostCommentVariables,
+  ThreadResolutionVariables,
+} from './useComments.js'
+
 export { getHardwareJob } from './hardware.js'
 export { useHardwareJob } from './useHardware.js'
 
@@ -119,6 +137,7 @@ export {
   challengeKeys,
   circuitKeys,
   collectionKeys,
+  commentKeys,
   galleryKeys,
   hardwareKeys,
   lessonKeys,

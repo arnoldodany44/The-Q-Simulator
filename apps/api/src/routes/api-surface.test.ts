@@ -104,9 +104,19 @@ describe('the enforced surface', () => {
          *   - the account routes, because deleting an account is the one
          *     irreversible action in the product;
          *   - the challenge submission, because a leaderboard is a listing of
-         *     people and a scripted submission is not a person practising.
+         *     people and a scripted submission is not a person practising;
+         *   - the comment routes (M5.4), because a credential that could post on
+         *     every public circuit in the gallery is a spam engine with an audit
+         *     trail, and revoking it afterwards would not unsay anything. The
+         *     `GET` is closed with them: a key exists to create circuits and run
+         *     simulations (§3.5), and scraping conversations is not that.
          */
         for (const closed of [
+          'GET /api/v1/circuits/:id/comments',
+          'POST /api/v1/circuits/:id/comments',
+          'DELETE /api/v1/circuits/:id/comments/:commentId',
+          'PUT /api/v1/circuits/:id/comments/:commentId/resolution',
+          'DELETE /api/v1/circuits/:id/comments/:commentId/resolution',
           'GET /api/v1/api-keys',
           'POST /api/v1/api-keys',
           'DELETE /api/v1/api-keys/:id',

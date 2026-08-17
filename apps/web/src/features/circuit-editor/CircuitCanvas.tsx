@@ -154,6 +154,27 @@ export interface CircuitCanvasProps {
   readonly playhead?: number
   readonly onFocusCell?: (cell: Cell) => void
   readonly onActivateCell?: (cell: Cell) => void
+  /**
+   * Something to draw over the plot, positioned in the same coordinates.
+   *
+   * M5.3 uses it for other people's cursors, and the canvas deliberately does not
+   * know that. Two things depend on it being an opaque node rather than a
+   * `presence` prop:
+   *
+   *   - **The arrow keeps pointing one way.** `features/collab` reaches into the
+   *     editor and never the reverse (`.dependency-cruiser.cjs`), so a solo editor
+   *     does not carry a CRDT — or a presence store — in its chunk to find out that
+   *     nobody else is here.
+   *   - **Presence must not re-render the grid.** The node subscribes to its own
+   *     store, so a remote cursor moving eight times a second re-renders one
+   *     absolutely-positioned layer and not the two thousand cells of the ARIA
+   *     grid, on the tab of the person who is trying to type.
+   *
+   * Whatever goes here is expected to be `aria-hidden`: it sits over the grid, which
+   * is the canvas's whole accessible surface, and a second description of the same
+   * pixels is noise. The words belong in a list beside the canvas.
+   */
+  readonly overlay?: ReactNode
 }
 
 export function CircuitCanvas({
@@ -175,6 +196,7 @@ export function CircuitCanvas({
   playhead,
   onFocusCell,
   onActivateCell,
+  overlay,
 }: CircuitCanvasProps) {
   const { t, i18n } = useTranslation('editor')
   const compact = useCompactViewport()
@@ -388,6 +410,14 @@ export function CircuitCanvas({
             onFocusCell={locked ? undefined : onFocusCell}
             onActivateCell={locked ? undefined : onActivateCell}
           />
+
+          {/*
+           * Last inside the stage, so it paints over the grid rather than under a
+           * cell's hover tint. It is drawn even on a locked canvas: read-only means
+           * "you cannot edit this", and somebody else being here is a fact about the
+           * document rather than a control.
+           */}
+          {overlay}
         </div>
       </div>
     </section>

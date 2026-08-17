@@ -158,8 +158,10 @@ module.exports = {
       to: {
         path: [
           '^packages/schema/',
+          '^packages/collab/',
           '^apps/web/src/lib/circuit-url\\.ts$',
           '^apps/web/src/features/circuit-editor/(?!geometry\\.ts$)',
+          '^apps/web/src/features/collab/',
         ],
         dependencyTypesNot: ['type-only'],
       },
@@ -208,12 +210,18 @@ module.exports = {
           '^apps/web/src/features/circuit-editor/useCircuitStore\.ts$',
           '^apps/web/src/features/circuit-editor/CircuitCanvas\.tsx$',
           '^apps/web/src/features/circuit-editor/CircuitEditor\.tsx$',
+          // An embed is read-only by definition (§3.4 decision 3), so a CRDT
+          // in its graph would be pure weight — and a collaboration channel
+          // reached from a frame on somebody else's page is a write path in a
+          // document with no session, which is the one thing §11 will not have.
+          '^apps/web/src/features/collab/',
+          '^packages/collab/',
           '^apps/web/src/features/analysis/(BlochScene|BlochSpheres|QSphereScene|QSpherePanel|DensityHeatmap)\.tsx$',
           '^apps/web/src/lib/api/(?!config\.ts$)',
           '^apps/web/src/lib/supabase/',
           '^apps/web/src/i18n/index\.ts$',
-          'node_modules/(@supabase|@tanstack|@dnd-kit|three|react-router|zustand|zundo)(/|$)',
-          '^(@supabase|@tanstack|@dnd-kit|three|react-router|zustand|zundo)(/|$)',
+          'node_modules/(@supabase|@tanstack|@dnd-kit|three|react-router|zustand|zundo|yjs)(/|$)',
+          '^(@supabase|@tanstack|@dnd-kit|three|react-router|zustand|zundo|yjs)(/|$)',
         ],
         dependencyTypesNot: ['type-only'],
       },
@@ -370,6 +378,109 @@ module.exports = {
         path: [
           'node_modules/(react|react-dom|react-i18next|i18next|@dnd-kit|react-router|zustand|zundo|fastify|@prisma)(/|$)',
           '^(react|react-dom|react-i18next|i18next|@dnd-kit|react-router|zustand|zundo|fastify|@prisma)(/|$)',
+        ],
+      },
+    },
+    {
+      name: 'collab-depends-only-on-schema',
+      severity: 'error',
+      comment:
+        'packages/collab may reach packages/schema and yjs, and nothing else ' +
+        'in the workspace. The contract is the only judge of what a legal ' +
+        'circuit is, which is the whole reason the projection probes parts ' +
+        'through it instead of restating its rules — and a second source of ' +
+        'that judgement is exactly how the client and the server come to ' +
+        'disagree about whether a shared document is valid. Not packages/qsim ' +
+        'either: this layer decides what the document *says*, never what the ' +
+        'circuit computes, and a mapping that could simulate would sooner or ' +
+        'later resolve a conflict by preferring the answer it liked.',
+      from: { path: '^packages/collab/src/' },
+      to: { path: '^packages/(?!collab/|schema/)' },
+    },
+    {
+      name: 'collab-touches-no-environment',
+      severity: 'error',
+      comment:
+        'The mapping runs in the browser and in the API alike (§12.3 rule 2) — ' +
+        'that is the point of it being a package: a relay that cannot read a ' +
+        'document cannot validate one, so both ends need the same reading. A ' +
+        'Node builtin here would break the browser build rather than fail a ' +
+        'test, and the DOM would break the API the same way.',
+      from: { path: '^packages/collab/src/' },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
+      name: 'collab-carries-no-framework',
+      severity: 'error',
+      comment:
+        'It describes how a circuit lives in a Y.Doc, not who is editing one. ' +
+        'React or i18next here would mean display concerns in the shared ' +
+        'mapping; zustand or zundo would mean the editor’s store had leaked ' +
+        'down into it, and the bridge exists precisely so that it does not — ' +
+        'see apps/web/src/features/collab. Fastify or Prisma would mean the ' +
+        'browser bundle grew a server.',
+      from: { path: '^packages/collab/src/' },
+      to: {
+        // Two spellings, for the reason `contract-carries-no-framework` gives:
+        // an undeclared dependency does not resolve, and depcruise then reports
+        // the bare specifier rather than a node_modules path.
+        path: [
+          'node_modules/(react|react-dom|react-i18next|i18next|@dnd-kit|react-router|zustand|zundo|fastify|@prisma)(/|$)',
+          '^(react|react-dom|react-i18next|i18next|@dnd-kit|react-router|zustand|zundo|fastify|@prisma)(/|$)',
+        ],
+      },
+    },
+    {
+      name: 'the-editor-carries-no-crdt',
+      severity: 'error',
+      comment:
+        'THE ARROW POINTS ONE WAY, like qsim and its accelerator. ' +
+        'features/collab reaches into the editor; the editor never reaches ' +
+        'back. Two things depend on it. The first is weight: most sessions ' +
+        'have one person in them, and a solo editor must not download Yjs to ' +
+        'find that out — one import from useCircuitStore.ts would put the CRDT ' +
+        'in the editor chunk for every visitor. The second is that the seam ' +
+        'stays honest: `SharedHistory` is a plain interface the store consults ' +
+        'and `adoptDocument` is an ordinary commit, so the store keeps being ' +
+        'the single judge of a legal edit whether a session is shared or not. ' +
+        'A store that imported the document layer would start making decisions ' +
+        'about merges, which is the one place it must not.',
+      from: {
+        path: '^apps/web/src/features/circuit-editor/',
+        pathNot: '\\.test\\.tsx?$',
+      },
+      to: {
+        path: ['^packages/collab/', 'node_modules/yjs(/|$)', '^yjs(/|$)'],
+      },
+    },
+    {
+      name: 'the-editor-knows-nothing-of-comments',
+      severity: 'error',
+      comment:
+        'THE SAME ONE-WAY ARROW, for the same two reasons (M5.4). ' +
+        'features/comments reaches into the editor — geometry.ts for where a ' +
+        'cell is, operationRoles.ts for what a gate is called, the store for ' +
+        'the document and its selection — and the editor reaches back into ' +
+        'nothing. The weight half: a comment panel is React Query, a listing ' +
+        'and a form, and a reader who opens /new never has a circuit to comment ' +
+        'on, so none of it belongs in the editor chunk. The honest-seam half is ' +
+        'the sharper one: a comment is anchored to an operations[].id, and the ' +
+        'store is what mints and preserves those ids. A store that could see ' +
+        'comments would eventually be asked to keep one alive — to refuse a ' +
+        'delete, or to reuse an id — and the property the whole anchor design ' +
+        'rests on is that an id is never recycled and the document never bends ' +
+        'to a conversation about it. The badges reach the canvas as its opaque ' +
+        '`overlay` node, exactly as the presence carets do.',
+      from: {
+        path: '^apps/web/src/features/circuit-editor/',
+        pathNot: '\\.test\\.tsx?$',
+      },
+      to: {
+        path: [
+          '^apps/web/src/features/comments/',
+          '^apps/web/src/lib/api/',
+          'node_modules/@tanstack/react-query(/|$)',
+          '^@tanstack/react-query(/|$)',
         ],
       },
     },
@@ -587,6 +698,32 @@ module.exports = {
       },
     },
     {
+      name: 'api-holds-documents-in-one-place',
+      severity: 'error',
+      comment:
+        'Only apps/api/src/ws may reach for `yjs`. The relay holds a live CRDT ' +
+        'document (M5.2) and is the one place in this service allowed to, ' +
+        'because a document is not a source of truth: it converges, it does ' +
+        'not validate, and everything downstream must act on the *projection* ' +
+        'instead — which `@qsim/collab` computes and `validateCircuit` then ' +
+        'accepts. A route that could open a Y.Doc is a route that could save a ' +
+        'version, judge a challenge or answer an embed from bytes no contract ' +
+        'has agreed to, and that mistake reads as harmless in review. ' +
+        '`plugins/collab.ts` is exempt from nothing: it wires the relay and ' +
+        'never touches a document. `src/verification/` is exempt because a ' +
+        'verifier of the relay has to be able to *build the bytes it sends*: a ' +
+        'test that could not open a Y.Doc could assert only that the relay ' +
+        'accepted something, never that what it accepted was still a circuit.',
+      from: {
+        path: '^apps/api/src/',
+        pathNot: ['^apps/api/src/ws/', '^apps/api/src/verification/'],
+      },
+      to: {
+        dependencyTypes: ['npm'],
+        path: ['node_modules/yjs(/|$)', '^yjs(/|$)'],
+      },
+    },
+    {
       name: 'api-verifies-tokens-in-one-place',
       severity: 'error',
       comment:
@@ -610,10 +747,15 @@ module.exports = {
         'apps/api/src/testing mints signed JWTs from a locally generated key ' +
         'pair. It is excluded from the build for that reason; an import from ' +
         'production code would put a token factory inside the deployed ' +
-        'image and, worse, would compile a file the build does not emit.',
+        'image and, worse, would compile a file the build does not emit. ' +
+        '`src/verification/` is admitted alongside `*.test.ts`: a verifier ' +
+        'suite is test code that happens to keep its harness in a file of its ' +
+        'own, and the build excludes that directory for the same reason it ' +
+        'excludes the tests.',
       from: {
         path: '^apps/api/src/',
-        pathNot: '(^apps/api/src/testing/|\\.test\\.ts$)',
+        pathNot:
+          '(^apps/api/src/testing/|^apps/api/src/verification/|\\.test\\.ts$)',
       },
       to: { path: '^apps/api/src/testing/' },
     },

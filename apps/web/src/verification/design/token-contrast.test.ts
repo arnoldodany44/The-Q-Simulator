@@ -29,6 +29,11 @@ import {
   type Rgb,
 } from '../../lib/contrast'
 import {
+  COLLABORATOR_HUES,
+  COLLAB_LIGHTNESS_PERCENT,
+  COLLAB_SATURATION_PERCENT,
+} from '../../lib/collab-colour'
+import {
   PHASE_LIGHTNESS_PERCENT,
   PHASE_SATURATION_PERCENT,
   TAU,
@@ -243,6 +248,82 @@ describe('the diff marks inherit the phase circle’s proof (M1.4b)', () => {
         `hues ${hues[index - 1]}° and ${hues[index]}°`
       ).toBeGreaterThan(40)
     }
+  })
+})
+
+describe('a collaborator is not a datum (M5.3)', () => {
+  /*
+   * Every other borrowed colour in this system — the four diff marks, the two
+   * noise directions — is a bare hue at the phase saturation and lightness, and
+   * inherits the sweep above. A collaborator's cursor may not, because it is drawn
+   * on the canvas at the same time as the histogram: a caret at the phase
+   * saturation and lightness is not *like* an amplitude's colour, it is the colour
+   * of a particular phase, next to that phase, meaning something else.
+   *
+   * So the separation is on the two axes the wheel does not use, and this is where
+   * that claim is measured rather than asserted. `lib/collab-colour.ts` owns the
+   * eight hues (only a client knows a peer id, so only a client can pick one) and
+   * `index.css` owns the pair they are composed against; both are checked here,
+   * against each other and against the phase pair.
+   */
+  it('composes the same saturation and lightness in both languages', () => {
+    expect(token('collab-saturation')).toBe(`${COLLAB_SATURATION_PERCENT}%`)
+    expect(token('collab-lightness')).toBe(`${COLLAB_LIGHTNESS_PERCENT}%`)
+  })
+
+  it('does not use the phase circle’s saturation or lightness', () => {
+    expect(token('collab-saturation')).not.toBe(token('phase-saturation'))
+    expect(token('collab-lightness')).not.toBe(token('phase-lightness'))
+  })
+
+  it('clears 7:1 on every surface, at every collaborator hue', () => {
+    // Twice what the phase circle owes, because a presence mark is a one-pixel
+    // outline and not a bar: a hairline at 3:1 disappears against a busy canvas.
+    for (const hue of COLLABORATOR_HUES) {
+      const mark = hslToRgb(
+        hue,
+        COLLAB_SATURATION_PERCENT,
+        COLLAB_LIGHTNESS_PERCENT
+      )
+      for (const surface of SURFACES) {
+        const ratio = contrastRatio(mark, colour(surface))
+        expect(
+          ratio,
+          `${hue}° on --${surface} is ${ratio.toFixed(2)}:1`
+        ).toBeGreaterThanOrEqual(7)
+      }
+    }
+  })
+
+  it('prints a name on that colour at AA, in --collab-ink', () => {
+    const ink = colour('collab-ink')
+    for (const hue of COLLABORATOR_HUES) {
+      const chip = hslToRgb(
+        hue,
+        COLLAB_SATURATION_PERCENT,
+        COLLAB_LIGHTNESS_PERCENT
+      )
+      const ratio = contrastRatio(ink, chip)
+      expect(
+        ratio,
+        `--collab-ink on ${hue}° is ${ratio.toFixed(2)}:1`
+      ).toBeGreaterThanOrEqual(TEXT_CONTRAST_MINIMUM)
+    }
+  })
+
+  it('would not be legible as a hairline at the phase circle’s lightness', () => {
+    // The regression this palette exists to avoid, kept as a test: at 85%/66% the
+    // worst collaborator hue is barely past the non-text minimum, which is fine
+    // for a filled bar and not for a 1px outline.
+    const worst = Math.min(
+      ...COLLABORATOR_HUES.map((hue) =>
+        contrastRatio(
+          hslToRgb(hue, PHASE_SATURATION_PERCENT, PHASE_LIGHTNESS_PERCENT),
+          colour('bg-elevated')
+        )
+      )
+    )
+    expect(worst).toBeLessThan(7)
   })
 })
 

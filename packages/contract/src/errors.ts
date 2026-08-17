@@ -83,6 +83,23 @@ export const API_ERROR_CODES = [
   /** 409 — the collection already holds `MAX_COLLECTION_ITEMS` circuits. */
   'COLLECTION_FULL',
   /*
+   * 409 — a comment cannot be added here: the circuit already holds
+   * `MAX_THREADS_PER_CIRCUIT` threads, or the thread already holds
+   * `MAX_REPLIES_PER_THREAD` replies (§3.4, M5.4).
+   *
+   * One code for both, which is a decision rather than a shortcut. They are the
+   * same fact to a reader — this conversation cannot grow where you are trying
+   * to grow it — and `details` carries `circuit` or `thread` for a client that
+   * wants to word it differently. The alternative was two codes and six catalog
+   * entries for a pair of ceilings a real circuit reaches only under abuse, and
+   * an error vocabulary is worth keeping small enough that every member of it
+   * has been read.
+   *
+   * A 409 and not a 400, for the reason `COLLECTION_FULL` is one: nothing about
+   * the request was malformed, the resource is in a state that refuses it.
+   */
+  'COMMENT_LIMIT_REACHED',
+  /*
    * 409 — the account already holds `MAX_ACTIVE_API_KEYS` unrevoked keys.
    *
    * A 409 and not a 403: nothing about the request was wrong and nobody is

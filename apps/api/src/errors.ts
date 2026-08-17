@@ -191,6 +191,15 @@ export const ERROR_DEFINITIONS = {
     message: 'This collection already holds the maximum number of circuits.',
   },
   /**
+   * A comment cannot be added: the circuit is at `MAX_THREADS_PER_CIRCUIT`, or
+   * the thread is at `MAX_REPLIES_PER_THREAD`. `details` says which — see the
+   * argument for one code beside the constant in @qsim/contract.
+   */
+  COMMENT_LIMIT_REACHED: {
+    status: 409,
+    message: 'This conversation has reached the maximum number of comments.',
+  },
+  /**
    * The account already holds the maximum number of unrevoked API keys. A 409
    * for the same reason COLLECTION_FULL is one: the request was fine, the
    * resource is full, and the caller's move is to revoke something.
@@ -386,6 +395,14 @@ const DOMAIN_ERROR_CODES: Record<string, ErrorCode> = {
   USERNAME_UNAVAILABLE: 'USERNAME_UNAVAILABLE',
   USERNAME_TAKEN: 'USERNAME_TAKEN',
   COLLECTION_FULL: 'COLLECTION_FULL',
+  /*
+   * `CircuitCommentsFullError` and `ThreadFullError` from @qsim/db, which carry
+   * `COMMENTS_FULL` and `THREAD_FULL`. Two domain errors onto one response code
+   * — which is exactly what this table exists to make possible: the names are
+   * free to differ from the vocabulary the wire publishes.
+   */
+  COMMENTS_FULL: 'COMMENT_LIMIT_REACHED',
+  THREAD_FULL: 'COMMENT_LIMIT_REACHED',
   /*
    * `ApiKeyLimitError` from @qsim/db. Raised by the insert rather than by a
    * prior count, so two simultaneous mints cannot both slip past the ceiling.

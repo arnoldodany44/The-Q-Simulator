@@ -1,0 +1,97 @@
+{
+  "presence": {
+    "heading_one": "{{count}} other person is here",
+    "heading_other": "{{count}} other people are here",
+    "anonymous": "Someone",
+    "editing": "editing",
+    "watching": "watching",
+    "atCell": "at qubit {{qubit}}, column {{column}}",
+    "atRegister": "at the classical register, column {{column}}",
+    "nowhere": "not on the grid",
+    "holding_one": "holding {{count}} gate",
+    "holding_other": "holding {{count}} gates",
+    "announce": {
+      "joined": "{{name}} is now in this circuit.",
+      "left": "{{name}} has left this circuit.",
+      "edited": "{{name}} edited the circuit.",
+      "editedCell": "{{name}} edited at qubit {{qubit}}, column {{column}}.",
+      "editedRegister": "{{name}} edited at the classical register, column {{column}}."
+    }
+  },
+  "comments": {
+    "heading": "Comments",
+    "hint": "Select a gate to comment on it, or write about the circuit as a whole. A resolved thread stays here, so \"we discussed this and decided\" is not lost.",
+    "loading": "Loading the comments…",
+    "retry": "Try again",
+    "filter": {
+      "legend": "Which threads to show",
+      "open": "Open ({{shown}})",
+      "resolved": "Resolved ({{shown}})",
+      "all": "All ({{shown}})"
+    },
+    "anchor": {
+      "circuit": "About the circuit",
+      "gate": "About {{gate}} on {{qubit}}, column {{column}}",
+      "orphaned": "The gate this was about is no longer in this document"
+    },
+    "orphanNotice_one": "{{count}} thread below is about a gate that is no longer in this document. It is kept, because what was said still happened.",
+    "orphanNotice_other": "{{count}} threads below are about gates that are no longer in this document. They are kept, because what was said still happened.",
+    "empty": {
+      "open": "No open threads on this circuit.",
+      "resolved": "No resolved threads on this circuit.",
+      "all": "Nobody has commented on this circuit yet."
+    },
+    "signIn": "Sign in to comment",
+    "full": "This circuit has reached its limit of {{max}} threads. Resolve or delete one to start another.",
+    "compose": {
+      "label": "New comment",
+      "about": "This will be attached to:",
+      "hint": "Up to {{max}} characters. Text between backticks is shown as notation.",
+      "submit": "Post comment"
+    },
+    "reply": {
+      "open": "Reply",
+      "label": "Your reply",
+      "submit": "Post reply",
+      "cancel": "Cancel"
+    },
+    "thread": {
+      "reveal": "Show this gate on the canvas",
+      "resolve": "Resolve",
+      "reopen": "Reopen",
+      "resolvedBadge": "Resolved",
+      "resolvedBy": "Resolved by {{name}}."
+    },
+    "comment": {
+      "delete": "Delete",
+      "deleteConfirm": "Delete for good",
+      "deleteWithReplies_one": "Delete this and its {{count}} reply",
+      "deleteWithReplies_other": "Delete this and its {{count}} replies",
+      "deleteCancel": "Keep it"
+    },
+    "pager": {
+      "label": "Comment pages",
+      "previous": "Previous",
+      "next": "Next",
+      "position": "Page {{page}} of {{pages}} · {{total}} threads"
+    },
+    "announce": {
+      "revealed": "Selected the gate on {{qubit}}, column {{column}}.",
+      "revealMissing": "The gate this comment was about is not in this circuit.",
+      "replied": "Reply sent.",
+      "resolved": "Thread resolved.",
+      "reopened": "Thread reopened.",
+      "deleted": "Comment deleted."
+    }
+  },
+  "session": {
+    "ended": {
+      "unauthorised": "This circuit stopped being yours to open, so the shared session ended.",
+      "overloaded": "The shared session could not keep up with the changes and ended. Reopen the circuit to rejoin.",
+      "gone": "The shared session was let go. Reopen the circuit to rejoin."
+    },
+    "readOnly": "You are watching this session. Only the owner may edit.",
+    "reconnecting": "Reconnecting to the shared session…",
+    "invalid": "The shared document reached a state this circuit cannot hold, so the session was let go."
+  }
+}

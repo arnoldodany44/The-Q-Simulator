@@ -23,6 +23,7 @@
   "UNKNOWN": "Une erreur est survenue.",
   "USERNAME_TAKEN": "Cet identifiant appartient à un autre compte. Essayez-en un autre.",
   "COLLECTION_FULL": "Cette collection est pleine. Retirez un circuit avant d’en ajouter un autre.",
+  "COMMENT_LIMIT_REACHED": "Cette conversation ne peut plus grandir. Résolvez ou supprimez un fil, ou répondez à un fil existant.",
   "SIMULATION_TOO_LARGE": "Ce circuit est trop grand pour être simulé par le serveur. Réduisez les qubits, les portes ou les tirs.",
   "SIMULATION_UNAVAILABLE": "La simulation sur le serveur est momentanément indisponible. Tout le reste fonctionne, et vous pouvez exécuter ceci dans votre navigateur.",
   "HARDWARE_UNRUNNABLE": "Ce circuit ne peut pas s’exécuter sur cet appareil. Un processeur réel ne relie qu’un faible pourcentage des paires de qubits qu’un circuit dessiné suppose : essayez un circuit moins profond ou un autre backend.",

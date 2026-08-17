@@ -18,6 +18,7 @@ import {
   prismaCollectionRepository,
   type CollectionRepository,
 } from './collections.js'
+import { prismaCommentRepository, type CommentRepository } from './comments.js'
 import {
   cursorAfter,
   galleryOrderBy,
@@ -117,6 +118,20 @@ export interface StoredVersion {
   readonly data: Circuit
 }
 
+/**
+ * The live CRDT document of a collaborative session, as stored.
+ *
+ * `state` is a Yjs update and nothing here knows what is in it — see the column
+ * comment in the schema. `updatedAt` is not used to decide anything (the
+ * session row and the version history are kept in order by `appendVersion`
+ * clearing this row, not by comparing two clocks); it is carried because a relay
+ * that resumes an hour-old document should be able to say so in a log line.
+ */
+export interface StoredSession {
+  readonly state: Uint8Array
+  readonly updatedAt: Date
+}
+
 /** A newly created circuit and the version that was created with it. */
 export interface CircuitWithVersion {
   readonly circuit: CircuitDetail
@@ -202,6 +217,7 @@ export interface AppendVersionInput {
 export interface CircuitRepository
   extends
     CollectionRepository,
+    CommentRepository,
     AccountRepository,
     LessonRepository,
     ChallengeRepository {
@@ -326,6 +342,44 @@ export interface CircuitRepository
 
   /** The version a fork copies and the editor opens. */
   latestVersion(circuitId: string): Promise<StoredVersion | null>
+
+  /**
+   * The live CRDT document of a collaborative session, or `null` when there is
+   * none — §3.4, M5.2. See `CircuitSession` in the schema for what this row is
+   * and why it is not a version.
+   *
+   * Deliberately unscoped by viewer, and that is not an omission: this is
+   * reached only by the relay, which has already decided that the caller may
+   * read the circuit (`findReadable`) and, for a writer, that they may edit it
+   * (`canEditCircuit`). A visibility filter here would be a *second* place the
+   * rule lives, and two copies of an authorisation rule is how they come to
+   * disagree. Never call it with a circuit id that has not been through one of
+   * those two.
+   */
+  loadSession(circuitId: string): Promise<StoredSession | null>
+
+  /**
+   * Writes the live document, creating the row or replacing it.
+   *
+   * An upsert rather than an update, because the first write of a session is
+   * the one that creates it, and because two replicas may reach this for one
+   * circuit — the row is a checkpoint of a document both of them converge on, so
+   * the later write is the better one and there is nothing to merge here.
+   *
+   * @throws when the circuit no longer exists, which is the foreign key doing
+   * its job: a document must not outlive the circuit it describes.
+   */
+  saveSession(input: { circuitId: string; state: Uint8Array }): Promise<void>
+
+  /**
+   * Forgets the live document. `false` when there was none.
+   *
+   * The relay calls it when it decides a document is not one to keep — a state
+   * past `MAX_COLLAB_STATE_BYTES`, or a row it could not read back as a circuit.
+   * A save clears it too, but that happens inside `appendVersion` rather than
+   * here, because it has to be in the same transaction as the version.
+   */
+  dropSession(circuitId: string): Promise<boolean>
 }
 
 /**
@@ -672,6 +726,7 @@ export function prismaCircuitRepository(
      * stays about circuits.
      */
     ...prismaCollectionRepository(prisma),
+    ...prismaCommentRepository(prisma),
     ...prismaAccountRepository(prisma),
     ...prismaLessonRepository(prisma),
     ...prismaChallengeRepository(prisma),
@@ -921,6 +976,19 @@ export function prismaCircuitRepository(
               data: { ...metrics, preview },
             })
             if (count === 0) throw new CircuitNotWritableError(circuitId)
+            /*
+             * A save supersedes the live document — see `CircuitSession` in the
+             * schema. In the same transaction, so the two stores can never both
+             * claim to be the newer one: the version that was just written *is*
+             * what the document said, and the case this exists for is restore,
+             * where the version written is deliberately *older* than the
+             * document and a surviving row would silently undo it.
+             *
+             * `deleteMany` and not `delete`: almost every save has no live
+             * document behind it, and `delete` would raise P2025 on the
+             * ordinary path.
+             */
+            await tx.circuitSession.deleteMany({ where: { circuitId } })
             return toStoredVersion(row)
           }, TRANSACTION_OPTIONS)
         } catch (error) {
@@ -964,6 +1032,45 @@ export function prismaCircuitRepository(
         select: versionRowSelect,
       })
       return row === null ? null : toStoredVersion(row)
+    },
+
+    async loadSession(circuitId) {
+      const row = await prisma.circuitSession.findUnique({
+        where: { circuitId },
+        select: { state: true, updatedAt: true },
+      })
+      if (row === null) return null
+      /*
+       * Copied rather than handed straight over. The driver returns a view onto
+       * a buffer it owns — a Node `Buffer` from a shared pool, in the pg
+       * adapter's case — and a Yjs decoder reads through `byteOffset` and
+       * `byteLength`. A copy is a few hundred kilobytes once per session and
+       * removes the whole class of bug where a document is decoded from memory
+       * something else has since written to.
+       */
+      return {
+        state: Uint8Array.from(row.state),
+        updatedAt: row.updatedAt,
+      }
+    },
+
+    async saveSession({ circuitId, state }) {
+      // Copied on the way in for the mirror-image reason: this is a parameter
+      // the driver will read asynchronously, and the caller's document keeps
+      // changing while it does.
+      const bytes = Uint8Array.from(state)
+      await prisma.circuitSession.upsert({
+        where: { circuitId },
+        create: { circuitId, state: bytes },
+        update: { state: bytes },
+      })
+    },
+
+    async dropSession(circuitId) {
+      const { count } = await prisma.circuitSession.deleteMany({
+        where: { circuitId },
+      })
+      return count > 0
     },
   }
 }

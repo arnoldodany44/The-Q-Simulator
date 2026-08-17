@@ -47,6 +47,7 @@ apps/worker         BullMQ simulation consumer             → Railway
 packages/qsim       @qsim/core     — simulation engine, zero dependencies
 packages/schema     @qsim/schema   — circuit JSON contract, Zod validators
 packages/contract   @qsim/contract — REST wire contract, shared by web and api
+packages/collab     @qsim/collab   — a circuit as a Yjs document (§3.4, ph. 5)
 packages/jobs       @qsim/jobs     — queue contract, shared by api and worker
 packages/qasm       @qsim/qasm     — OpenQASM 3, Qiskit and JSON serialisers
 packages/transpile  @qsim/transpile— circuit → device: native basis, placement
@@ -100,6 +101,35 @@ and never with display text, and `apps/web` translates that code into `es`,
 `en` and `fr` (D2), with a test that refuses a code no catalog has a sentence
 for. The client that consumes all of this is `apps/web/src/lib/api`, which is
 the only place in the frontend that builds a URL or sets a header.
+
+`packages/collab` exists for the same reason and answers a harder question. A
+circuit has a constraint a text document does not — two operations in one column
+may not share a qubit (§6) — so two people can each make a legal edit whose
+_merge_ is illegal, and a CRDT converges without validating. The mapping is a
+package because **a relay that cannot read a document cannot validate one**: the
+API needs the same reading the browser has. The decision it encodes is that
+validity is a property of the _projection_, not of the bytes — every peer places
+the document's operations in one deterministic order, keeps what fits, and
+reports what it had to hold back, so a merge can produce a conflict to resolve
+but never an invalid circuit and never two peers quietly holding different ones.
+`packages/collab/src/project.ts` argues it in full; `src/merge.test.ts` is where
+two documents are edited apart and merged. The editor's side of the bridge is
+`apps/web/src/features/collab`, and the arrow points one way: it reaches into the
+document store, and the store never reaches back — which is what keeps Yjs out of
+the chunk a solo editor downloads.
+
+The other half of phase 5 needed no package and one hard decision: a comment is
+anchored to an **operation id**, never to a coordinate. A coordinate anchor is
+worse than losing the comment — insert a column and it silently points at
+whatever moved into that cell, so a reader is shown a stranger's sentence about
+the gate in front of them. Nothing records whether an anchor still resolves,
+either: that is a property of the pair (comment, document on screen), and this
+tab may be showing the head version, an older one, a live session or an unsaved
+buffer. So the client asks on every render, an orphaned thread is kept and
+labelled rather than hidden, and delete-then-undo re-attaches it with no request
+sent anywhere. `packages/contract/src/comments.ts` argues it in full;
+`apps/web/src/features/comments/anchors.test.ts` drives the real store through
+the five mutations that could break it.
 
 `apps/worker` is the third process, and it exists for the three cases §4 gives
 the server: a circuit past the client ceiling, a run that must be

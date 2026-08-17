@@ -56,8 +56,14 @@ export {
 } from './objectives'
 export type { ObjectiveReading, ObjectiveStatus } from './objectives'
 
-export { splitNotation } from './prose'
-export type { ProseSpan } from './prose'
+/*
+ * `splitNotation` used to be re-exported here. It moved to `src/lib/prose.ts`
+ * in M5.4, when comments became its third caller — see that file's header. The
+ * re-export is gone rather than forwarded: a barrel that re-exports a module it
+ * no longer owns is how two import paths for one function come to exist, and the
+ * feature that reached through this one would keep pulling the lesson graph in
+ * to get at nine lines of string splitting.
+ */
 
 export {
   EMPTY_PROGRESS,

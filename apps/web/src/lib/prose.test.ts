@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { splitNotation } from './prose'
 
 /**
- * The one micro-syntax in the catalogs. Its failure mode is not an exception:
+ * The one micro-syntax in the catalogs — and, since M5.4, in a comment body,
+ * where the text is written by a user rather than by a translator. Its failure
+ * mode is not an exception:
  * it is a paragraph that renders with a stray backtick in it, or a gate name
  * that quietly stops being marked `translate="no"` and gets rewritten by
  * Chrome's page translator.

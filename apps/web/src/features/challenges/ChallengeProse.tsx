@@ -21,7 +21,7 @@
 import { Fragment } from 'react'
 
 import { Notation } from '../../components/Notation'
-import { splitNotation } from '../lessons/prose'
+import { splitNotation } from '../../lib/prose'
 
 export interface ChallengeProseProps {
   /** One translated paragraph. Backticks mark invariant notation. */

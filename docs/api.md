@@ -65,7 +65,7 @@ Every failure has the same body. Switch on `error.code`; never display `error.me
 
 `requestId` is also returned as the `x-request-id` header, on every response. Quote it in a bug report: it is what joins what you saw to the server’s own log line for the same request.
 
-Any endpoint may answer with `AUTH_REQUIRED`, `AUTH_INVALID_TOKEN`, `API_KEY_SCOPE_REQUIRED`, `RATE_LIMITED`, `VALIDATION_FAILED`, `NOT_FOUND`, `INTERNAL_ERROR`. The complete vocabulary is 29 codes, enumerated in the OpenAPI document.
+Any endpoint may answer with `AUTH_REQUIRED`, `AUTH_INVALID_TOKEN`, `API_KEY_SCOPE_REQUIRED`, `RATE_LIMITED`, `VALIDATION_FAILED`, `NOT_FOUND`, `INTERNAL_ERROR`. The complete vocabulary is 30 codes, enumerated in the OpenAPI document.
 
 Rate-limited responses carry `retry-after` and `x-ratelimit-remaining`. The remaining budget is on *every* response, not only on the refusal, so a well-behaved client can slow down before it is cut off.
 

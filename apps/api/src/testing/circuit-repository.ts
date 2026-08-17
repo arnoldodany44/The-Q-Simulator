@@ -40,11 +40,14 @@
  */
 
 import {
+  canResolveThreadFilter,
   circuitHandleFilter,
+  CircuitCommentsFullError,
   CircuitGoneError,
   CircuitNotWritableError,
   collectionHandleFilter,
   CollectionFullError,
+  deletableCommentFilter,
   CollectionNotWritableError,
   cursorAfter,
   ensureUser,
@@ -55,7 +58,13 @@ import {
   listableCollectionFilter,
   metricsOf,
   MAX_COLLECTION_ITEMS,
+  MAX_REPLIES_PER_THREAD,
+  MAX_THREADS_PER_CIRCUIT,
   MAX_VERSION_ATTEMPTS,
+  ParentCommentNotFoundError,
+  ReplyDepthError,
+  ThreadFullError,
+  threadFilter,
   toCircuitJson,
   UsernameTakenError,
   VersionConflictError,
@@ -63,13 +72,17 @@ import {
 import type {
   AccountDeletionReport,
   AccountUser,
+  AnchorTally,
   CircuitCard,
+  CommentThreadPage,
   CircuitDetail,
   CircuitRepository,
   CircuitVersionSummary,
   CircuitWithVersion,
   CollectionCard,
   GallerySort,
+  StoredComment,
+  StoredThread,
   Page,
   Prisma,
   PublicUser,
@@ -111,6 +124,28 @@ interface CircuitRow {
 interface StarRow {
   userId: string
   circuitId: string
+}
+
+/**
+ * `Comment`, with the two things M5.4 added to it: the anchor and the
+ * resolution.
+ *
+ * `anchorOpId` is stored and never interpreted, which is the *point* of it — the
+ * double is faithful precisely because it does not go looking for an operation
+ * either. Nothing in production reads a circuit document to decide whether an
+ * anchor resolves, and a fake that did would be testing a rule that does not
+ * exist.
+ */
+interface CommentRow {
+  id: string
+  circuitId: string
+  userId: string
+  body: string
+  parentId: string | null
+  anchorOpId: string | null
+  resolvedAt: Date | null
+  resolvedById: string | null
+  createdAt: Date
 }
 
 /**
@@ -222,6 +257,15 @@ export interface MemoryCircuitRepository extends CircuitRepository {
    * look at the join table can tell whether it happened.
    */
   allCollectionItems(collectionId?: string): readonly CollectionItemRow[]
+  /**
+   * Every comment row (M5.4).
+   *
+   * The assertions this exists for are the ones the HTTP surface cannot make:
+   * that a deleted root took its replies with it (the new `ON DELETE CASCADE`),
+   * and that a reply was stored carrying its root's anchor rather than one the
+   * caller supplied.
+   */
+  allComments(circuitId?: string): readonly CommentRow[]
   /**
    * Writes the next version number directly, the way a second process would.
    * Called from `beforeVersionWrite` it makes a save lose the race on
@@ -563,6 +607,68 @@ function matchesCollectionFilter(
   })
 }
 
+/**
+ * The same evaluation over a `Comment` row — M5.4.
+ *
+ * Its own function for the reason `matchesCollectionFilter` is: the fragments
+ * are typed against a different model, and the value of this whole approach is
+ * that the double evaluates *the production fragment* — `threadFilter`,
+ * `canResolveThreadFilter` and `deletableCommentFilter`, imported from
+ * `@qsim/db` — rather than a second description of it.
+ *
+ * `resolvedAt` is the interesting key. `{ resolvedAt: null }` means "open" and
+ * `{ resolvedAt: { not: null } }` means "resolved", and getting that pair
+ * backwards would make every resolution test assert the opposite of what it
+ * says. Equally hostile to an unknown key, for the reason written on the
+ * circuit one: ignoring a clause reports a leak as a pass.
+ */
+function matchesCommentFilter(
+  row: CommentRow,
+  filter: Prisma.CommentWhereInput
+): boolean {
+  return Object.entries(filter).every(([key, value]) => {
+    if (key === 'OR') {
+      return (value as Prisma.CommentWhereInput[]).some((branch) =>
+        matchesCommentFilter(row, branch)
+      )
+    }
+    if (key === 'AND') {
+      return (value as Prisma.CommentWhereInput[]).every((branch) =>
+        matchesCommentFilter(row, branch)
+      )
+    }
+    if (key === 'id') return row.id === value
+    if (key === 'circuitId') return row.circuitId === value
+    if (key === 'userId') return matchesScalar(row.userId, value)
+    if (key === 'parentId') {
+      if (value === null) return row.parentId === null
+      return matchesScalar(row.parentId, value)
+    }
+    if (key === 'anchorOpId') {
+      if (value === null) return row.anchorOpId === null
+      if (isCondition(value) && (value as { not?: unknown }).not === null) {
+        return row.anchorOpId !== null
+      }
+      return row.anchorOpId === value
+    }
+    if (key === 'resolvedAt') {
+      if (value === null) return row.resolvedAt === null
+      if (isCondition(value) && (value as { not?: unknown }).not === null) {
+        return row.resolvedAt !== null
+      }
+      throw new Error(
+        'The in-memory repository models `resolvedAt` as null or { not: null } ' +
+          'only, which is what `threadFilter` produces.'
+      )
+    }
+    throw new Error(
+      `The in-memory repository cannot evaluate the comment filter key ` +
+        `"${key}". Teach it, rather than letting a test pass on a rule it ` +
+        'ignored.'
+    )
+  })
+}
+
 /** The key a gallery ordering term names, and the direction it wants. */
 type OrderKey = 'starCount' | 'createdAt' | 'id'
 
@@ -605,9 +711,16 @@ export function createMemoryCircuitRepository(
   const stars: StarRow[] = []
   const collections: CollectionRow[] = []
   const collectionItems: CollectionItemRow[] = []
+  const comments: CommentRow[] = []
   const lessonProgress: LessonProgressRow[] = []
   const challenges: ChallengeRow[] = []
   const challengeSubmissions: ChallengeSubmissionRow[] = []
+  /**
+   * The live collaborative documents (M5.2), keyed by circuit — which is what
+   * the real table's primary key is, so "two documents for one circuit" is
+   * unrepresentable here for the same reason it is there.
+   */
+  const sessions = new Map<string, { state: Uint8Array; updatedAt: Date }>()
   let sequence = 0
 
   /** Ids long enough to satisfy the route's handle pattern, as a cuid is. */
@@ -654,6 +767,60 @@ export function createMemoryCircuitRepository(
       id: ownerId,
       username: user?.username ?? 'unknown',
       avatarUrl: user?.avatarUrl ?? null,
+    }
+  }
+
+  /** Oldest first, ties broken by id - the ordering production's query has. */
+  function byCommentOrder(a: CommentRow, b: CommentRow): number {
+    const left = a.createdAt.getTime()
+    const right = b.createdAt.getTime()
+    if (left !== right) return left - right
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  }
+
+  /**
+   * The `publicUserSelect` projection, modelled.
+   *
+   * No `email`, because production's projection does not select it (Section 11)
+   * - and `addUser` deliberately writes one into the row, so a test can assert
+   * that a comment author never carries it.
+   */
+  function publicUser(userId: string): PublicUser {
+    const user = users.get(userId)
+    return {
+      id: userId,
+      username: user?.username ?? 'unknown',
+      displayName: user?.displayName ?? null,
+      avatarUrl: user?.avatarUrl ?? null,
+      createdAt: user?.createdAt ?? new Date(0),
+    }
+  }
+
+  function toStoredComment(row: CommentRow): StoredComment {
+    return {
+      id: row.id,
+      circuitId: row.circuitId,
+      body: row.body,
+      anchorOpId: row.anchorOpId,
+      parentId: row.parentId,
+      createdAt: row.createdAt,
+      author: publicUser(row.userId),
+      // Normalised on a reply exactly as production normalises it.
+      resolvedAt: row.parentId === null ? row.resolvedAt : null,
+      resolvedBy:
+        row.parentId !== null || row.resolvedById === null
+          ? null
+          : publicUser(row.resolvedById),
+    }
+  }
+
+  function toThread(root: CommentRow): StoredThread {
+    return {
+      root: toStoredComment(root),
+      replies: comments
+        .filter((row) => row.parentId === root.id)
+        .sort(byCommentOrder)
+        .map(toStoredComment),
     }
   }
 
@@ -986,6 +1153,8 @@ export function createMemoryCircuitRepository(
       for (let i = collectionItems.length - 1; i >= 0; i -= 1) {
         if (collectionItems[i]?.circuitId === id) collectionItems.splice(i, 1)
       }
+      // `CircuitSession_circuitId_fkey ON DELETE CASCADE`, in the double.
+      sessions.delete(id)
       return Promise.resolve(true)
     },
 
@@ -1035,6 +1204,12 @@ export function createMemoryCircuitRepository(
           preview: previewOf(data),
           updatedAt: new Date(),
         })
+        /*
+         * A save supersedes the live document, in the same act — see
+         * `CircuitSession` in the schema. The double has to do it too or the
+         * restore case passes here and undoes itself in production.
+         */
+        sessions.delete(circuitId)
         return toStored(row)
       }
       throw new VersionConflictError(circuitId, MAX_VERSION_ATTEMPTS)
@@ -1063,6 +1238,38 @@ export function createMemoryCircuitRepository(
         .sort((a, b) => b.versionNum - a.versionNum)
       const row = rows[0]
       return Promise.resolve(row === undefined ? null : toStored(row))
+    },
+
+    /* ── The live collaborative document (M5.2) ───────────────────────── */
+
+    loadSession(circuitId) {
+      const held = sessions.get(circuitId)
+      return Promise.resolve(
+        held === undefined
+          ? null
+          : // Copied on the way out, as Prisma's `bytea` read is: a caller that
+            // mutated what it was handed must not reach back into the store.
+            { state: Uint8Array.from(held.state), updatedAt: held.updatedAt }
+      )
+    },
+
+    saveSession({ circuitId, state }) {
+      // What `CircuitSession_circuitId_fkey` would have said. A document must
+      // not outlive the circuit it describes, and the double has to refuse it
+      // too — otherwise a test would pass against a fake that keeps orphans
+      // while production raises.
+      if (!circuits.some((candidate) => candidate.id === circuitId)) {
+        return Promise.reject(new CircuitNotWritableError(circuitId))
+      }
+      sessions.set(circuitId, {
+        state: Uint8Array.from(state),
+        updatedAt: new Date(),
+      })
+      return Promise.resolve()
+    },
+
+    dropSession(circuitId) {
+      return Promise.resolve(sessions.delete(circuitId))
     },
 
     /* ── Collections (M1.9) ───────────────────────────────────────────── */
@@ -1308,6 +1515,41 @@ export function createMemoryCircuitRepository(
           versions.splice(i, 1)
         }
       }
+
+      /*
+       * Comments, and the two cascades that reach them (M5.4).
+       *
+       * `Comment.userId` cascades from `User`, and `Comment.parentId` now
+       * cascades from `Comment` — so a reply by somebody else to one of this
+       * user's comments goes too, which is what the foreign key added in M5.4
+       * does and what the hand-written sweep in `accounts.ts` used to do.
+       * Comments on this user's *circuits* go by the cascade from `Circuit`.
+       *
+       * The count reported is the user's own plus other people's replies to
+       * them, which is exactly what production counts.
+       */
+      const ownCommentIds = new Set(
+        comments.filter((row) => row.userId === userId).map((row) => row.id)
+      )
+      const foreignReplies = comments.filter(
+        (row) =>
+          row.parentId !== null &&
+          ownCommentIds.has(row.parentId) &&
+          row.userId !== userId
+      ).length
+      for (let i = comments.length - 1; i >= 0; i -= 1) {
+        const row = comments[i]
+        if (row === undefined) continue
+        const doomed =
+          row.userId === userId ||
+          ownedIds.has(row.circuitId) ||
+          (row.parentId !== null && ownCommentIds.has(row.parentId))
+        if (doomed) comments.splice(i, 1)
+        // `resolvedById` is SET NULL rather than a cascade: a thread that was
+        // resolved stays resolved, it just stops naming who resolved it.
+        else if (row.resolvedById === userId) row.resolvedById = null
+      }
+
       for (let i = circuits.length - 1; i >= 0; i -= 1) {
         if (circuits[i]?.ownerId === userId) circuits.splice(i, 1)
       }
@@ -1316,13 +1558,184 @@ export function createMemoryCircuitRepository(
       const report: AccountDeletionReport = {
         circuits: owned.length,
         collections: mine.length,
-        comments: 0,
+        comments: ownCommentIds.size + foreignReplies,
         stars: starredByUser.length,
         simulationRuns: 0,
         hardwareJobs: 0,
         orphanedCollectionItems,
       }
       return Promise.resolve(report)
+    },
+
+    /* ── Comments anchored to gates (M5.4) ─────────────────────────────── */
+
+    listComments({ circuitId, state, anchorOpId, skip, take }) {
+      const matching = (input: {
+        state: 'open' | 'resolved' | 'all'
+        anchorOpId?: string
+      }): CommentRow[] =>
+        comments.filter((row) =>
+          matchesCommentFilter(
+            row,
+            threadFilter({
+              circuitId,
+              state: input.state,
+              ...(input.anchorOpId === undefined
+                ? {}
+                : { anchorOpId: input.anchorOpId }),
+            })
+          )
+        )
+
+      const narrowed = anchorOpId === undefined ? {} : { anchorOpId }
+      const roots = matching({ state, ...narrowed }).sort(byCommentOrder)
+
+      /*
+       * The tally is over the whole circuit and both states, exactly as
+       * production's `groupBy` is - unnarrowed by `state` and by `anchorOpId`,
+       * because a marker has to appear on a gate whose only thread is resolved,
+       * and on gates other than the one currently filtered to.
+       */
+      const anchors: Record<string, AnchorTally> = {}
+      for (const row of matching({ state: 'all' })) {
+        const key = row.anchorOpId
+        if (key === null || row.parentId !== null) continue
+        const current = anchors[key] ?? { open: 0, resolved: 0 }
+        anchors[key] =
+          row.resolvedAt === null
+            ? { open: current.open + 1, resolved: current.resolved }
+            : { open: current.open, resolved: current.resolved + 1 }
+      }
+
+      const page: CommentThreadPage = {
+        threads: roots.slice(skip, skip + take).map((root) => toThread(root)),
+        total: roots.length,
+        openCount: matching({ state: 'open', ...narrowed }).length,
+        resolvedCount: matching({ state: 'resolved', ...narrowed }).length,
+        circuitTotal: matching({ state: 'all' }).length,
+        anchors,
+      }
+      return Promise.resolve(page)
+    },
+
+    postComment({ circuitId, userId, body, anchorOpId, parentId }) {
+      if (parentId !== undefined) {
+        const parent = comments.find(
+          (row) => row.id === parentId && row.circuitId === circuitId
+        )
+        if (parent === undefined) {
+          return Promise.reject(new ParentCommentNotFoundError(parentId))
+        }
+        if (parent.parentId !== null) {
+          return Promise.reject(new ReplyDepthError(parentId))
+        }
+        const replies = comments.filter((row) => row.parentId === parent.id)
+        if (replies.length >= MAX_REPLIES_PER_THREAD) {
+          return Promise.reject(new ThreadFullError(parentId))
+        }
+        /*
+         * A reply inherits its root's anchor, read from the parent and never
+         * from the caller - the same rule production enforces, modelled here so
+         * that a test cannot pass by sending one.
+         */
+        const reply: CommentRow = {
+          id: nextId('cmt_'),
+          circuitId,
+          userId,
+          body,
+          parentId: parent.id,
+          anchorOpId: parent.anchorOpId,
+          resolvedAt: null,
+          resolvedById: null,
+          createdAt: new Date(),
+        }
+        comments.push(reply)
+        return Promise.resolve(toStoredComment(reply))
+      }
+
+      const roots = comments.filter(
+        (row) => row.circuitId === circuitId && row.parentId === null
+      )
+      if (roots.length >= MAX_THREADS_PER_CIRCUIT) {
+        return Promise.reject(new CircuitCommentsFullError(circuitId))
+      }
+      const root: CommentRow = {
+        id: nextId('cmt_'),
+        circuitId,
+        userId,
+        body,
+        parentId: null,
+        anchorOpId: anchorOpId ?? null,
+        resolvedAt: null,
+        resolvedById: null,
+        createdAt: new Date(),
+      }
+      comments.push(root)
+      return Promise.resolve(toStoredComment(root))
+    },
+
+    findThread({ circuitId, rootId }) {
+      const root = comments.find(
+        (row) =>
+          row.id === rootId &&
+          row.circuitId === circuitId &&
+          row.parentId === null
+      )
+      return Promise.resolve(root === undefined ? null : toThread(root))
+    },
+
+    findCommentContext({ circuitId, commentId }) {
+      const row = comments.find(
+        (candidate) =>
+          candidate.id === commentId && candidate.circuitId === circuitId
+      )
+      if (row === undefined) return Promise.resolve(null)
+      return Promise.resolve({
+        id: row.id,
+        authorId: row.userId,
+        parentId: row.parentId,
+        resolvedAt: row.resolvedAt,
+      })
+    },
+
+    setThreadResolution({ circuitId, rootId, viewerId, ownerId, resolved }) {
+      const filter = canResolveThreadFilter({
+        circuitId,
+        rootId,
+        viewerId,
+        ownerId,
+      })
+      const target = comments.find((row) => matchesCommentFilter(row, filter))
+      if (target === undefined) return Promise.resolve(false)
+      target.resolvedAt = resolved ? new Date() : null
+      target.resolvedById = resolved ? viewerId : null
+      return Promise.resolve(true)
+    },
+
+    deleteComment({ circuitId, commentId, viewerId, ownerId }) {
+      const filter = deletableCommentFilter({
+        circuitId,
+        commentId,
+        viewerId,
+        ownerId,
+      })
+      const index = comments.findIndex((row) =>
+        matchesCommentFilter(row, filter)
+      )
+      if (index === -1) return Promise.resolve(false)
+      const [removed] = comments.splice(index, 1)
+      /*
+       * `ON DELETE CASCADE` on `Comment.parentId`, modelled - the foreign key
+       * M5.4 added. Without it the double would leave replies behind where
+       * Postgres removes them, and a test about deleting a thread would be
+       * asserting the opposite of what happens in production.
+       */
+      if (removed !== undefined) {
+        for (let i = comments.length - 1; i >= 0; i -= 1) {
+          if (comments[i]?.parentId === removed.id) comments.splice(i, 1)
+        }
+      }
+      return Promise.resolve(true)
     },
 
     /* ── Lesson bookmarks (Phase 3) ───────────────────────────────────── */
@@ -1530,6 +1943,12 @@ export function createMemoryCircuitRepository(
     },
 
     allCircuits: () => [...circuits],
+
+    allComments(circuitId) {
+      return circuitId === undefined
+        ? [...comments]
+        : comments.filter((row) => row.circuitId === circuitId)
+    },
 
     allStars(circuitId) {
       return circuitId === undefined

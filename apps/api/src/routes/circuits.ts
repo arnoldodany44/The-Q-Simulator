@@ -546,6 +546,18 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
         message: request.body.message ?? null,
       })
 
+      /*
+       * The live document is settled against the version that was just written.
+       * `appendVersion` deleted the `CircuitSession` row in the same transaction,
+       * which is what stops a *later* session from resurrecting the old state —
+       * but the relay may still be holding the document in memory, and a restore
+       * writes a version deliberately older than it. Without this the armed
+       * debounce put the pre-restore document back into the row seconds later and
+       * the restore undid itself. An ordinary save reaches the same call and
+       * changes nothing, because the version equals what the session holds.
+       */
+      app.collab?.settle(circuit.id, data)
+
       reply.status(201)
       return { version: toVersionResponse(version) }
     }

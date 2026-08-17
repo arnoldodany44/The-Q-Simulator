@@ -206,6 +206,287 @@ cross-origin`, para que una página que ya optó por COEP pueda enmarcarlo.
    páginas que lo incrustan, así que se dibuja el diagrama y se imprime el
    techo en una frase.
 
+**El relevo de sincronización (decidido en la Fase 5, M5.2).** El canal
+`circuit:<id>` de §8 vive en el mismo socket `/ws` que el progreso de las
+corridas, no en uno propio: ese socket ya autentica, ya sostiene un caché de
+autorización que expira, ya mide frames y ya sabe cerrarse. La autoridad es
+`apps/api/src/ws/documents.ts` para el documento y `apps/api/src/ws/session.ts`
+para el canal. Cuatro decisiones, y las cuatro son de seguridad o de producto
+antes que de transporte.
+
+1. **Quién escribe y quién mira son dos preguntas con una respuesta cada una.**
+   Escribir es `canEditCircuit`: la dueña, y nadie más — §11 hace que la
+   visibilidad no diga nada sobre el permiso de escritura, así que no existe
+   ningún estado en el que una desconocida pueda mandar una actualización.
+   Mirar es `findReadable`, el mismo filtro que aplica `GET /circuits/:id`, y eso
+   **sí** admite a quien solo puede leer. La consecuencia se escribe aquí porque
+   es real: entrar a la sesión viva de un circuito PUBLIC o UNLISTED muestra
+   ediciones que su autora no ha guardado. Se acepta a propósito — la
+   alternativa, que solo entre quien escribe, dejaría sin sentido los cursores
+   compartidos, porque hoy un circuito tiene exactamente una escritora — y queda
+   acotada por el filtro que admite: el único lector de un circuito PRIVATE es su
+   dueña. El modo de solo lectura se aplica **en el servidor y en cada frame**,
+   no dejando de dibujar un botón.
+
+2. **Una actualización CRDT es binario opaco de un cliente que no se controla.**
+   Se acota por tamaño (`MAX_COLLAB_UPDATE_BYTES`, 64 KiB) y por ritmo, con un
+   presupuesto propio en dos dimensiones —frames y bytes— separado del general,
+   porque arrastrar un deslizador son decenas de commits por segundo y cobrarlos
+   contra un presupuesto dimensionado para consultas a Postgres cerraría el
+   socket de quien está usando el producto. Después se **decodifica antes de
+   integrarse**: `Y.decodeUpdate` revienta con basura sin tocar ningún documento,
+   y esa es la diferencia entre negar una actualización y reportar un documento
+   ya dañado — el del navegador es de una persona, este es de toda la sesión.
+   Solo entonces se aplica, se proyecta y se valida con `validateCircuit`; una
+   proyección que el contrato rechace hace que el relevo **suelte el documento**
+   y pida a todos volver a entrar, en lugar de repararlo, porque un lector que
+   escribe es exactamente cómo un CRDT divergiría (véase `project.ts`).
+
+3. **El documento vivo es una fila mutable, y no una versión.** Vive en
+   `CircuitSession` —una fila por circuito, el estado Yjs en `bytea`— y la
+   tensión con §3.4 se resuelve diciendo que son cosas de distinta naturaleza:
+   una versión es inmutable, numerada, lleva mensaje, se navega, se compara y se
+   restaura, y existe porque alguien decidió que su circuito llegó a un estado
+   digno de nombre; una sesión es un flujo continuo sin ese momento dentro.
+   Materializarla en versiones por temporizador llenaría un historial visible de
+   filas que nadie eligió y volvería «restaurar» un sinónimo de «retroceder
+   cuatro segundos». Lo que la fila compra es lo único que una sesión necesita de
+   una base de datos: **el documento sobrevive a que todos se vayan**. Se escribe
+   con retardo (2 s de silencio, 15 s como techo) y siempre al irse el último
+   par; y `appendVersion` la borra en la misma transacción que escribe la
+   versión, que es lo que hace que restaurar la versión 3 no se deshaga solo.
+
+4. **Dos réplicas.** El abanico entre instancias va por el Redis que ya existe,
+   en el canal `circuit:<id>` bajo el prefijo del despliegue, con dos mensajes:
+   la actualización tal como llegó, y un `sync` que cierra el único hueco que un
+   abanico puro deja — una réplica que arma el documento desde la fila puede
+   estar detrás de la memoria de otra, y un delta que dependa de ese hueco se
+   queda en la cola de pendientes de Yjs para siempre. Lo que **no** está
+   resuelto, dicho sin adornos: el pub/sub de Redis es a-lo-más-una-vez, así que
+   un mensaje perdido puede dejar dos réplicas separadas hasta el siguiente
+   `sync`. Hoy el servicio corre una sola réplica; si algún día corre varias en
+   serio, la respuesta es enrutar los sockets de un circuito a una réplica o
+   intercambiar vectores de estado periódicamente entre ellas.
+
+**Quién está aquí y hacia dónde mira (decidido en la Fase 5, M5.3).** La
+presencia es estado efímero que no forma parte del documento: el cursor, la
+selección, el nombre y el color de cada par. La autoridad es
+`packages/contract/src/socket.ts` para los frames,
+`apps/api/src/ws/presence.ts` para el padrón de una sesión y
+`apps/web/src/features/collab/` para lo que se dibuja y lo que se dice. Cinco
+decisiones.
+
+1. **El par dice dónde mira; el servidor dice quién es.** Yjs modela esto con
+   la _awareness_ de `y-protocols`: un mensaje binario opaco por par, con reloj
+   propio y latido. Ese modelo se conserva entero salvo la opacidad, y la razón
+   es una frase de §11 — **la presencia lleva identidad**. Un blob que compone
+   el cliente significa que el nombre que llega a todos los demás navegadores es
+   el que el emisor haya puesto: su propio correo, el nombre de otra persona, un
+   kilobyte de marcado; y un relevo que no puede leer el campo no puede
+   rechazarlo. Así que el frame es tipado: el cliente manda una _posición_
+   (celda, selección y una cuenta de sus propias ediciones) y el relevo le
+   compone encima `name` y `access` a partir de la identidad que ese socket
+   probó. `name` es `displayName ?? username` —ambos ya públicos— y
+   `User.email` no tiene ningún camino hasta este frame, porque la proyección
+   que lo resuelve (`publicUserSelect`) ni siquiera selecciona la columna.
+   Decodificar el blob para reescribir un campo habría significado mantener el
+   parser de un segundo formato de cable en el camino caliente, que es el mismo
+   argumento por el que M5.2 no adoptó `y-protocols`.
+
+2. **Un cursor caduca; no espera a que lo recojan.** La desconexión no es un
+   evento que nada garantice: una tapa que se cierra, una pestaña que muere, un
+   teléfono que cambia de red — ninguno manda frame de cierre, y la capa de
+   socket solo lo nota en su propio ciclo de ping, hasta un minuto después. Un
+   cursor que se queda un minuto no es un cursor degradado, es una afirmación
+   falsa sobre dónde está una persona. Así que la presencia es una **concesión
+   con plazo**: cada par la reafirma cada `PRESENCE_HEARTBEAT_MS` (10 s) y se
+   descarta lo que no se reafirmó en `PRESENCE_TIMEOUT_MS` (30 s, el mismo
+   número que usa `y-protocols`). El plazo se aplica en **los dos extremos y
+   ninguno depende del otro**: el relevo caduca al fantasma para no entregárselo
+   a quien entra, y cada cliente caduca al fantasma cuyo _servidor_ se fue. La
+   caducidad del relevo es perezosa —ocurre cuando alguien publica y cuando
+   alguien pide el padrón— porque un temporizador por documento son sesenta y
+   cuatro temporizadores calculando algo que nadie preguntó.
+
+3. **Quien solo lee puede ser visto, y eso no debilita el modo de solo
+   lectura.** La presencia no escribe nada: ni documento, ni fila, ni nada que
+   sobreviva a la conexión. Un espectador invisible dejaría los cursores
+   compartidos de §3.4 como una función que solo aprovecha quien ya es la única
+   escritora del circuito. Lo que sí se aplica es el enganche: a un par al que
+   se le retira el permiso de lectura se le deja de relevar —y de contar dónde
+   está nadie— dentro de `AUTHORISATION_TTL_MS`. El camino de entrega es
+   deliberadamente distinto al de una actualización: una actualización **nunca
+   puede descartarse** (un documento es la fusión de todas), y una presencia
+   **nunca puede encolarse** (la siguiente la reemplaza). Así que la presencia
+   se manda al instante o se descarta, y lo que sustituye a la re-verificación
+   por entrega es una prueba de _vejez_ sobre la decisión en caché.
+
+4. **Un color de colaborador no sale de la rueda de fase.** §10 dice que la fase
+   _es_ color, y todo lo demás que ha necesitado color en esta aplicación ha
+   tomado prestada esa rueda (los cuatro estados del diff, las dos direcciones
+   del ruido) porque vive en vistas donde no se dibuja ninguna fase. Un cursor
+   no: se dibuja **sobre el lienzo, al lado del histograma**, y un caret en
+   `hsl(200, 85%, 66%)` no es «un color parecido» al de una amplitud, es el
+   color de la amplitud de fase 3.5 rad, junto a ella, significando otra cosa.
+   La separación va por los dos ejes que la rueda no usa: saturación 55 % y
+   luminosidad 78 % contra 85 % y 66 %, es decir pálido y claro donde un dato es
+   vivo y medio, como un lápiz frente a tinta impresa. Los ocho matices están a
+   45° y arrancan en 27.5°, desplazamiento **derivado** —es el que maximiza la
+   distancia al matiz más cercano que ya significa algo, y da 17.5°— y
+   `apps/web/src/lib/collab-colour.test.ts` lo vuelve a derivar en cada corrida.
+   Cada matiz mide al menos 7.18:1 sobre las tres superficies, más del doble de
+   lo que se le exige a la rueda de fase, y a propósito: una marca de presencia
+   es un contorno de un píxel y no una barra de decenas. El tercer separador no
+   es un color: **el color de un colaborador nunca rellena una forma**, dibuja
+   contorno, caret y etiqueta, y la etiqueta lleva siempre el nombre — ocho
+   colores no pueden distinguir dieciséis pares, y no son ellos los que
+   distinguen. El color lo deriva el cliente del `peerId` con un hash, así que
+   todos coinciden en quién es azul y el color de nadie cambia cuando otro se va.
+
+5. **«Ana está editando la columna 4» llega a quien no puede verlo, y sin
+   parlotear.** El lienzo es `aria-hidden` y va emparejado con una rejilla ARIA
+   descrita; la capa de cursores encima es más de los mismos píxeles, así que
+   también es `aria-hidden`. La presencia llega entonces por **dos superficies
+   con distinta cortesía**: una **lista** que se lee cuando se quiere (cada par
+   con su nombre, si edita o mira, y en qué qubit y columna está), y una región
+   `role="status"` reservada a las tres cosas por las que vale interrumpir a
+   alguien — **llegadas, salidas y ediciones**. Nunca movimiento: una región que
+   anunciara cada desplazamiento del cursor sería inservible, y un lector de
+   pantalla que no se calla es un lector de pantalla que se apaga. Como una
+   actualización CRDT no lleva autor, la edición se detecta con la cuenta que el
+   propio par publica; es cosmética por construcción y el documento sigue siendo
+   la única autoridad sobre lo que contiene. La región se monta desde el primer
+   render, vacía: una región viva insertada junto con su primer contenido a
+   menudo no se anuncia. Y el rendimiento se resuelve con la misma decisión que
+   la accesibilidad: la capa se suscribe sola a su almacén, así que un cursor que
+   se mueve ocho veces por segundo redibuja una capa posicionada y no las dos mil
+   celdas de la rejilla, en la pestaña de quien está escribiendo.
+
+**Un comentario anclado a una compuerta (decidido en la Fase 5, M5.4).** Un
+comentario dice algo sobre «la `H` de q0 en la columna 3», y un ancla **sobrevive
+a lo que señala**. La autoridad es `packages/contract/src/comments.ts` para el
+ancla y el hilo, `packages/db/src/comments.ts` para las consultas,
+`apps/api/src/routes/comments.ts` para quién puede qué y
+`apps/web/src/features/comments/` para lo que se dibuja y lo que se dice. Seis
+decisiones.
+
+1. **El ancla es `operations[].id`, y ninguna otra cosa es admisible.** Lo obvio
+   es guardar la coordenada, y está mal de una forma **peor que perder el
+   comentario**: se inserta una columna antes y el ancla pasa a señalar lo que se
+   movió a esa celda. Nada falla, nada queda vacío — simplemente se le muestra a
+   quien lee la frase de un desconocido sobre la compuerta que tiene delante,
+   atribuida a alguien que nunca la dijo. Un comentario desaparecido es una
+   molestia; un comentario que cambió de sujeto en silencio es una mentira. Así
+   que el ancla es el id que §6 ya le da a cada operación, y lo que lo vuelve
+   seguro y no solo cómodo es una propiedad del almacén del editor: `moveOperation`
+   lo conserva, `addQubit`, `removeQubit` y `reorderQubits` remapean coordenadas y
+   lo conservan, y **un id nunca se recicla** (`idAllocator` salta los ocupados y
+   `paste` siempre acuña nuevos). Un ancla puede no resolver; no puede resolver a
+   otra compuerta. `apps/web/src/features/comments/anchors.test.ts` conduce el
+   almacén real por las cinco mutaciones que §14 nombra, y afirma sobre la
+   **celda** y no sobre la mera presencia — «el ancla sigue resolviendo» lo
+   cumpliría también una implementación que resolviera a la compuerta equivocada.
+
+2. **«¿Sigue ahí la compuerta?» no se responde en la base de datos.** No hay
+   columna `orphaned` ni campo `orphaned` en ninguna respuesta, porque la orfandad
+   no es una propiedad del comentario: es una propiedad del **par** (comentario,
+   documento que se está mostrando), y los documentos difieren — la versión
+   cabeza, una versión antigua, la sesión viva de M5.2 que ningún `GET` ha
+   devuelto nunca, y el borrador sin guardar que solo existe en una pestaña. Un
+   booleano guardado sería una afirmación sobre uno de los cuatro publicada como
+   hecho sobre los cuatro. Así que el servidor manda `anchorOpId` y el cliente lo
+   resuelve contra lo que dibuja, en cada render. Esa decisión es además la que
+   vuelve **gratis el caso más difícil**: borrar la compuerta y pulsar deshacer la
+   devuelve con el mismo id, ninguna petición se envió, ninguna fila cambió y el
+   comentario se vuelve a enganchar solo. Un indicador guardado habría necesitado
+   una escritura compensatoria que nadie mandaría, porque el editor no habla con
+   la API en cada pulsación.
+
+3. **A un huérfano se lo conserva, se lo muestra y se lo etiqueta.** Había tres
+   respuestas y esta es la tercera. _Esconderlo_ destruye el valor de la función
+   —«lo discutimos y decidimos» es lo que vale la pena guardar— y lo destruye de
+   forma invisible: nadie puede ir a buscar algo que no puede notar que falta.
+   _Borrarlo_ es una escritura destructiva disparada por una edición que es ella
+   misma deshacible; la compuerta vuelve, la conversación no. _Conservarlo y
+   decirlo_: el hilo se queda en el panel, listado contra el circuito en vez de
+   fijado a una celda, con la nota de que la operación de la que hablaba ya no
+   está en este documento. Es la única de las tres que sobrevive a
+   borrar-y-deshacer sin costo y la única en la que a quien lee nunca se lo
+   engaña. En el lienzo **no se dibuja nada** para un huérfano: no hay celda donde
+   dibujarlo, y dibujarlo en una vecina es otra vez el error de la coordenada.
+   Dos consecuencias parecen defectos y no lo son: explotar la llamada a una
+   compuerta personalizada (`inlineOperation`) deja huérfanos sus comentarios, y
+   pegar una copia de una compuerta comentada no copia sus comentarios — la
+   llamada de la que se hablaba ya no existe, y una compuerta pegada es otra
+   compuerta de la que nadie ha dicho nada todavía.
+
+4. **Un hilo tiene dos niveles, y la forma es lo que lo impone.**
+   `CommentThreadResponse` es una raíz más un arreglo plano de respuestas, y una
+   respuesta no lleva `replies` propias: una conversación sobre una compuerta, en
+   un panel lateral, no tiene uso para un cuarto nivel de sangría, y la versión
+   lista-negra de esta regla («rechaza una respuesta cuyo padre tiene padre») es
+   una comprobación que alguien puede olvidar. Esta forma **no puede expresar lo
+   que prohíbe**, que es el mismo movimiento que hace §6 con `column`. La
+   resolución pertenece a la raíz por la misma razón: es una afirmación sobre la
+   conversación, no sobre una frase dentro de ella. Resolver **no es esconder** —
+   un hilo resuelto lo devuelve el listado igual que uno abierto, con `resolvedAt`
+   y con quién lo cerró, y las dos cuentas viajan en cada respuesta para que
+   «resuelto» sea un filtro con un número encima y no un cajón donde las cosas
+   desaparecen. Puede resolver quien abrió el hilo o quien es dueño del circuito,
+   y quién puede qué lo **calcula el servidor** y viaja en la respuesta
+   (`viewerCanResolve`, `viewerCanDelete`, `viewerCanReply`): el cliente podría
+   derivarlo, pero eso sería una segunda implementación de una regla de
+   autorización, y el modo de fallo de una segunda implementación es un botón que
+   produce un 403 — o, peor, un botón que le falta a quien sí tenía derecho.
+   Tampoco hay `PATCH`: un comentario no se edita, porque «lo discutimos y
+   decidimos» deja de significar algo si lo dicho puede reescribirse después de
+   que alguien respondió o resolvió sobre esa base. Los remedios son responder, o
+   borrar y volver a decirlo.
+
+5. **El cuerpo es contenido de usuario, y la lista de permitidos tiene dos
+   producciones.** La respuesta habitual es un sanitizador, y un sanitizador es
+   una lista negra se llame como se llame: es una promesa sobre todo lo que un
+   parser de HTML llegue a aceptar. Este proyecto no hace esa promesa. El formato
+   no es «markdown menos lo peligroso», es un formato con dos producciones: un
+   salto de línea, que es un párrafo, y un tramo entre acentos graves, que se
+   vuelve `Notation` — la misma convención de las lecciones, que a partir de este
+   hito vive en `apps/web/src/lib/prose.ts` porque ya la usan tres funciones. Todo
+   lo demás es un carácter: `<script>` en un comentario son palabras que se ven,
+   porque React pinta una cadena como texto y **no hay `dangerouslySetInnerHTML`
+   en este camino** — `CommentBody.test.tsx` lo comprueba leyendo el archivo, no
+   confiando en la revisión que lo notó. Lo demás son cotas: 2 000 caracteres por
+   cuerpo, 200 hilos por circuito y 100 respuestas por hilo (una fila que un
+   desconocido puede escribir en cualquier circuito PUBLIC necesita techo, no solo
+   ritmo), y `POST` corre con el presupuesto **estricto** del limitador, el mismo
+   que `POST /circuits`. Escribir exige sesión y `findReadable`, no
+   `canEditCircuit`: una actualización del documento cambia el circuito, un
+   comentario es una opinión **sobre** él, y §3.4 pide comentarios en circuitos
+   públicos — lo que acota la superficie es que un comentario nunca puede cambiar
+   lo que el circuito computa y que su dueña puede borrar cualquiera.
+
+6. **En la interfaz: una insignia que es decoración, y un panel que es el
+   índice.** La insignia sobre la compuerta anclada va en una capa
+   `aria-hidden` con `pointer-events: none` y **no es un botón**, por dos razones
+   y la segunda decide: un control enfocable dentro de `aria-hidden` es un fallo
+   de WCAG, y una insignia sobre la esquina de una celda que es a la vez destino
+   de arrastre y asa de la compuerta volvería más difícil mover justo las
+   compuertas comentadas — la función degradando el editor para los documentos
+   que más la usan. Lo que llega a quien lee es el par que este proyecto ya usa
+   para el lienzo: píxeles allí, **frases** en el panel. Y el panel es el índice:
+   cada hilo nombra su compuerta en palabras («Sobre `H` en q0, columna 3»,
+   con el símbolo y el nombre del cable marcados como notación), el filtro lleva
+   las dos cuentas, y cada hilo trae un botón que **selecciona** su compuerta en
+   el lienzo — sin gesto nuevo, porque la selección ya existe, ya se alcanza por
+   teclado y ya es lo que el lienzo rodea. Comentar una compuerta es
+   seleccionarla: el compositor dice a qué se va a anclar **antes** de escribir, y
+   con más de una seleccionada vuelve al circuito, porque un comentario sobre dos
+   compuertas no es representable y tomar la primera de ellas anclaría una frase a
+   una compuerta que nadie eligió. La **notificación queda fuera de alcance a
+   propósito**: §14 no la pide y no sale gratis de nada de esto —necesita un
+   medio de entrega que este proyecto no tiene, una preferencia para apagarla y un
+   resumen para que un hilo activo no sean treinta mensajes—, y lo que sí sale
+   gratis es la cuenta, que está en el filtro.
+
 ### 3.5 Interoperabilidad
 
 - **Exportar**: OpenQASM 3, código Python de Qiskit, JSON nativo, PNG/SVG del diagrama, PDF.
@@ -869,6 +1150,20 @@ POST   /convert/json-to-qiskit
 
 **WebSocket** en `/ws`: eventos `run:progress`, `run:complete`, `job:status`, y canal de colaboración `circuit:<id>`.
 
+El canal de colaboración son cuatro frames de cliente (`collab:join`,
+`collab:update`, `collab:presence`, `collab:leave`) y cinco de servidor
+(`collab:joined`, `collab:update`, `collab:presence`, `collab:left`,
+`collab:error`) sobre el mismo socket, con la actualización CRDT en base64 dentro
+del JSON. `collab:join` lleva un vector de estado opcional —«esto ya lo tengo»— y
+el servidor contesta con la diferencia, que es lo que hace que reconectar sea
+barato y, más importante, correcto: quien editó sin conexión conserva sus
+ediciones y recibe solo lo que le faltaba. `collab:presence` es el único frame
+del canal que **no** es binario opaco: lleva una posición tipada del cliente y
+vuelve con el nombre y el permiso que compone el servidor, por la razón que da
+§3.4 (decisión 1 de M5.3). El vocabulario completo, con sus techos y el argumento
+de cada uno, está en `packages/contract/src/socket.ts`; las decisiones del relevo
+y de la presencia están en §3.4.
+
 ---
 
 ## 9. Frontend
@@ -956,6 +1251,21 @@ Los cuatro anclajes de referencia:
 1. **La luminosidad es 66%, no 62%.** Barriendo el círculo completo en pasos de un cuarto de grado, con 62% el matiz peor (240°, fase 4π/3) da 2.98:1 sobre `--bg-panel` y 2.66:1 sobre `--bg-elevated`, por debajo del 3:1 que la WCAG 2.2 SC 1.4.11 exige. Una barra del histograma califica dos veces: su matiz lleva la fase, y su borde contra el panel es lo que hace legible su altura, o sea la probabilidad. Con 66% el peor matiz mide 4.02:1 sobre `--bg-deep`, 3.65:1 sobre `--bg-panel` y 3.26:1 sobre `--bg-elevated`. Es la misma corrección que ya se hizo con `--wire`: se conservan el matiz y la saturación, se sube la luminosidad hasta que mide, y se escribe por qué. Nótese que la tabla de cuatro anclajes no podía detectar esto: la región que falla está cerca de 240° y ningún anclaje cae ahí.
 
 2. **Las cuatro muestras de arriba estaban ajustadas a mano, no derivadas.** Medidas, son `hsl(351.2, 90%, 61%)`, `hsl(100.4, 71%, 58%)`, `hsl(180.0, 67%, 52%)` y `hsl(275.2, 71%, 58%)`: la misma familia de color, dentro de 11° de matiz, pero con saturación y luminosidad propias. Lo que se implementa es la regla generativa, no la interpolación entre las cuatro: un estado de _n_ qubits tiene 2ⁿ amplitudes y por lo tanto un continuo de fases, no cuatro, y un mapeo que se pegara a las muestras en las fases cardinales haría que la saturación y la luminosidad saltaran alrededor del círculo — dos amplitudes separadas por una centésima de radián se verían con distinto peso visual sin razón física. Una sola saturación y una sola luminosidad para todo el círculo es lo que hace que diferencias iguales de fase se vean iguales.
+
+**Un colaborador no es un dato, y por eso no toma prestada esta rueda (M5.3).**
+Los cuatro estados del diff y las dos direcciones del ruido sí la toman: son
+matices puros a la saturación y luminosidad de la fase, y heredan la barrida de
+contraste que las cubre a todas. El cursor de otra persona no puede, porque se
+dibuja sobre el lienzo al mismo tiempo que el histograma — un caret a 85 %/66 %
+no es «parecido» al color de una amplitud, es el color de una fase concreta,
+junto a ella. Los colores de colaborador se separan por los dos ejes que la rueda
+no usa (saturación 55 %, luminosidad 78 %: pálido y claro donde un dato es vivo y
+medio), sus ocho matices están a 45° empezando en 27.5° —el desplazamiento que
+maximiza la distancia a todo matiz que ya significa algo— y nunca rellenan una
+forma: contorno, caret y etiqueta con el nombre. La autoridad es
+`apps/web/src/lib/collab-colour.ts` y las mediciones se rederivan en
+`apps/web/src/verification/design/token-contrast.test.ts`; el argumento completo
+está en §3.4, decisión 4 de M5.3.
 
 **El color nunca es el único portador de la fase.** Una rueda de matices es justamente lo que una persona con daltonismo no puede leer, y el círculo de fase pasa un tercio de su arco en esa confusión. El orden de codificación es: primero la **dirección** del fasor (legible sin visión de color, y es lo que hace visible la cancelación de dos fasores opuestos como geometría), después el **ángulo numérico** en radianes y grados, formateado con `Intl.NumberFormat` del idioma activo, y solo entonces el **matiz**, como refuerzo. De ahí se sigue el comportamiento bajo `prefers-reduced-motion`: los fasores dejan de girar pero siguen apuntando, porque la información está en hacia dónde apuntan y la rotación era solo la animación del cambio.
 

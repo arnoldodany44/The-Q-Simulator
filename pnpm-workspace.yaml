@@ -145,6 +145,46 @@ catalog:
   zustand: 5.0.15
   zundo: 2.3.0
 
+  # Real-time collaboration (§3.4, §14 Fase 5: "CRDT (Yjs)").
+  #
+  # Yjs rather than Automerge, and the reason is the two things this system
+  # needs that a document CRDT does not usually have to provide together: a
+  # *map* whose keys merge field by field — which is what makes two people
+  # editing one gate's angle and its controls both survive — and an
+  # `UndoManager` that can be scoped to one client's transaction origins, which
+  # is the entire content of "undo must be per user" (Ana pressing undo may not
+  # delete what Beto just did). Automerge has the first and not the second.
+  #
+  # It is a dependency of `packages/collab`, of `apps/web` and — since M5.2 — of
+  # `apps/api`, which holds the shared document and therefore needs the same
+  # Yjs the browser has. The 13.6.x line has been the stable one for years;
+  # `lib0` is its only dependency and is isomorphic, which is what lets the same
+  # mapping code run in the browser and in the API (§12.3 rule 2) — the whole
+  # reason the mapping is a package rather than editor code.
+  #
+  # `y-protocols` is deliberately NOT here, and it is now decided for both of the
+  # things it carries rather than for one.
+  #
+  # The awareness (presence) protocol was M5.3's to weigh, and the answer is no.
+  # Its *model* is kept whole — ephemeral state outside the document, a clock per
+  # peer, a heartbeat and a timeout — and what is dropped is its opacity, because
+  # an awareness update is a blob the sending client composes and §11 says
+  # presence carries identity: the display name reaching every other browser
+  # would be whatever the sender put in it, their own email included, and a relay
+  # that cannot read the field cannot refuse it. So a presence is a typed frame in
+  # `@qsim/contract` whose name and access are stamped by the server, and the
+  # library's decoder is not on the hot path to be got wrong. See §3.4, M5.3
+  # decision 1.
+  #
+  # The *sync handshake* was M5.2's, and it turned out to be two Yjs calls —
+  # `encodeStateVector` on the joiner and `encodeStateAsUpdate(doc, vector)` on
+  # the relay — inside frames this project already defines and already bounds.
+  # Adopting y-protocols would have meant a second wire format beside
+  # `@qsim/contract`'s: its own varint envelope, its own message numbers, and no
+  # ceiling on a message's size, which is the one property §11 asks for hardest
+  # on a channel a stranger writes to.
+  yjs: 13.6.32
+
   # Server state (§9: "Zustand for circuit state … React Query for everything
   # that comes from the server. Do not mix the two.")
   #

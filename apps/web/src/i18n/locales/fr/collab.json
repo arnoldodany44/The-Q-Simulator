@@ -1,0 +1,97 @@
+{
+  "presence": {
+    "heading_one": "{{count}} autre personne est ici",
+    "heading_other": "{{count}} autres personnes sont ici",
+    "anonymous": "Quelqu’un",
+    "editing": "modifie",
+    "watching": "regarde",
+    "atCell": "au qubit {{qubit}}, colonne {{column}}",
+    "atRegister": "au registre classique, colonne {{column}}",
+    "nowhere": "hors de la grille",
+    "holding_one": "tient {{count}} porte",
+    "holding_other": "tient {{count}} portes",
+    "announce": {
+      "joined": "{{name}} est maintenant dans ce circuit.",
+      "left": "{{name}} a quitté ce circuit.",
+      "edited": "{{name}} a modifié le circuit.",
+      "editedCell": "{{name}} a modifié au qubit {{qubit}}, colonne {{column}}.",
+      "editedRegister": "{{name}} a modifié au registre classique, colonne {{column}}."
+    }
+  },
+  "comments": {
+    "heading": "Commentaires",
+    "hint": "Sélectionnez une porte pour la commenter, ou écrivez à propos du circuit entier. Un fil résolu reste ici, pour que « nous en avons discuté et décidé » ne se perde pas.",
+    "loading": "Chargement des commentaires…",
+    "retry": "Réessayer",
+    "filter": {
+      "legend": "Quels fils afficher",
+      "open": "Ouverts ({{shown}})",
+      "resolved": "Résolus ({{shown}})",
+      "all": "Tous ({{shown}})"
+    },
+    "anchor": {
+      "circuit": "À propos du circuit",
+      "gate": "À propos de {{gate}} sur {{qubit}}, colonne {{column}}",
+      "orphaned": "La porte dont il s’agissait n’est plus dans ce document"
+    },
+    "orphanNotice_one": "{{count}} fil ci-dessous porte sur une porte qui n’est plus dans ce document. Il est conservé, car ce qui a été dit a bien eu lieu.",
+    "orphanNotice_other": "{{count}} fils ci-dessous portent sur des portes qui ne sont plus dans ce document. Ils sont conservés, car ce qui a été dit a bien eu lieu.",
+    "empty": {
+      "open": "Aucun fil ouvert sur ce circuit.",
+      "resolved": "Aucun fil résolu sur ce circuit.",
+      "all": "Personne n’a encore commenté ce circuit."
+    },
+    "signIn": "Connectez-vous pour commenter",
+    "full": "Ce circuit a atteint sa limite de {{max}} fils. Résolvez-en un ou supprimez-en un pour en ouvrir un autre.",
+    "compose": {
+      "label": "Nouveau commentaire",
+      "about": "Sera rattaché à :",
+      "hint": "Jusqu’à {{max}} caractères. Le texte entre accents graves est affiché comme notation.",
+      "submit": "Publier le commentaire"
+    },
+    "reply": {
+      "open": "Répondre",
+      "label": "Votre réponse",
+      "submit": "Publier la réponse",
+      "cancel": "Annuler"
+    },
+    "thread": {
+      "reveal": "Montrer cette porte sur le canevas",
+      "resolve": "Résoudre",
+      "reopen": "Réouvrir",
+      "resolvedBadge": "Résolu",
+      "resolvedBy": "Résolu par {{name}}."
+    },
+    "comment": {
+      "delete": "Supprimer",
+      "deleteConfirm": "Supprimer définitivement",
+      "deleteWithReplies_one": "Supprimer ceci et sa {{count}} réponse",
+      "deleteWithReplies_other": "Supprimer ceci et ses {{count}} réponses",
+      "deleteCancel": "Le garder"
+    },
+    "pager": {
+      "label": "Pages de commentaires",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "position": "Page {{page}} sur {{pages}} · {{total}} fils"
+    },
+    "announce": {
+      "revealed": "Porte sélectionnée sur {{qubit}}, colonne {{column}}.",
+      "revealMissing": "La porte concernée par ce commentaire n’est plus dans ce circuit.",
+      "replied": "Réponse envoyée.",
+      "resolved": "Fil résolu.",
+      "reopened": "Fil réouvert.",
+      "deleted": "Commentaire supprimé."
+    }
+  },
+  "session": {
+    "ended": {
+      "unauthorised": "Ce circuit a cessé d’être accessible, la session partagée s’est donc terminée.",
+      "overloaded": "La session partagée n’a pas pu suivre le rythme des modifications et s’est terminée. Réouvrez le circuit pour la rejoindre.",
+      "gone": "La session partagée a été libérée. Réouvrez le circuit pour la rejoindre."
+    },
+    "readOnly": "Vous observez cette session. Seul le propriétaire peut modifier.",
+    "reconnecting": "Reconnexion à la session partagée…",
+    "invalid": "Le document partagé a atteint un état que ce circuit ne peut pas contenir, la session a donc été libérée."
+  }
+}

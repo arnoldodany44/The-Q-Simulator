@@ -1135,6 +1135,357 @@ describe.skipIf(!enabled)('the Prisma circuit repository', () => {
     }
   })
 
+  /* ── The live collaborative document (M5.2) ───────────────────────────── */
+
+  it('round-trips a session document as bytes, not as text', async () => {
+    const circuit = await owned(Visibility.PRIVATE)
+    // Every byte value, so a `bytea` that had become `text` somewhere would not
+    // survive: a Yjs update is arbitrary binary and 0x00 is a legal byte in it.
+    const state = Uint8Array.from({ length: 256 }, (_, index) => index)
+
+    await repository.saveSession({ circuitId: circuit.circuit.id, state })
+    const loaded = await repository.loadSession(circuit.circuit.id)
+
+    expect(loaded?.state).toEqual(state)
+    expect(loaded?.updatedAt).toBeInstanceOf(Date)
+  })
+
+  it('holds one document per circuit, replacing rather than accumulating', async () => {
+    const circuit = await owned(Visibility.PRIVATE)
+    await repository.saveSession({
+      circuitId: circuit.circuit.id,
+      state: new Uint8Array([1]),
+    })
+    await repository.saveSession({
+      circuitId: circuit.circuit.id,
+      state: new Uint8Array([2, 3]),
+    })
+
+    expect((await repository.loadSession(circuit.circuit.id))?.state).toEqual(
+      new Uint8Array([2, 3])
+    )
+    expect(
+      await prisma.circuitSession.count({
+        where: { circuitId: circuit.circuit.id },
+      })
+    ).toBe(1)
+  })
+
+  /**
+   * The reconciliation between an immutable history and a continuous session, in
+   * one assertion. The case it exists for is restore: restoring version 3
+   * appends a version carrying version 3's circuit, and a surviving session row
+   * would make the next session resume the pre-restore document — silently
+   * undoing the restore.
+   */
+  it('forgets the live document when a version is appended', async () => {
+    const circuit = await owned(Visibility.PRIVATE)
+    await repository.saveSession({
+      circuitId: circuit.circuit.id,
+      state: new Uint8Array([1, 2, 3]),
+    })
+
+    await repository.appendVersion({
+      circuitId: circuit.circuit.id,
+      ownerId: OWNER.id,
+      data: ghz,
+      message: 'saved',
+    })
+
+    expect(await repository.loadSession(circuit.circuit.id)).toBeNull()
+  })
+
+  /**
+   * And it must not forget it when the append is refused. A save that never
+   * happened has no business discarding an hour of somebody's session — and the
+   * delete is inside the same transaction precisely so that it rolls back with
+   * the version.
+   */
+  it('keeps the live document when the append is refused', async () => {
+    const circuit = await owned(Visibility.PRIVATE)
+    await repository.saveSession({
+      circuitId: circuit.circuit.id,
+      state: new Uint8Array([1, 2, 3]),
+    })
+
+    await expect(
+      repository.appendVersion({
+        circuitId: circuit.circuit.id,
+        // Not this circuit's owner, so the owner-scoped update matches no row.
+        ownerId: STRANGER.id,
+        data: ghz,
+        message: 'not mine',
+      })
+    ).rejects.toThrow()
+
+    expect((await repository.loadSession(circuit.circuit.id))?.state).toEqual(
+      new Uint8Array([1, 2, 3])
+    )
+  })
+
+  it('drops a document on request, idempotently', async () => {
+    const circuit = await owned(Visibility.PRIVATE)
+    await repository.saveSession({
+      circuitId: circuit.circuit.id,
+      state: new Uint8Array([9]),
+    })
+
+    expect(await repository.dropSession(circuit.circuit.id)).toBe(true)
+    expect(await repository.dropSession(circuit.circuit.id)).toBe(false)
+    expect(await repository.loadSession(circuit.circuit.id)).toBeNull()
+  })
+
+  it('refuses a document for a circuit that does not exist', async () => {
+    // `CircuitSession_circuitId_fkey`, and the reason it is there: a document
+    // must not be able to outlive the circuit it describes.
+    await expect(
+      repository.saveSession({
+        circuitId: 'qsim-itest-no-such-circuit',
+        state: new Uint8Array([1]),
+      })
+    ).rejects.toThrow()
+  })
+
+  it('takes a circuit’s document with it when the circuit is deleted', async () => {
+    const circuit = await owned(Visibility.PRIVATE)
+    await repository.saveSession({
+      circuitId: circuit.circuit.id,
+      state: new Uint8Array([1]),
+    })
+
+    expect(
+      await repository.remove({ id: circuit.circuit.id, ownerId: OWNER.id })
+    ).toBe(true)
+    expect(
+      await prisma.circuitSession.count({
+        where: { circuitId: circuit.circuit.id },
+      })
+    ).toBe(0)
+  })
+
+  /* ── Comments anchored to gates (M5.4) ────────────────────────────────── */
+
+  /**
+   * Everything in this block is a claim about SQL that no unit test can settle.
+   * The API's own suite runs against a fake repository, so the two foreign keys
+   * this milestone added, the cascade the delete route depends on, and the
+   * `groupBy` behind every marker on the canvas are only ever exercised here.
+   */
+
+  it('stores an anchor verbatim and does not care whether it resolves', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(OWNER)
+
+    // An id no operation in this document carries. There is no foreign key to
+    // refuse it and none is wanted: which document an anchor is resolved against
+    // is the reader's question, and the four candidates disagree.
+    const stored = await repository.postComment({
+      circuitId: circuit.id,
+      userId: OWNER.id,
+      body: 'About a gate that is not here.',
+      anchorOpId: 'op-never-existed',
+    })
+
+    expect(stored.anchorOpId).toBe('op-never-existed')
+    expect(stored.resolvedAt).toBeNull()
+  })
+
+  it('tallies every anchor on the circuit, narrowed by neither page nor state', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(OWNER)
+
+    const onOpZero = await repository.postComment({
+      circuitId: circuit.id,
+      userId: OWNER.id,
+      body: 'First, about op-0.',
+      anchorOpId: 'op-0',
+    })
+    await repository.postComment({
+      circuitId: circuit.id,
+      userId: OWNER.id,
+      body: 'Second, about op-0.',
+      anchorOpId: 'op-0',
+    })
+    await repository.postComment({
+      circuitId: circuit.id,
+      userId: OWNER.id,
+      body: 'About op-1.',
+      anchorOpId: 'op-1',
+    })
+    await repository.postComment({
+      circuitId: circuit.id,
+      userId: OWNER.id,
+      body: 'About the circuit as a whole.',
+    })
+
+    await repository.setThreadResolution({
+      circuitId: circuit.id,
+      rootId: onOpZero.id,
+      viewerId: OWNER.id,
+      ownerId: OWNER.id,
+      resolved: true,
+    })
+
+    /*
+     * Asked with the *default* filter and a page of one, which is the shape that
+     * would break a page-derived tally: the canvas has to mark op-1 even though
+     * it is not on this page, and it has to mark op-0 even though the only
+     * thread there that is resolved would fall outside `state: 'open'`.
+     */
+    const page = await repository.listComments({
+      circuitId: circuit.id,
+      state: 'open',
+      skip: 0,
+      take: 1,
+    })
+
+    expect(page.threads).toHaveLength(1)
+    expect(page.openCount).toBe(3)
+    expect(page.resolvedCount).toBe(1)
+    expect(page.circuitTotal).toBe(4)
+    expect(page.anchors).toEqual({
+      'op-0': { open: 1, resolved: 1 },
+      'op-1': { open: 1, resolved: 0 },
+    })
+  })
+
+  it('takes a thread’s replies with it, by cascade rather than by a sweep', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(OWNER)
+    await repository.ensureOwner(STRANGER)
+
+    const root = await repository.postComment({
+      circuitId: circuit.id,
+      userId: OWNER.id,
+      body: 'Is this `H` needed?',
+      anchorOpId: 'op-0',
+    })
+    // Somebody else's reply, which is the case the retired sweep in
+    // `accounts.ts` existed for: it must go with the root it hangs off.
+    await repository.postComment({
+      circuitId: circuit.id,
+      userId: STRANGER.id,
+      body: 'No.',
+      parentId: root.id,
+    })
+
+    // A reply inherits its root's anchor, read from the parent rather than
+    // accepted from the caller.
+    const thread = await repository.findThread({
+      circuitId: circuit.id,
+      rootId: root.id,
+    })
+    expect(thread?.replies.map((reply) => reply.anchorOpId)).toEqual(['op-0'])
+
+    expect(
+      await repository.deleteComment({
+        circuitId: circuit.id,
+        commentId: root.id,
+        viewerId: OWNER.id,
+        ownerId: OWNER.id,
+      })
+    ).toBe(true)
+    expect(
+      await prisma.comment.count({ where: { circuitId: circuit.id } })
+    ).toBe(0)
+  })
+
+  it('keeps a thread resolved after the resolver’s account is deleted', async () => {
+    /*
+     * `resolvedById` is `ON DELETE SET NULL` and not `ON DELETE CASCADE`, and the
+     * difference is the whole point of resolving: a conversation that was settled
+     * stays settled when the person who settled it leaves. Cascade would delete
+     * the conversation instead.
+     */
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(OWNER)
+    await repository.ensureOwner(STRANGER)
+
+    const root = await repository.postComment({
+      circuitId: circuit.id,
+      userId: OWNER.id,
+      body: 'Worth checking.',
+      anchorOpId: 'op-1',
+    })
+    await repository.setThreadResolution({
+      circuitId: circuit.id,
+      rootId: root.id,
+      viewerId: STRANGER.id,
+      // The circuit's owner is admitted by the filter, and so is the thread's
+      // author; here the stranger resolves as the owner of nothing, so the
+      // filter has to be given the owner it is checking against.
+      ownerId: STRANGER.id,
+      resolved: true,
+    })
+
+    await prisma.user.delete({ where: { id: STRANGER.id } })
+
+    const after = await repository.findThread({
+      circuitId: circuit.id,
+      rootId: root.id,
+    })
+    expect(after?.root.resolvedAt).toBeInstanceOf(Date)
+    // Only the attribution is lost, which the panel can say without a name.
+    expect(after?.root.resolvedBy).toBeNull()
+  })
+
+  it('refuses a reply to a reply, and a parent on another circuit', async () => {
+    const first = await owned(Visibility.PUBLIC)
+    const second = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(OWNER)
+
+    const root = await repository.postComment({
+      circuitId: first.circuit.id,
+      userId: OWNER.id,
+      body: 'Root.',
+      anchorOpId: 'op-0',
+    })
+    const reply = await repository.postComment({
+      circuitId: first.circuit.id,
+      userId: OWNER.id,
+      body: 'Reply.',
+      parentId: root.id,
+    })
+
+    await expect(
+      repository.postComment({
+        circuitId: first.circuit.id,
+        userId: OWNER.id,
+        body: 'A third level.',
+        parentId: reply.id,
+      })
+    ).rejects.toThrow()
+
+    // The parent is looked up *scoped to the circuit*, so a real comment id from
+    // somewhere else is as absent as one that never existed.
+    await expect(
+      repository.postComment({
+        circuitId: second.circuit.id,
+        userId: OWNER.id,
+        body: 'Wrong circuit.',
+        parentId: root.id,
+      })
+    ).rejects.toThrow()
+  })
+
+  it('takes a circuit’s comments with it when the circuit is deleted', async () => {
+    const { circuit } = await owned(Visibility.PUBLIC)
+    await repository.ensureOwner(OWNER)
+    await repository.postComment({
+      circuitId: circuit.id,
+      userId: OWNER.id,
+      body: 'About op-0.',
+      anchorOpId: 'op-0',
+    })
+
+    expect(await repository.remove({ id: circuit.id, ownerId: OWNER.id })).toBe(
+      true
+    )
+    expect(
+      await prisma.comment.count({ where: { circuitId: circuit.id } })
+    ).toBe(0)
+  })
+
   it('finds a user by their public handle, without their email', async () => {
     await repository.ensureOwner(OWNER)
     const created = await prisma.user.findUnique({ where: { id: OWNER.id } })
@@ -1169,6 +1520,29 @@ describe.skipIf(!enabled)('the Prisma circuit repository', () => {
     expect(
       await prisma.circuitVersion.count({
         where: { circuit: { ownerId: { in: RESERVED_IDS } } },
+      })
+    ).toBe(0)
+    // And the same for a session document, which cascades from the circuit for
+    // the same reason a version does (M5.2).
+    expect(
+      await prisma.circuitSession.count({
+        where: { circuit: { ownerId: { in: RESERVED_IDS } } },
+      })
+    ).toBe(0)
+    /*
+     * And for a comment (M5.4), which cascades twice over: from the circuit it is
+     * about and from the user who wrote it. A reply left behind would mean the
+     * `parentId` key this milestone added is not doing what `accounts.ts` now
+     * relies on it for.
+     */
+    expect(
+      await prisma.comment.count({
+        where: {
+          OR: [
+            { circuit: { ownerId: { in: RESERVED_IDS } } },
+            { userId: { in: RESERVED_IDS } },
+          ],
+        },
       })
     ).toBe(0)
   })

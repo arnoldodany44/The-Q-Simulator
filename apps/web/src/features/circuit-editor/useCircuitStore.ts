@@ -264,6 +264,15 @@ export interface DefinitionEdit {
   /** The document to come back to. */
   readonly host: Circuit
   readonly hostSelection: readonly string[]
+  /**
+   * The host document's id counter, carried across the detour.
+   *
+   * A definition body is a different document with its own counter, so coming
+   * back has to restore the host's rather than derive one from the circuit: an
+   * id the host used and deleted before the detour must stay spent. See
+   * `firstFreeId`.
+   */
+  readonly hostNextId: number
   /** How many uses in the host document this edit will change. */
   readonly uses: number
 }
@@ -272,6 +281,43 @@ export interface DefinitionEdit {
 interface CircuitSnapshot {
   readonly circuit: Circuit
   readonly selection: readonly string[]
+}
+
+/**
+ * Where undo lives while the document is shared (M5.1).
+ *
+ * ── Why the history has to move at all ────────────────────────────────────
+ *
+ * zundo's history is a stack of whole circuits, and that is exactly right for
+ * one person: an undo step is "the document as it was", and restoring it is
+ * total. In a shared document it is wrong for the same reason — restoring the
+ * document as it was also restores it as it was *for everybody*, so Ana
+ * pressing undo would delete what Beto had just typed. There is no way to fix
+ * that inside a snapshot history: a snapshot does not record who did what, and
+ * an undo that has to skip somebody else's change needs to know.
+ *
+ * So while a session is shared, undo is driven by a `Y.UndoManager` scoped to
+ * this client's transaction origins, which undoes this client's changes and
+ * leaves everybody else's alone. This interface is the seam. It is a plain
+ * interface rather than an import so that the editor's module graph — and
+ * therefore the chunk every visitor downloads — carries no CRDT until somebody
+ * actually opens a shared session; `features/collab` implements it.
+ *
+ * ── What the solo path pays for it ────────────────────────────────────────
+ *
+ * Nothing. With nothing attached, every method below behaves exactly as it did
+ * before this interface existed, on the same zundo history, and the existing
+ * suite for that behaviour is unchanged. Most sessions have one person in them,
+ * and making the common case worse to serve the rare one would be a bad trade.
+ */
+export interface SharedHistory {
+  /** Undo up to `steps` of this client's own changes. False if none were left. */
+  undo(steps: number): boolean
+  redo(steps: number): boolean
+  clear(): void
+  /** Collapse everything until `endGesture` into one step. */
+  beginGesture(): void
+  endGesture(): void
 }
 
 export interface CircuitState extends CircuitSnapshot {
@@ -375,6 +421,29 @@ export interface CircuitState extends CircuitSnapshot {
   clearSelection(): void
 
   loadCircuit(input: unknown): EditResult
+  /**
+   * Take the document a shared session says we are editing (M5.1).
+   *
+   * Not `loadCircuit`: this is the *same* document, arriving changed, so
+   * `documentId` does not move — a remote keystroke must not reset the timeline
+   * scrubber or count as opening something new — and the history is not
+   * cleared, because the history of a shared session belongs to the
+   * `SharedHistory` driver and not to this store.
+   *
+   * It still goes through the contract like every other edit: the projection it
+   * comes from is valid by construction, and the store's first rule is that the
+   * only judge of that is the contract.
+   */
+  adoptDocument(circuit: Circuit): EditResult
+  /**
+   * Hand undo over to a shared session, or take it back with `null`.
+   *
+   * Both directions clear the history: a local stack of snapshots taken before
+   * a session is a stack of documents that were only ever this client's, and
+   * offering to restore one of them after other people have edited is offering
+   * to delete their work. Leaving a session leaves you where the document is.
+   */
+  attachHistory(history: SharedHistory | null): void
   reset(): void
   /**
    * Both answer an `EditResult` so the caller can say what happened. Undo is
@@ -474,6 +543,71 @@ export function createCircuitStore(
           const { recorded } = gesture
           gesture = null
           if (recorded) history().resume()
+        }
+
+        /**
+         * The shared session's history, while there is one (M5.1).
+         *
+         * A closure variable for the same reason `gesture` is one: it is not
+         * part of the document, nothing renders from it, and putting it under
+         * `partialize` would make undo restore a session.
+         *
+         * While it drives the open document, zundo is paused rather than merely
+         * ignored — an unread stack that keeps growing is a hundred circuits of
+         * memory and, worse, a stack somebody could later restore from. Every
+         * branch that consults it below returns before touching zundo, so
+         * `gesture` stays null and `commit`'s pause/resume bookkeeping never
+         * runs against a paused history.
+         *
+         * The exception is a definition session, which is a different document
+         * and takes the zundo path even while this is set — see `driver` and
+         * `resetDocumentHistory`.
+         */
+        let shared: SharedHistory | null = null
+
+        /** Clears whichever history is in charge. */
+        const resetHistory = (): void => {
+          shared?.clear()
+          history().clear()
+        }
+
+        /**
+         * The history driving the document that is open, which is not always the
+         * session's — see `resetDocumentHistory`.
+         */
+        const driver = (): SharedHistory | null =>
+          get().definitionEdit === null ? shared : null
+
+        /**
+         * Clears the history of the document being *left*, and hands the next
+         * one the driver that belongs to it.
+         *
+         * ── Why a definition session does not use the shared history ────────
+         *
+         * A definition body is a different document — this store says so, and
+         * bumps `documentId` for it — and the `SharedHistory` a session attaches
+         * is a `Y.UndoManager` over the *shared* document. Two things followed
+         * from routing a definition edit through it, and both were wrong.
+         *
+         * Clearing it on the way in threw away every step of the shared session
+         * that had been taken so far: opening a definition made Ana's earlier
+         * edits permanently un-undoable, and the session's undo stack is the one
+         * thing in this design that cannot be rebuilt from the document.
+         *
+         * And while the definition was open, pressing undo asked the shared
+         * manager to revert a change to the *circuit* while the user was looking
+         * at a definition body — a command with no visible effect and a real one.
+         *
+         * So the local zundo history drives a definition session, exactly as it
+         * drives a solo editor, and the session's stack is left untouched to be
+         * waiting when the detour ends. Solo is unaffected: with nothing
+         * attached, `shared` is null and both branches resume zundo.
+         */
+        const resetDocumentHistory = (): void => {
+          history().clear()
+          if (shared === null || get().definitionEdit !== null) {
+            history().resume()
+          } else history().pause()
         }
 
         /**
@@ -1152,17 +1286,18 @@ export function createCircuitStore(
             set((current) => ({
               circuit: document,
               selection: [],
-              nextId: 1,
+              nextId: firstFreeId(document),
               documentId: current.documentId + 1,
               definitionEdit: {
                 name,
                 symbol: definition.symbol,
                 host: current.circuit,
                 hostSelection: current.selection,
+                hostNextId: current.nextId,
                 uses: customGateUsage(current.circuit, name).total,
               },
             }))
-            history().clear()
+            resetDocumentHistory()
             return accepted()
           },
 
@@ -1209,11 +1344,11 @@ export function createCircuitStore(
             set((current) => ({
               circuit: host,
               selection: open.hostSelection,
-              nextId: 1,
+              nextId: Math.max(open.hostNextId, firstFreeId(host)),
               documentId: current.documentId + 1,
               definitionEdit: null,
             }))
-            history().clear()
+            resetDocumentHistory()
             return accepted()
           },
 
@@ -1224,11 +1359,11 @@ export function createCircuitStore(
             set((current) => ({
               circuit: open.host,
               selection: open.hostSelection,
-              nextId: 1,
+              nextId: Math.max(open.hostNextId, firstFreeId(open.host)),
               documentId: current.documentId + 1,
               definitionEdit: null,
             }))
-            history().clear()
+            resetDocumentHistory()
             return accepted()
           },
 
@@ -1274,15 +1409,42 @@ export function createCircuitStore(
             set((state) => ({
               circuit: parsed.circuit,
               selection: [],
-              nextId: 1,
+              // Past every `op_N` the opened document holds, so that deleting a
+              // gate and dropping another cannot hand the new one the dead
+              // one's id — which is what a comment anchored to it would then
+              // silently be about. See `firstFreeId`.
+              nextId: firstFreeId(parsed.circuit),
               documentId: state.documentId + 1,
               // A definition edit is a detour inside one document; the
               // document it would return to has just been replaced, so there
               // is nowhere to come back to and the detour ends here.
               definitionEdit: null,
             }))
-            history().clear()
+            resetHistory()
             return accepted()
+          },
+
+          /*
+           * The counter rises to whatever the document now needs and never
+           * falls: a peer's operations arrive with ids this store did not mint,
+           * and an id a peer used and deleted must not be handed out here.
+           */
+          adoptDocument: (circuit) =>
+            commit({
+              circuit,
+              nextId: Math.max(get().nextId, firstFreeId(circuit)),
+            }),
+
+          attachHistory: (next) => {
+            // A half-made local gesture cannot survive the change of history:
+            // the stacks it snapshot are about to be cleared, and the driver it
+            // would be closed against is a different one.
+            abandonGesture()
+            shared = next
+            history().clear()
+            if (next === null || get().definitionEdit !== null) {
+              history().resume()
+            } else history().pause()
           },
 
           /** Back to the document this store was created with. */
@@ -1291,14 +1453,25 @@ export function createCircuitStore(
             set((state) => ({
               circuit: initialCircuit,
               selection: [],
-              nextId: 1,
+              nextId: firstFreeId(initialCircuit),
               documentId: state.documentId + 1,
               definitionEdit: null,
             }))
-            history().clear()
+            resetHistory()
           },
 
           beginTransaction: () => {
+            // A shared session groups a gesture in the undo manager instead,
+            // and returns before any of the zundo bookkeeping below — which is
+            // what keeps `gesture` null, and therefore keeps `commit` from
+            // resuming a history that is deliberately paused. A definition
+            // session is not the shared document, so it takes the zundo path
+            // below; see `resetDocumentHistory`.
+            const session = driver()
+            if (session !== null) {
+              session.beginGesture()
+              return
+            }
             if (gesture !== null) return
             const stacks = history()
             gesture = {
@@ -1312,6 +1485,11 @@ export function createCircuitStore(
           },
 
           endTransaction: () => {
+            const session = driver()
+            if (session !== null) {
+              session.endGesture()
+              return
+            }
             const open = gesture
             gesture = null
             // Nothing was ever written, so there is nothing to close and
@@ -1335,6 +1513,17 @@ export function createCircuitStore(
 
           undo: (steps = 1) => {
             const count = usableSteps(steps)
+            // In a shared session this is the driver's answer, and it means
+            // something narrower than it used to: "there was nothing left of
+            // *yours* to undo". A stack that still holds somebody else's
+            // changes reports the same refusal, which is the point.
+            const session = driver()
+            if (session !== null) {
+              if (count === null || !session.undo(count)) {
+                return refused('nothing-to-undo')
+              }
+              return accepted()
+            }
             // The early return has to precede the delegation, not follow
             // it: zundo pushes the current state onto `futureStates` before
             // it discovers the slice is empty, so even a "harmless" call
@@ -1351,6 +1540,13 @@ export function createCircuitStore(
           },
           redo: (steps = 1) => {
             const count = usableSteps(steps)
+            const session = driver()
+            if (session !== null) {
+              if (count === null || !session.redo(count)) {
+                return refused('nothing-to-redo')
+              }
+              return accepted()
+            }
             if (count === null || history().futureStates.length === 0) {
               return refused('nothing-to-redo')
             }
@@ -1359,7 +1555,7 @@ export function createCircuitStore(
           },
           clearHistory: () => {
             abandonGesture()
-            history().clear()
+            resetHistory()
           },
         }
       },
@@ -1677,6 +1873,45 @@ function sameControls(
       )
     })
   )
+}
+
+/**
+ * The counter a document has to start from, so that no id is ever recycled.
+ *
+ * ── Why "unique in the circuit" was not enough ─────────────────────────────
+ *
+ * `idAllocator` skips ids the circuit *currently* holds, which makes every id
+ * unique at any one moment and says nothing about an id the circuit used to
+ * hold. Inside one uninterrupted editing run that was fine, because `nextId`
+ * only ever counts up. Opening a document reset it to 1 — and then the first
+ * placement after a delete was handed the numerically lowest free id, which is
+ * precisely the id of whatever had just been deleted.
+ *
+ * M5.4 made that a lie a reader can see. `Comment.anchorOpId` is an
+ * `operations[].id` in a database row, so a comment about a deleted X
+ * re-attached itself to the next unrelated gate the user dropped: the panel
+ * printed "About Z on q2, column 7" over a sentence written about something
+ * else, and nothing anywhere warned. §3.4's rule is that an anchor may fail to
+ * resolve — the orphan branch exists for exactly that — but may never resolve to
+ * a different gate.
+ *
+ * So a document's counter starts *past* every `op_N` the document has ever
+ * shown, which is one past the highest one it holds when it is opened. An id
+ * that has been deleted is never handed out again, because nothing below the
+ * counter is, and the counter never moves back: it is deliberately outside
+ * `partialize`, so undo does not rewind it either.
+ *
+ * Ids that do not follow this naming (a hand-written circuit, an import) are
+ * left to the allocator's `taken` set, which is what makes them safe too.
+ */
+export function firstFreeId(circuit: Circuit): number {
+  let highest = 0
+  for (const operation of circuit.operations) {
+    if (!operation.id.startsWith(ID_PREFIX)) continue
+    const counted = Number(operation.id.slice(ID_PREFIX.length))
+    if (Number.isSafeInteger(counted) && counted > highest) highest = counted
+  }
+  return highest + 1
 }
 
 /**

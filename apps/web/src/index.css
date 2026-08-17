@@ -252,6 +252,41 @@
   --noise-loss-hue: 0;
 
   /*
+   * ---- who else is in the session (M5.3) ----
+   *
+   * A saturation and a lightness of their own, and that is the whole point: every
+   * other colour in this app that is not a datum borrows the phase circle's 85%
+   * and 66% and inherits its contrast proof. A collaborator's cursor may not,
+   * because it is drawn *on the canvas, beside the histogram* — a caret at
+   * `hsl(200, 85%, 66%)` is not a colour like an amplitude's, it is the colour of
+   * an amplitude at 3.5 radians, next to that amplitude, meaning something else.
+   *
+   * So it is separated on the axes the wheel does not use: pale and light where a
+   * datum is vivid and mid-toned, the way a pencil annotation differs from printed
+   * ink. Every hue at these two values measures at least 7.18:1 on all three
+   * surfaces (worst 252.5° on --bg-elevated), which is more than twice what the
+   * phase circle is held to — deliberately, because a presence mark is a
+   * one-pixel outline rather than a bar tens of pixels wide, and a hairline needs
+   * headroom a fill does not. It is also what lets the name label be printed *in*
+   * the colour and stay at AA (8.85:1 at worst, with --collab-ink).
+   *
+   * The eight hues themselves live in `lib/collab-colour.ts`, because which peer
+   * gets which is computed from a peer id and only the client knows one; the
+   * component sets `--collab-hue` per mark and the rules below compose it against
+   * these two, exactly as the phase utilities compose `--phase-hue`.
+   * `verification/design/token-contrast.test.ts` re-derives all of it — including
+   * that these two are *not* the phase pair.
+   */
+  --collab-saturation: 55%;
+  --collab-lightness: 78%;
+
+  /*
+   * Ink for text printed on a collaborator's colour: the same argument
+   * --phase-ink makes. A light ink vanishes against the pale yellow at 72.5°.
+   */
+  --collab-ink: var(--bg-deep);
+
+  /*
    * Named so the focus indicator is a token rather than a colour repeated
    * at every `:focus-visible`. It is deliberately the accent, which measures
    * 9.17:1 on --bg-panel: focus is the one indicator that must never be
@@ -987,6 +1022,484 @@ body {
 
 .circuit-canvas__cell--claimed.circuit-canvas__cell--awaiting {
   background: rgb(162 74 224 / 28%);
+}
+
+/* ---- somebody else's cursor (M5.3) ---- */
+
+/*
+ * The layer other people's carets are drawn on.
+ *
+ * `pointer-events: none` on the whole layer, which is not a detail: it sits over
+ * the ARIA grid — the editor's entire interactive surface — and a caret that
+ * swallowed a click would make a cell undroppable because somebody else happened
+ * to be looking at it. It is also `aria-hidden`, because the SVG plot beside it
+ * is: a cursor drawn on a canvas tells a screen reader nothing, and the sentences
+ * live in the roster's own list and live region instead (§10's pattern, applied to
+ * presence).
+ */
+.presence-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Above the grid so a caret is not hidden by a cell's hover tint. */
+  z-index: 1;
+}
+
+.presence-mark {
+  position: absolute;
+  /* Composed from the peer's hue, as the phase utilities compose --phase-hue. */
+  --collab-colour: hsl(
+    var(--collab-hue) var(--collab-saturation) var(--collab-lightness)
+  );
+}
+
+/*
+ * The cell somebody is focused on: an outline and a caret on its leading edge.
+ *
+ * An outline rather than a fill, and it is the third separator from the data
+ * colours the tokens describe: a collaborator's colour never fills a shape, so
+ * even at a hue some amplitude also occupies it cannot be read as a gate's own
+ * colour. The caret is what survives a monochrome screen — the same reason the
+ * playhead is a band *and* a line.
+ */
+.presence-mark--cursor {
+  border: 1px solid var(--collab-colour);
+  border-radius: 0.25rem;
+  border-left-width: 3px;
+}
+
+/*
+ * A gate somebody else has selected — a dashed outline, so "selected by
+ * somebody" and "focused by somebody" are told apart without colour.
+ */
+.presence-mark--selection {
+  border: 1px dashed var(--collab-colour);
+  border-radius: 0.25rem;
+}
+
+/*
+ * The name, above the cell.
+ *
+ * Always drawn, never on hover: a caret with no name is a coloured rectangle, and
+ * eight hues cannot distinguish sixteen peers — the name is the encoding and the
+ * colour is the reinforcement (§10's ordering). Printed in --collab-ink on the
+ * peer's colour, which measures 8.85:1 at worst.
+ */
+.presence-mark__name {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: -1px;
+  max-width: 8rem;
+  padding: 0 0.25rem;
+  border-radius: 0.25rem;
+  background: var(--collab-colour);
+  color: var(--collab-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A watcher's caret is dimmer than an editor's: they are not changing anything. */
+.presence-mark--reader {
+  opacity: 0.75;
+}
+
+/* ---- who is here (M5.3) ---- */
+
+.presence-roster {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: var(--text-caption);
+}
+
+.presence-roster__heading {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+}
+
+.presence-roster__list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.presence-roster__peer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.45rem 0.1rem 0.3rem;
+  border: 1px solid var(--wire);
+  border-radius: 999px;
+  background: var(--bg-panel);
+  color: var(--text);
+  --collab-colour: hsl(
+    var(--collab-hue) var(--collab-saturation) var(--collab-lightness)
+  );
+}
+
+/*
+ * The swatch is what ties a name in this list to a caret on the canvas. It is a
+ * ring for a watcher and a disc for an editor, so the two are distinguishable
+ * with no colour vision at all — the list says which in words as well.
+ */
+.presence-roster__swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--collab-colour);
+}
+
+.presence-roster__peer--reader .presence-roster__swatch {
+  background: transparent;
+  border: 2px solid var(--collab-colour);
+}
+
+.presence-roster__where {
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * Comments anchored to gates (M5.4)
+ *
+ * ---- WHY THERE IS NO COLOUR TOKEN IN THIS WHOLE SECTION ----
+ *
+ * Every other feature that needed a colour either borrowed the phase circle's
+ * saturation and lightness and inherited its contrast proof (the diff marks,
+ * the noise directions) or was given a pair of its own with a proof of its own
+ * (a collaborator's cursor, M5.3). A comment badge does neither, and the reason
+ * is the argument M5.3 made against the phase wheel, taken one step further: a
+ * badge is drawn *on the canvas*, so a hue there is a hue competing with the
+ * amplitudes beside it — and it cannot take the collaboration pair either,
+ * because those eight hues are how one person is told from another, and a fixed
+ * one would collide with whoever happens to hash to it.
+ *
+ * So a comment is furniture, and it is drawn in the interface palette: the
+ * accent for the outline and the digit, --wire for a closed one, and the count
+ * itself as the carrier. What distinguishes an open thread from a resolved one
+ * is a solid edge with a number against a dashed edge with none — shape and
+ * text, with colour doing nothing that is not said twice (§10).
+ * ------------------------------------------------------------------ */
+
+/*
+ * The layer the badges are drawn on.
+ *
+ * `pointer-events: none` on the whole layer, and it is not a detail: it sits
+ * over the ARIA grid — the editor's entire interactive surface — and a badge
+ * that swallowed a click would make a commented gate harder to drag than an
+ * uncommented one, which is the feature degrading the editor for the documents
+ * that use it most. It is `aria-hidden` for the reason the plot beneath it is,
+ * and the sentences live in the panel's list instead (`AnchorLabel`).
+ */
+.comment-marker-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Above the grid, and above the presence layer: a badge is about the document
+   * rather than about a moment, so it should not be hidden by a passing caret. */
+  z-index: 2;
+}
+
+.comment-marker {
+  position: absolute;
+  /* Pulled back over the cell's top-right corner, so the badge straddles the
+   * edge rather than covering the glyph the comment is about. */
+  transform: translate(-70%, -30%);
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.2rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--bg-deep);
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  line-height: 1;
+}
+
+/*
+ * A gate whose conversation is closed. A dashed hairline and no number: it says
+ * "something was discussed here" without competing with the gates that still
+ * carry a question, which is what a canvas full of resolved badges would do.
+ */
+.comment-marker--resolved {
+  border-style: dashed;
+  border-color: var(--wire);
+  color: var(--text-muted);
+}
+
+.comments-panel {
+  margin-top: 1.5rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.comments-panel__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-data);
+  color: var(--text-muted);
+}
+
+.comments-panel__hint,
+.comments-panel__empty,
+.comments-panel__full,
+.comments-panel__orphans {
+  margin: 0.35rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/*
+ * The orphan notice carries an edge rather than a colour: it is the one sentence
+ * in the panel that explains why part of the list looks wrong, and a reader who
+ * skims has to find it. --wire, not the error red — nothing has failed.
+ */
+.comments-panel__orphans {
+  padding: 0.35rem 0 0.35rem 0.6rem;
+  border-left: 3px solid var(--wire);
+}
+
+.comments-panel__signin {
+  margin: 0.6rem 0 0;
+  font-size: var(--text-body);
+}
+
+.comments-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+}
+
+.comments-filter legend {
+  padding: 0 0.3rem;
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.comments-filter__choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-caption);
+}
+
+.comment-threads {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.comment-thread {
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-left-width: 3px;
+  border-radius: 0.375rem;
+  padding: 0.55rem 0.7rem;
+}
+
+/*
+ * The thread whose gate is selected on the canvas. Styled from `aria-current`
+ * rather than from a class, exactly as a history row is: a thread cannot look
+ * current without announcing itself as current to a screen reader.
+ */
+.comment-thread[aria-current] {
+  border-left-color: var(--accent);
+}
+
+/*
+ * A resolved thread is dimmer and dashed, and it is still here. That is the
+ * decision: "we discussed this and decided" is the value of the feature, so
+ * resolving changes how loud a thread is and never whether it exists.
+ */
+.comment-thread--resolved {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.comment-thread__header {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+}
+
+.comment-thread__badge {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--wire);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+}
+
+.comment-anchor--orphaned {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.comment-thread__actions,
+.comment-thread__footer,
+.comment__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.45rem 0 0;
+}
+
+.comment-thread__actions button,
+.comment-thread__footer button,
+.comment__actions button,
+.comment-form button {
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  /* 0.5rem of padding on a 1rem line box clears the 24px target of SC 2.5.8. */
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.comment-thread__actions button:hover,
+.comment-thread__footer button:hover:not([aria-disabled='true']),
+.comment__actions button:hover,
+.comment-form button:hover:not([aria-disabled='true']) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.comment-thread__footer button[aria-disabled='true'],
+.comment-form button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/*
+ * The second press of a delete. It is the only control in the panel drawn in the
+ * error hue, because it is the only one that destroys a row — and it says what
+ * it will take in words as well, so the colour is never the warning by itself.
+ */
+.comment__actions .comment__delete-confirm,
+.comment__actions .comment__delete-confirm:hover {
+  border-color: hsl(0 var(--phase-saturation) var(--phase-lightness));
+  color: hsl(0 var(--phase-saturation) var(--phase-lightness));
+}
+
+.comment-thread__resolution {
+  margin: 0.45rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.comment-thread__error,
+.comment-form__error {
+  margin: 0.45rem 0 0;
+  padding: 0.35rem 0 0.35rem 0.6rem;
+  border-left: 3px solid hsl(0 var(--phase-saturation) var(--phase-lightness));
+  font-size: var(--text-caption);
+}
+
+.comment {
+  margin-top: 0.35rem;
+}
+
+.comment__byline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: var(--text-caption);
+}
+
+.comment__author {
+  font-weight: var(--weight-strong);
+}
+
+.comment__when {
+  color: var(--text-muted);
+}
+
+.comment-body {
+  margin: 0.25rem 0 0;
+}
+
+/*
+ * `overflow-wrap` because a comment is user text: two thousand characters with no
+ * space in them is a legal comment, and without this it would push the panel — and
+ * with it the page — sideways.
+ */
+.comment-body__paragraph {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+.comment-body__notation {
+  font-family: var(--font-mono);
+}
+
+.comment-replies {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0 0 0 0.7rem;
+  border-left: 1px solid var(--wire);
+  display: grid;
+  gap: 0.4rem;
+}
+
+.comment-form {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.6rem 0 0;
+}
+
+.comment-form__target {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.comment-form__input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.comment-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 /* ---- parameters ---- */

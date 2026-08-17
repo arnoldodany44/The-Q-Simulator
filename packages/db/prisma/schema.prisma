@@ -84,6 +84,12 @@ model User {
   customGates CustomGate[]
   stars       Star[]
   comments    Comment[]
+  /// Threads this user closed (M5.4). A second, named relation to `Comment`
+  /// because `userId` already claims the unnamed one — and it is `SetNull`
+  /// rather than `Cascade`: a thread that was resolved stays resolved after the
+  /// person who resolved it deletes their account. Cascading here would delete
+  /// the conversation instead, which is the opposite of what resolving means.
+  resolvedComments Comment[] @relation("CommentResolutions")
   collections Collection[]
   submissions ChallengeSubmission[]
   credentials HardwareCredential[]
@@ -142,6 +148,7 @@ model Circuit {
   forkedFrom   Circuit?         @relation("Forks", fields: [forkedFromId], references: [id])
   forks        Circuit[]        @relation("Forks")
   versions     CircuitVersion[]
+  session      CircuitSession?
   runs         SimulationRun[]
   hardwareJobs HardwareJob[]
   stars        Star[]
@@ -198,6 +205,81 @@ model CircuitVersion {
   circuit Circuit @relation(fields: [circuitId], references: [id], onDelete: Cascade)
 
   @@unique([circuitId, versionNum])
+}
+
+/// The live CRDT document of a collaborative session — §3.4, Fase 5 (M5.2).
+///
+/// ── When does a shared session become a version? It does not ──────────────
+///
+/// This is the model that answers the tension, and the answer is that the two
+/// things are different in kind and neither should be made to stand in for the
+/// other.
+///
+/// A **version** is immutable, numbered, carries a message, appears in the
+/// history, can be diffed and restored, and is what the gallery, the embed and
+/// the simulator read. It exists because a person decided their circuit had
+/// reached a state worth naming. A **session** is a continuous stream of
+/// keystrokes with no such moment in it. Materialising it into versions on a
+/// timer would fill an immutable, user-visible history with rows nobody chose —
+/// "restore" would mean "go back four seconds", the diff view would show a gate
+/// being dragged, and §3.4's promise that a save creates a version would have
+/// quietly become "a save creates a version and so does waiting".
+///
+/// So a live document lives here instead: one mutable row per circuit, holding
+/// the Yjs state. It is deliberately *not* history —
+///
+///   - it is overwritten in place, so there is nothing to navigate;
+///   - nothing reads it except the relay, so no reader can be shown
+///     work-in-progress the author never saved;
+///   - it is not a `Circuit`'s content. `Circuit.qubitCount`, `gateCount`,
+///     `depth` and `preview` stay derived from the head *version*, so a card in
+///     the gallery keeps describing what was saved.
+///
+/// What it buys is the one thing a session genuinely needs from a database:
+/// **the document survives everybody leaving.** Two people edit for an hour,
+/// both close their laptops without saving, and the next one to open the circuit
+/// resumes exactly where they stopped. Without this row that hour is in the
+/// memory of a Railway container that redeploys twice a day.
+///
+/// ── Why the primary key is the circuit ────────────────────────────────────
+///
+/// A circuit has at most one live document, by definition: two documents for one
+/// circuit would be two groups of people editing the same thing and never seeing
+/// each other, which is the exact failure collaboration exists to remove. Making
+/// `circuitId` the key makes that unrepresentable rather than merely avoided, and
+/// makes the relay's read a single primary-key lookup on a connection pool of
+/// one.
+///
+/// ── Why a save clears it ──────────────────────────────────────────────────
+///
+/// `appendVersion` deletes this row in the same transaction that writes the
+/// version, and that one line is what keeps the two stores from disagreeing
+/// about which is newer. The case it exists for is **restore**: restoring
+/// version 3 appends a new version carrying version 3's circuit, and if the
+/// session row survived that, the next session would resume the pre-restore
+/// document and the restore would silently undo itself. Deleting is safe in the
+/// ordinary case for the same reason it is necessary in that one — the version
+/// just written *is* what the document said, so seeding the next session from it
+/// loses nothing, and a session still running simply persists again on its next
+/// edit.
+model CircuitSession {
+  circuitId String @id
+  /// `Y.encodeStateAsUpdate(doc)` — the merged form of every update the
+  /// document has taken, including the tombstones of what was deleted.
+  ///
+  /// Opaque here, and it must stay opaque: nothing in this package may decide
+  /// what it means. It is written by the relay after `validateCircuit` has
+  /// accepted the projection, and it is read straight back into a Y.Doc that is
+  /// projected and validated again — because a row is not a trust boundary and
+  /// this one was last written by a process that may have been an older build.
+  ///
+  /// Bounded by the relay at `MAX_COLLAB_STATE_BYTES` before it is ever handed
+  /// here, so this column cannot grow without end from an editing session.
+  state     Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  circuit Circuit @relation(fields: [circuitId], references: [id], onDelete: Cascade)
 }
 
 /// A reusable block, saved per user and publishable — §3.1, milestone M2.3.
@@ -560,16 +642,84 @@ model Star {
   @@id([userId, circuitId])
 }
 
+/// A comment, and — from M5.4 (§14, Fase 5) — the gate it is about.
+///
+/// ── `anchorOpId` is an operation id, and that is the whole design ─────────
+///
+/// It holds `operations[].id` from §6, never a coordinate. A coordinate anchor
+/// silently comes to point at a different gate the first time a column is
+/// inserted before it, which is worse than losing the comment: the reader is
+/// shown a stranger's sentence about the gate in front of them, attributed to
+/// somebody who never said it. An id survives a move, a qubit reorder and a
+/// column insertion because the editor never rewrites it, and it can never
+/// point at the *wrong* gate because a new operation never receives an id that
+/// is in use.
+///
+/// `NULL` means the comment is about the circuit as a whole, which is what
+/// §3.4's comments were before this milestone. The anchor is an addition, not a
+/// replacement.
+///
+/// There is deliberately no foreign key and no `orphaned` flag. The operation
+/// lives inside a `jsonb` document, so no key is possible — and none is wanted:
+/// whether an anchor resolves depends on *which* document is being displayed
+/// (the head version, an older version, the live CRDT session, an unsaved
+/// buffer), and those four disagree. So the column records what the comment is
+/// about and the reader decides whether that thing is present. The full
+/// argument, including why this makes delete-then-undo work for free, is in
+/// `@qsim/contract`'s `comments.ts`.
+///
+/// ── `parentId` finally has a key behind it ────────────────────────────────
+///
+/// It is `Comment.parentId` → `Comment.id` with `ON DELETE CASCADE`. Until
+/// M5.4 this column carried no key at all, and `accounts.ts` compensated with a
+/// breadth-first sweep that deleted replies by hand before the `User` row went
+/// — a loop whose own comment said the real fix belonged to the milestone that
+/// added comment routes. This is that milestone, and the sweep is gone.
+///
+/// Threads are two levels by application rule (a reply may not be replied to;
+/// see the response shape in `@qsim/contract`), so the cascade is one level
+/// deep in practice. The key is what makes it correct anyway.
+///
+/// ── Resolution is on the root ─────────────────────────────────────────────
+///
+/// `resolvedAt` and `resolvedById` are only ever set on a comment with no
+/// `parentId`, because resolving is a statement about a conversation and not
+/// about a sentence inside one. A resolved thread is not deleted and not
+/// hidden: it stays in the listing with the date on it, because "we discussed
+/// this and decided" is the value.
 model Comment {
-  id        String   @id @default(cuid(2))
-  circuitId String
-  userId    String   @db.Uuid
-  body      String   @db.Text
-  parentId  String?
-  createdAt DateTime @default(now())
+  id           String    @id @default(cuid(2))
+  circuitId    String
+  userId       String    @db.Uuid
+  body         String    @db.Text
+  parentId     String?
+  anchorOpId   String?
+  resolvedAt   DateTime?
+  resolvedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
 
-  circuit Circuit @relation(fields: [circuitId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  circuit    Circuit   @relation(fields: [circuitId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[] @relation("CommentReplies")
+  resolvedBy User?     @relation("CommentResolutions", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  /// The panel's own query: the threads of one circuit, oldest first, because a
+  /// conversation reads in the order it happened. Without this, opening a
+  /// circuit page scans every comment in the database.
+  @@index([circuitId, createdAt])
+
+  /// "Which threads are on this gate", which is what clicking a marker asks,
+  /// and — with `createdAt` off the end — the tally that draws every marker at
+  /// once. A composite starting at `circuitId` serves both because the anchor
+  /// question is never asked across circuits.
+  @@index([circuitId, anchorOpId])
+
+  /// Two jobs. It is how a thread's replies are fetched, and it is what keeps
+  /// the new cascade from scanning the table on every comment deletion — a
+  /// referencing column with no index makes `ON DELETE CASCADE` a sequential
+  /// scan, which Postgres does not warn about.
+  @@index([parentId])
 }
 
 model Tag {

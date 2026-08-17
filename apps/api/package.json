@@ -20,6 +20,7 @@
     "@fastify/websocket": "catalog:",
     "@prisma/adapter-pg": "catalog:",
     "@prisma/client": "catalog:",
+    "@qsim/collab": "workspace:*",
     "@qsim/contract": "workspace:*",
     "@qsim/core": "workspace:*",
     "@qsim/db": "workspace:*",
@@ -36,6 +37,7 @@
     "jose": "catalog:",
     "nanoid": "catalog:",
     "pino": "catalog:",
+    "yjs": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

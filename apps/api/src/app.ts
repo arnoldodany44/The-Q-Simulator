@@ -42,6 +42,8 @@ import type { ApiKeysPluginOptions } from './plugins/api-keys.js'
 import authPlugin, { authEnforcement } from './plugins/auth.js'
 import circuitsPlugin from './plugins/circuits.js'
 import type { CircuitsPluginOptions } from './plugins/circuits.js'
+import collabPlugin from './plugins/collab.js'
+import type { CollabPluginOptions } from './plugins/collab.js'
 import databasePlugin from './plugins/database.js'
 import type { DatabasePluginOptions } from './plugins/database.js'
 import eventsPlugin from './plugins/events.js'
@@ -65,6 +67,7 @@ import { apiKeyRoutes } from './routes/api-keys.js'
 import { challengeRoutes } from './routes/challenges.js'
 import { circuitRoutes } from './routes/circuits.js'
 import { collectionRoutes } from './routes/collections.js'
+import { commentRoutes } from './routes/comments.js'
 import { embedRoutes } from './routes/embed.js'
 import { galleryRoutes } from './routes/gallery.js'
 import { hardwareRoutes } from './routes/hardware.js'
@@ -135,6 +138,12 @@ export interface BuildAppOptions {
   readonly hardware?: Omit<HardwarePluginOptions, 'env'>
   /** The hardware poll queue, injected the same way. */
   readonly hardwareQueue?: Omit<HardwareQueuePluginOptions, 'env'>
+  /**
+   * The collaboration relay (§3.4, Fase 5). Tests inject a registry they can
+   * drive, or a bus two registries share to model two replicas; production
+   * builds one on the first `collab:join`.
+   */
+  readonly collab?: Omit<CollabPluginOptions, 'env'>
   /** Tests pass a cache backed by a locally generated key pair. */
   readonly jwks?: JwksCache
   /** `false` silences logging; tests use it to keep output readable. */
@@ -364,6 +373,11 @@ export async function buildApp(options: BuildAppOptions) {
     ...(options.hardwareQueue ?? {}),
     env,
   })
+  /*
+   * After the circuit repository, which it reads a circuit's head version and
+   * its live document through, and before the socket route that uses it.
+   */
+  await app.register(collabPlugin, { ...(options.collab ?? {}), env })
 
   /*
    * Health lives at the root, outside the versioned surface: a platform
@@ -382,6 +396,7 @@ export async function buildApp(options: BuildAppOptions) {
   await app.register(circuitRoutes, { prefix: API_PREFIX, env })
   await app.register(galleryRoutes, { prefix: API_PREFIX })
   await app.register(collectionRoutes, { prefix: API_PREFIX, env })
+  await app.register(commentRoutes, { prefix: API_PREFIX, env })
   await app.register(embedRoutes, { prefix: API_PREFIX })
   await app.register(lessonRoutes, { prefix: API_PREFIX })
   await app.register(challengeRoutes, { prefix: API_PREFIX, env })

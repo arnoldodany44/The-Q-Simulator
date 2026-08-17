@@ -54,7 +54,7 @@ describe.skipIf(!enabled)('the deployed schema', () => {
    * count is spelled out rather than left as "at least the fifteen" so that a
    * table created outside a reviewed migration still fails this.
    */
-  it('holds the fifteen tables of §7 and the two added since', async () => {
+  it('holds the fifteen tables of §7 and the three added since', async () => {
     const tables = await names(
       `select table_name as name from information_schema.tables
        where table_schema = 'public' and table_type = 'BASE TABLE'
@@ -65,6 +65,7 @@ describe.skipIf(!enabled)('the deployed schema', () => {
       'Challenge',
       'ChallengeSubmission',
       'Circuit',
+      'CircuitSession',
       'CircuitTag',
       'CircuitVersion',
       'Collection',
@@ -119,6 +120,10 @@ describe.skipIf(!enabled)('the deployed schema', () => {
        where schemaname = 'public' and indexname like '%_idx'`
     )
     expect(indexes).toEqual([
+      // M4.2: one account's keys, and the count of its live ones before another
+      // is minted — both are `WHERE userId = $1` with `revokedAt` read.
+      'ApiKey_userId_revokedAt_idx',
+      'ChallengeSubmission_best_per_user_idx',
       'ChallengeSubmission_challengeId_passed_gateCount_idx',
       // Phase 3: the whole of §3.6's ranking tuple, and the caller's own
       // attempts — see 20260816170000_challenge_leaderboard_indexes.
@@ -137,8 +142,22 @@ describe.skipIf(!enabled)('the deployed schema', () => {
       // has no foreign key behind it.
       'CollectionItem_circuitId_idx',
       'Collection_ownerId_updatedAt_idx',
+      // M2.3: one author's block library, and the published listing.
+      'CustomGate_ownerId_updatedAt_idx',
+      'CustomGate_visibility_updatedAt_id_idx',
+      // Phase 4 (§3.7): a user's credential per provider, the reverse lookup
+      // from a provider job id, and the poller's due-jobs sweep.
+      'HardwareCredential_userId_provider_idx',
+      'HardwareJob_providerJobId_idx',
+      'HardwareJob_status_lastPolledAt_idx',
       'HardwareJob_userId_status_idx',
       'SimulationRun_userId_createdAt_idx',
+      /*
+       * `CircuitSession` (M5.2) is deliberately absent, and its absence is the
+       * assertion: the table is addressed only by its primary key — the circuit
+       * — and is never listed, searched or ordered, so a secondary index on it
+       * would be a write cost with no reader.
+       */
     ])
   })
 

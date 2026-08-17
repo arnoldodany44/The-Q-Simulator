@@ -19,6 +19,29 @@ existen en npm, y la causa real —el directorio raíz— no aparece por ningún
 `railway.json` ya lleva el comando de build filtrado con turbo, así que la
 instalación pasa por la raíz y solo se construye lo que la API necesita.
 
+**Replicas: déjalo en 1. No lo subas sin leer esto.**
+
+`railway.json` lo fija con `deploy.numReplicas: 1`, y es una decisión de
+corrección, no de coste. Tres cosas del servicio son correctas para una
+instancia y están mal para dos:
+
+- **La sesión colaborativa** (`ws/documents.ts`). Un documento vive en la
+  memoria de la réplica que lo abrió. El reparto entre réplicas va por Redis
+  pub/sub, que es _at-most-once_: un mensaje perdido deja dos réplicas con
+  documentos distintos y nada lo detecta — `plugins/collab.ts` lo llama por su
+  nombre, "a correctness failure, not a degradation". Sin `REDIS_URL` no hay
+  reparto ninguno y dos réplicas pierden ediciones directamente.
+- **El límite de peticiones** (`plugins/rate-limit.ts`). El almacén en memoria
+  cuenta por proceso, así que dos réplicas duplican cada cupo.
+- **Los topes de memoria** (`MAX_DOCUMENTS`, `MAX_PEERS_PER_DOCUMENT`). Están
+  dimensionados contra _un_ contenedor.
+
+Si alguna vez hace falta escalar, el orden correcto es: enrutar los sockets de
+un circuito a una sola réplica (sticky por `circuitId`), o añadir un intercambio
+periódico de vectores de estado entre réplicas — `ws/documents.ts` dice dónde
+iría — y mover el límite de peticiones a Redis. §3.4 (M5.2, decisión 4) es donde
+está el argumento completo.
+
 **Wait for CI: enciéndelo.**
 
 Con `main` como rama de producción, sin esto Railway despliega aunque GitHub

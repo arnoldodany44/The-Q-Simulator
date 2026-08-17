@@ -60,7 +60,7 @@ import {
   type ScreenReaderInstructions,
 } from '@dnd-kit/core'
 import { isGateId, type Circuit } from '@qsim/schema'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from 'zustand'
 
@@ -101,9 +101,21 @@ import {
 
 export interface CircuitEditorProps {
   readonly store?: CircuitStore
+  /**
+   * Something drawn over the canvas, in the canvas's own coordinates (M5.3).
+   *
+   * Forwarded straight to `CircuitCanvas`, which argues why it is an opaque node.
+   * The page owns it rather than the editor for the same reason the page owns the
+   * URL and the save control: a shared session belongs to the document, and the
+   * editor is what edits the circuit already open in one.
+   */
+  readonly canvasOverlay?: ReactNode
 }
 
-export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
+export function CircuitEditor({
+  store = useCircuitStore,
+  canvasOverlay,
+}: CircuitEditorProps) {
   const { t } = useTranslation(['editor', 'gates'])
   const circuit = useStore(store, (state) => state.circuit)
   const selection = useStore(store, (state) => state.selection)
@@ -272,6 +284,11 @@ export function CircuitEditor({ store = useCircuitStore }: CircuitEditorProps) {
               // pressed.
               onAddClbit={grid.addClbit}
               onRemoveClbit={grid.removeClbit}
+              // Whatever the page put over the canvas — other people's cursors,
+              // since M5.3. The editor forwards it and never looks inside it.
+              {...(canvasOverlay === undefined
+                ? {}
+                : { overlay: canvasOverlay })}
             />
 
             {/*

@@ -71,6 +71,15 @@ import { Link, useParams } from 'react-router'
 import { LanguagePicker } from '../components/LanguagePicker'
 import { AccountMenu } from '../features/auth'
 import { CircuitEditor } from '../features/circuit-editor/CircuitEditor'
+/*
+ * The comment layer (M5.4). The page owns it for the same reason it owns the
+ * URL, the save control and — since M5.3 — anything drawn over the canvas: a
+ * conversation is about the *document*, and `CircuitEditor` is what edits the
+ * circuit already open in one. The arrow also has to keep pointing one way, so
+ * the markers arrive as the canvas's opaque `overlay` rather than as a prop the
+ * editor understands.
+ */
+import { CommentMarkerLayer, CommentsPanel } from '../features/comments'
 import { PresetPicker } from '../features/circuit-editor/PresetPicker'
 import { ShareLink } from '../features/circuit-editor/ShareLink'
 import { useCircuitStore } from '../features/circuit-editor/useCircuitStore'
@@ -300,7 +309,24 @@ export function EditorRoute() {
           onSelect={select}
         />
       ) : painted ? (
-        <CircuitEditor />
+        <CircuitEditor
+          /*
+           * The badges over the anchored gates (M5.4), as the canvas's opaque
+           * overlay. Only for a document with a home: a comment is a row against
+           * a circuit id, so `/new` and an unsaved draft have nothing to draw and
+           * nothing to fetch.
+           */
+          {...(base === null
+            ? {}
+            : {
+                canvasOverlay: (
+                  <CommentMarkerLayer
+                    handle={base.slug}
+                    store={useCircuitStore}
+                  />
+                ),
+              })}
+        />
       ) : doc.paused ? (
         /*
          * Not "loading". The request has not been sent — React Query pauses a
@@ -322,6 +348,24 @@ export function EditorRoute() {
         <p className="page__loading" role="status">
           {t('circuits:document.loading')}
         </p>
+      )}
+
+      {/*
+       * The conversation, under the editor rather than beside it (M5.4). Below,
+       * because a circuit is a wide thing and a panel in a column beside it would
+       * cost the canvas the width it needs at twenty wires; and *after* the canvas
+       * in the DOM, so the reading order and the tab order both meet the document
+       * before the discussion about it.
+       *
+       * Not rendered while a past version is on screen. The anchors in a thread
+       * are resolved against the document the reader is looking at, and a version
+       * preview is a *different* document — every thread on a gate added since
+       * would correctly report itself orphaned, which is true and useless. The
+       * threads are one press away, on the live document, where they mean
+       * something.
+       */}
+      {base === null || viewingVersion ? null : (
+        <CommentsPanel handle={base.slug} store={useCircuitStore} />
       )}
     </main>
   )

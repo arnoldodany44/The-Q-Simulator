@@ -48,6 +48,7 @@ import { Fragment, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Notation } from '../../components/Notation'
+import { fenceNotation, splitFencedNotation } from '../../lib/prose'
 import type { NoiseReading } from '../simulation/protocol'
 import { ProbabilityHistogram } from './ProbabilityHistogram'
 import { formatCoordinate, formatCount, formatProbability } from './format'
@@ -204,17 +205,12 @@ function Figure({
  * translator should be free to have it.
  */
 
-/**
- * The fence around an interpolated notation argument.
- *
- * U+0000 because no catalog and no ket can contain one, and because every
- * occurrence is consumed by the split below — nothing reaches the DOM.
+/*
+ * The fence itself lives in `lib/prose.ts` since M5.4: a comment’s anchor
+ * sentence — "H on q0, column 3" — interpolates a gate symbol and a wire’s own
+ * name into a translated string and owes them the same marking, and one fence
+ * character defined in two files is one place for two definitions to drift.
  */
-const NOTATION_FENCE = '\u0000'
-
-function fenced(value: string): string {
-  return `${NOTATION_FENCE}${value}${NOTATION_FENCE}`
-}
 
 function Movement({
   comparison,
@@ -229,7 +225,7 @@ function Movement({
   const name = (row: NoiseRow): string =>
     row.index === null
       ? t('noise.comparison.movement.others')
-      : fenced(ket(row.label))
+      : fenceNotation(ket(row.label))
 
   let sentence: string
   if (largestGain !== null && largestLoss !== null) {
@@ -253,15 +249,14 @@ function Movement({
     sentence = t('noise.comparison.movement.none')
   }
 
-  const pieces = sentence.split(NOTATION_FENCE)
   return (
     <p className="noise-comparison__summary">
-      {pieces.map((piece, index) => (
+      {splitFencedNotation(sentence).map((span, index) => (
         // The index is part of the key because the same ket can legitimately
         // appear twice in one sentence, and the position is what tells them
         // apart. The array is rebuilt from scratch on every render anyway.
-        <Fragment key={`${String(index)}:${piece}`}>
-          {index % 2 === 1 ? <Notation value={piece} /> : piece}
+        <Fragment key={`${String(index)}:${span.text}`}>
+          {span.notation ? <Notation value={span.text} /> : span.text}
         </Fragment>
       ))}
     </p>

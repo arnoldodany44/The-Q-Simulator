@@ -107,5 +107,15 @@ export async function createTestApp(options: TestAppOptions = {}) {
     ...(options.hardwareQueue === undefined
       ? {}
       : { hardwareQueue: options.hardwareQueue }),
+    /*
+     * The collaboration relay (M5.2) is **on** by default, which is the one
+     * default here that is not "absent", and the reason is that it needs no
+     * external dependency: it holds a Y.Doc in memory and reads the circuit
+     * repository. `app.collab` therefore behaves in a test exactly as it does on
+     * Railway with no REDIS_URL — single-instance, no bus — and a suite that
+     * wants it off says so, rather than every suite accidentally exercising the
+     * switched-off path the way they do for Redis.
+     */
+    ...(options.collab === undefined ? {} : { collab: options.collab }),
   })
 }

@@ -27,7 +27,11 @@
  * cache entry under an address that was never requested.
  */
 
-import type { GalleryQueryParams, PaginationParams } from '@qsim/contract'
+import type {
+  CommentQueryParams,
+  GalleryQueryParams,
+  PaginationParams,
+} from '@qsim/contract'
 
 export const circuitKeys = {
   all: ['circuits'] as const,
@@ -222,6 +226,47 @@ export const hardwareKeys = {
 
   jobs: () => [...hardwareKeys.all, 'job'] as const,
   job: (id: string) => [...hardwareKeys.jobs(), id] as const,
+} as const
+
+/**
+ * A circuit's comment threads (§3.4, Fase 5), under a root of their own rather
+ * than beneath `circuitKeys.detail(handle)`.
+ *
+ * Nesting is the reflex here — a comment belongs to a circuit, which is exactly
+ * what `collectionKeys.holding` argues for — and it is wrong for the reason
+ * `hardwareKeys` gives: `circuitKeys.detail(handle)` is invalidated by every
+ * save, every rename and every visibility change, and none of those can change
+ * what anybody said about a gate. A conversation refetched because the author
+ * moved a gate is a request that always returns the same rows, on the one screen
+ * where an extra round trip is paid by everybody.
+ *
+ *     ['comments','circuit',handle]              every listing of one circuit's
+ *     ['comments','circuit',handle,{state,…}]    one page of one selection
+ *
+ * The handle is part of the key for the reason `circuitKeys` states: the same
+ * circuit reached by slug and by id occupies two entries, which costs one fetch
+ * and is better than serving a cache line under an address nobody asked for.
+ *
+ * `anchorOpId` is in the selection because narrowing to one gate is a different
+ * listing, and `state` is because "open" and "all" are different sets — while
+ * the *counts* travel in every response, so a filter change never has to guess
+ * what the other side of it holds.
+ */
+export const commentKeys = {
+  all: ['comments'] as const,
+
+  circuits: () => [...commentKeys.all, 'circuit'] as const,
+  circuit: (handle: string) => [...commentKeys.circuits(), handle] as const,
+  list: (handle: string, params: CommentQueryParams = {}) =>
+    [
+      ...commentKeys.circuit(handle),
+      {
+        state: params.state,
+        anchorOpId: params.anchorOpId,
+        page: params.page,
+        limit: params.limit,
+      },
+    ] as const,
 } as const
 
 export const challengeKeys = {

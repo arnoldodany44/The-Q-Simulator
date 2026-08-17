@@ -174,6 +174,7 @@ describe('the error vocabulary', () => {
       'AUTH_TOKEN_EXPIRED',
       'CIRCUIT_TOO_LARGE',
       'COLLECTION_FULL',
+      'COMMENT_LIMIT_REACHED',
       'DATABASE_UNAVAILABLE',
       'FORBIDDEN',
       'HARDWARE_CREDENTIAL_REJECTED',

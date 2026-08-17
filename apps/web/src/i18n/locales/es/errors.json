@@ -23,6 +23,7 @@
   "UNKNOWN": "Algo salió mal.",
   "USERNAME_TAKEN": "Ese identificador pertenece a otra cuenta. Prueba con otro.",
   "COLLECTION_FULL": "Esta colección está llena. Quita un circuito antes de añadir otro.",
+  "COMMENT_LIMIT_REACHED": "Esta conversación no puede crecer más. Resuelve o borra un hilo, o responde a uno que ya exista.",
   "SIMULATION_TOO_LARGE": "Este circuito es demasiado grande para que el servidor lo simule. Reduce los qubits, las compuertas o los shots.",
   "SIMULATION_UNAVAILABLE": "La simulación en el servidor no está disponible por ahora. Todo lo demás sigue funcionando, y puedes ejecutar esto en tu navegador.",
   "HARDWARE_UNRUNNABLE": "Este circuito no puede ejecutarse en ese dispositivo. Un procesador real conecta solo un pequeño porcentaje de los pares de qubits que asume un circuito dibujado: prueba con un circuito menos profundo u otro backend.",

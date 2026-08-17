@@ -33,6 +33,9 @@
  *   - `collections.ts`        the one rule a collection must not break — its
  *                             visibility governs the collection, never what is
  *                             inside it
+ *   - `comments.ts`           threads anchored to a gate by operation id, why
+ *                             no column records whether that anchor still
+ *                             resolves, and who may resolve or delete one
  *   - `accounts.ts`           the settings write, the username race, and what
  *                             deleting an account has to clean up that no
  *                             foreign key will
@@ -125,6 +128,30 @@ export type {
   HardwareCredentialMeta,
   PublicUser,
 } from './projections.js'
+
+export {
+  CircuitCommentsFullError,
+  MAX_REPLIES_PER_THREAD,
+  MAX_THREADS_PER_CIRCUIT,
+  ParentCommentNotFoundError,
+  ReplyDepthError,
+  ThreadFullError,
+  canResolveThreadFilter,
+  deletableCommentFilter,
+  prismaCommentRepository,
+  threadFilter,
+} from './comments.js'
+export type {
+  AnchorTally,
+  CommentContext,
+  CommentRepository,
+  CommentState,
+  CommentThreadPage,
+  ListCommentsInput,
+  PostCommentInput,
+  StoredComment,
+  StoredThread,
+} from './comments.js'
 
 export {
   CollectionFullError,
@@ -294,6 +321,7 @@ export type {
   CursorPage,
   Page,
   StarState,
+  StoredSession,
   StoredVersion,
   UpdateCircuitInput,
 } from './circuits.js'

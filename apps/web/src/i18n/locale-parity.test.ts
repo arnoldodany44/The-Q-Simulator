@@ -4,6 +4,8 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { COLLAB_END_REASONS } from '@qsim/contract'
+
 import { NAMESPACES, SUPPORTED_LANGUAGES } from './index.js'
 
 /**
@@ -164,6 +166,27 @@ describe('locale parity', () => {
           ).not.toBe('')
         }
       }
+    }
+  })
+})
+
+describe('the contract’s own code lists, keyed by the catalogs', () => {
+  /**
+   * `COLLAB_END_REASONS` are three codes a client has to explain to a person — the
+   * circuit stopped being theirs to read, the relay could not keep up, the relay
+   * let the document go — and none of them had a sentence in any language, so a
+   * client that rendered one rendered the code. The same set-equality guard
+   * `errors.json` gets against `ERROR_CODES`, for the same reason: a code added to
+   * the contract must fail a test rather than reach a reader untranslated.
+   */
+  it('has one sentence per collaboration end reason, in every language', () => {
+    for (const language of SUPPORTED_LANGUAGES) {
+      const catalog = readCatalog(language, 'collab') as {
+        session: { ended: Record<string, string> }
+      }
+      expect(Object.keys(catalog.session.ended).sort(), language).toEqual(
+        [...COLLAB_END_REASONS].sort()
+      )
     }
   })
 })

@@ -70,7 +70,9 @@ import { uniqueConflictField } from './users.js'
  *      collection naming a circuit that has just ceased to exist is left
  *      pointing at nothing, and would be counted as "withheld" forever.
  *   4. `Comment.parentId`      — a reply by somebody else to a comment that
- *      cascade is about to remove.
+ *      cascade is about to remove. **Closed in M5.4**: the column has a key
+ *      now (`parentId → Comment.id ON DELETE CASCADE`), so Postgres removes
+ *      these, and what is left here is only the arithmetic for the report.
  *
  * Plus one thing no foreign key was ever going to do: `Circuit.starCount` is
  * denormalised (§7), so cascading away a `Star` row leaves a count that is too
@@ -163,23 +165,6 @@ export interface AccountDeletionReport {
    */
   readonly orphanedCollectionItems: number
 }
-
-/**
- * How many rounds the reply sweep will walk before it stops.
- *
- * `Comment.parentId` has no foreign key, so removing a comment can orphan its
- * replies, and removing those can orphan theirs. The sweep is breadth-first
- * and terminates when a round finds nothing, which is the ordinary case; the
- * cap is what stops a pathological thread from holding open a transaction on
- * the only database connection this process has.
- *
- * Thirty-two is unreachable today for a plain reason: there is no comment
- * route in this API at all, so the table is empty. The real fix belongs to the
- * milestone that adds them — a foreign key `parentId → Comment.id` with
- * `ON DELETE CASCADE`, after which this sweep is dead code and should be
- * deleted rather than kept.
- */
-const MAX_REPLY_SWEEP_ROUNDS = 32
 
 /**
  * Transaction bounds, matching `circuits.ts`: the pooler budget is one
@@ -307,29 +292,31 @@ export function prismaAccountRepository(
         /*
          * Step 4 — replies to comments cascade is about to remove.
          *
-         * `Comment.parentId` has no foreign key either, so a reply by somebody
-         * else to one of this user's comments would be left pointing at
-         * nothing. Breadth-first, because a reply can have replies.
+         * This used to be a breadth-first sweep that *deleted* them, because
+         * `Comment.parentId` carried no foreign key and a reply by somebody else
+         * would have been left pointing at nothing. M5.4 added the key —
+         * `parentId → Comment.id ON DELETE CASCADE` — so Postgres removes them
+         * now, transitively, and the loop is gone.
+         *
+         * What remains is a *count*, because the report says how many comments
+         * the deletion destroyed and the replies are part of that number. One
+         * query rather than a walk: threads are two levels by construction (see
+         * `comments.ts`), so every reply that will cascade has one of this
+         * user's own comments as its direct parent.
          */
-        let frontier = ownComments.map((row) => row.id)
-        let replies = 0
-        for (
-          let round = 0;
-          round < MAX_REPLY_SWEEP_ROUNDS && frontier.length > 0;
-          round += 1
-        ) {
-          const children = await tx.comment.findMany({
-            where: { parentId: { in: frontier } },
-            select: { id: true },
-          })
-          const ids = children.map((row) => row.id)
-          if (ids.length === 0) break
-          const removed = await tx.comment.deleteMany({
-            where: { id: { in: ids } },
-          })
-          replies += removed.count
-          frontier = ids
-        }
+        const ownCommentIds = ownComments.map((row) => row.id)
+        const replies =
+          ownCommentIds.length === 0
+            ? 0
+            : await tx.comment.count({
+                where: {
+                  parentId: { in: ownCommentIds },
+                  // Their own replies to their own comments are already in
+                  // `ownComments`, and counting them twice would report more
+                  // comments destroyed than existed.
+                  userId: { not: userId },
+                },
+              })
 
         /*
          * Step 5 — the two `userId` columns with no key behind them. A record
@@ -347,7 +334,7 @@ export function prismaAccountRepository(
           collections,
           // The user's own, which cascade removes, plus the replies swept
           // above — both are comments this deletion destroyed.
-          comments: ownComments.length + replies,
+          comments: ownCommentIds.length + replies,
           stars: starred.length,
           simulationRuns: runs.count,
           hardwareJobs: jobs.count,

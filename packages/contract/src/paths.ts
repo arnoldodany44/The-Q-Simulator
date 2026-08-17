@@ -160,6 +160,33 @@ export type CollectionRoute =
   (typeof COLLECTION_ROUTES)[keyof typeof COLLECTION_ROUTES]
 
 /**
+ * Comments anchored to gates — §3.4, Fase 5 (M5.4).
+ *
+ * Nested under the circuit, unlike `/simulate/:runId`, and the contrast is the
+ * argument: a run is not a property of a circuit (it may be over a document
+ * that was never saved, and it belongs to whoever asked for it), while a
+ * comment cannot exist without one. Every route here therefore resolves the
+ * circuit through `findReadable` first, which is what makes "you cannot read a
+ * comment on a circuit you cannot read" true in the query rather than intended.
+ *
+ * `resolution` is a subresource with `PUT` and `DELETE` rather than a
+ * `POST /:commentId/resolve` verb, because both directions are idempotent:
+ * resolving a resolved thread and reopening an open one are requests whose
+ * intent is already satisfied, and a client retrying after a dropped response
+ * must not toggle it back.
+ */
+export const COMMENT_ROUTES = {
+  /** `GET` the threads on a circuit, `POST` a comment or a reply. */
+  collection: '/circuits/:id/comments',
+  /** `DELETE` one comment. There is no `PATCH`; see `routes/comments.ts`. */
+  item: '/circuits/:id/comments/:commentId',
+  /** `PUT` to resolve a thread, `DELETE` to reopen it. */
+  resolution: '/circuits/:id/comments/:commentId/resolution',
+} as const
+
+export type CommentRoute = (typeof COMMENT_ROUTES)[keyof typeof COMMENT_ROUTES]
+
+/**
  * Lesson progress — §3.6, Phase 3.
  *
  * There is no `GET /lessons` and there must not be: a lesson is a file in
@@ -314,6 +341,15 @@ export const hardwarePath = {
 export const apiKeyPath = {
   collection: (): string => API_KEY_ROUTES.collection,
   item: (id: string): string => fillRoute(API_KEY_ROUTES.item, { id }),
+} as const
+
+export const commentPath = {
+  collection: (handle: string): string =>
+    fillRoute(COMMENT_ROUTES.collection, { id: handle }),
+  item: (handle: string, commentId: string): string =>
+    fillRoute(COMMENT_ROUTES.item, { id: handle, commentId }),
+  resolution: (handle: string, commentId: string): string =>
+    fillRoute(COMMENT_ROUTES.resolution, { id: handle, commentId }),
 } as const
 
 export const collectionPath = {

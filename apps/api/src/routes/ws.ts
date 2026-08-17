@@ -57,12 +57,15 @@
  * control-frame ping does.
  */
 
+import { randomUUID } from 'node:crypto'
 import {
+  MAX_SOCKET_PENDING_BYTES,
   MAX_SOCKET_PENDING_FRAMES,
   SOCKET_CLOSE,
   SOCKET_PATH,
   encodeFrame,
 } from '@qsim/contract'
+import { canEditCircuit } from '@qsim/db'
 import type { FastifyInstance, FastifyPluginCallback } from 'fastify'
 import type { WebSocket } from 'ws'
 import type { ApiEnv } from '../env.js'
@@ -248,6 +251,85 @@ const plugin: FastifyPluginCallback<WebSocketRoutesOptions> = (
                   ? null
                   : { kind: 'hardware', status: job.status }
               },
+        /*
+         * §11 applied in the query, twice over and in one answer. `findReadable`
+         * decides whether this viewer may *watch* the session — the same filter
+         * `GET /circuits/:id` applies, so a PRIVATE circuit's only reader is its
+         * owner and a PUBLIC one admits whoever holds the handle — and
+         * `canEditCircuit` decides whether they may *write*, which visibility has
+         * nothing to do with: a PUBLIC circuit is editable by its owner alone.
+         *
+         * One port and not two, so that a caller cannot compose "may write" with
+         * "may not read". When a grant beyond the owner arrives, it goes inside
+         * `canEditCircuit` and nothing here changes.
+         */
+        readCircuit:
+          app.collab === null
+            ? null
+            : async (circuitId, viewerId) => {
+                const circuit = await app.circuits.findReadable(
+                  circuitId,
+                  viewerId
+                )
+                if (circuit === null) return null
+                return {
+                  access: canEditCircuit(circuit, viewerId) ? 'write' : 'read',
+                  /*
+                   * The resolved id, not the handle that was asked about.
+                   * `findReadable` admits a slug too — it is the only way to
+                   * address an UNLISTED circuit — and a session keyed by the slug
+                   * is a second, empty session that reaches nobody. See
+                   * `CircuitAccess`.
+                   */
+                  circuitId: circuit.id,
+                }
+              },
+        attachDocument:
+          app.collab === null
+            ? null
+            : (input) => {
+                // Narrowed inside the closure rather than captured: the
+                // decorator builds the registry lazily, so reading it per call is
+                // what keeps the first socket from being the thing that opens a
+                // Redis connection at boot.
+                const registry = app.collab
+                if (registry === null) {
+                  return Promise.reject(
+                    new Error('the collaboration relay went away')
+                  )
+                }
+                return registry.attach({
+                  circuitId: input.circuitId,
+                  peerId: input.peerId,
+                  access: input.access,
+                  deliver: input.deliver,
+                  deliverPresence: input.deliverPresence,
+                  dropped: () => {
+                    input.dropped()
+                  },
+                })
+              },
+        /*
+         * §11 applied to presence, in the shape of the port rather than in the
+         * handler: what a collaborator may learn about another is a *name*, so
+         * that is what this answers. `findUserById` selects through
+         * `accountSelect`, which is `publicUserSelect` plus one preference and
+         * has no `email` column in it at all — so there is no path from here to
+         * the one column on `User` that must never reach another user's browser,
+         * not even a mistaken one.
+         *
+         * `displayName ?? username`: the display name is what a person chose to
+         * be called and may be absent, and the username is public by
+         * construction — it is in the URL of their profile.
+         */
+        readViewerName: async (viewerId) => {
+          const user = await app.circuits.findUserById(viewerId)
+          return user === null ? null : (user.displayName ?? user.username)
+        },
+        // A peer id is broadcast to everybody in a session, so it is random
+        // rather than derived: see the contract's `PeerIdSchema`. `randomUUID`
+        // matches the id shape the socket accepts and needs no table.
+        newPeerId: () => randomUUID(),
         subscribe:
           app.runEvents === null
             ? null
@@ -274,6 +356,8 @@ const plugin: FastifyPluginCallback<WebSocketRoutesOptions> = (
       let queue: Promise<void> = Promise.resolve()
       /** How many of them are waiting for their turn right now. */
       let pending = 0
+      /** And how much they weigh. See `MAX_SOCKET_PENDING_BYTES`. */
+      let pendingBytes = 0
       let missedPings = 0
       const ping = setInterval(() => {
         if (missedPings >= MISSED_PINGS_BEFORE_CLOSE) {
@@ -319,12 +403,29 @@ const plugin: FastifyPluginCallback<WebSocketRoutesOptions> = (
          * closed rather than throttled because there is nothing useful to say
          * to a peer that is not listening.
          */
-        if (pending >= MAX_SOCKET_PENDING_FRAMES) {
-          log.warn({ pending }, 'a socket outran its frame queue; closing')
+        /*
+         * Bounded by weight as well as by count, since M5.2. The count alone was
+         * a memory bound while every frame was under 8 KiB; a collaboration
+         * update may be 96 KiB, so thirty-two of them is three megabytes per
+         * connection and the count stopped meaning anything. The two together
+         * bound the product, which is what one caller can make this process
+         * hold, and it is deliberately the same product it was before the frame
+         * ceiling moved.
+         */
+        if (
+          pending >= MAX_SOCKET_PENDING_FRAMES ||
+          pendingBytes + raw.byteLength > MAX_SOCKET_PENDING_BYTES
+        ) {
+          log.warn(
+            { pending, pendingBytes },
+            'a socket outran its frame queue; closing'
+          )
           socket.close(SOCKET_CLOSE.OVERLOADED)
           return
         }
         pending += 1
+        const weight = raw.byteLength
+        pendingBytes += weight
         queue = queue
           .then(() => session.receive(raw.toString('utf8')))
           .catch((error: unknown) => {
@@ -333,6 +434,7 @@ const plugin: FastifyPluginCallback<WebSocketRoutesOptions> = (
           })
           .finally(() => {
             pending -= 1
+            pendingBytes -= weight
           })
       })
 

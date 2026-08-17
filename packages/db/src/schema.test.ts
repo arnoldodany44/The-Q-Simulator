@@ -136,12 +136,13 @@ describe('the datamodel of §7', () => {
    * as an exhaustive list rather than a count so that adding a model is a
    * decision somebody wrote down.
    */
-  it('declares exactly the seventeen models', () => {
+  it('declares exactly the eighteen models', () => {
     expect(blockNames('model').sort()).toEqual([
       'ApiKey',
       'Challenge',
       'ChallengeSubmission',
       'Circuit',
+      'CircuitSession',
       'CircuitTag',
       'CircuitVersion',
       'Collection',

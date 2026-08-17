@@ -1,0 +1,97 @@
+{
+  "presence": {
+    "heading_one": "Hay {{count}} persona más aquí",
+    "heading_other": "Hay {{count}} personas más aquí",
+    "anonymous": "Alguien",
+    "editing": "editando",
+    "watching": "mirando",
+    "atCell": "en el qubit {{qubit}}, columna {{column}}",
+    "atRegister": "en el registro clásico, columna {{column}}",
+    "nowhere": "fuera de la rejilla",
+    "holding_one": "con {{count}} compuerta tomada",
+    "holding_other": "con {{count}} compuertas tomadas",
+    "announce": {
+      "joined": "{{name}} está ahora en este circuito.",
+      "left": "{{name}} salió de este circuito.",
+      "edited": "{{name}} editó el circuito.",
+      "editedCell": "{{name}} editó en el qubit {{qubit}}, columna {{column}}.",
+      "editedRegister": "{{name}} editó en el registro clásico, columna {{column}}."
+    }
+  },
+  "comments": {
+    "heading": "Comentarios",
+    "hint": "Selecciona una compuerta para comentarla, o escribe sobre el circuito completo. Un hilo resuelto se queda aquí, para que «lo discutimos y decidimos» no se pierda.",
+    "loading": "Cargando los comentarios…",
+    "retry": "Reintentar",
+    "filter": {
+      "legend": "Qué hilos mostrar",
+      "open": "Abiertos ({{shown}})",
+      "resolved": "Resueltos ({{shown}})",
+      "all": "Todos ({{shown}})"
+    },
+    "anchor": {
+      "circuit": "Sobre el circuito",
+      "gate": "Sobre {{gate}} en {{qubit}}, columna {{column}}",
+      "orphaned": "La compuerta de la que hablaba ya no está en este documento"
+    },
+    "orphanNotice_one": "{{count}} hilo de los siguientes habla de una compuerta que ya no está en este documento. Se conserva, porque lo que se dijo sí ocurrió.",
+    "orphanNotice_other": "{{count}} hilos de los siguientes hablan de compuertas que ya no están en este documento. Se conservan, porque lo que se dijo sí ocurrió.",
+    "empty": {
+      "open": "No hay hilos abiertos en este circuito.",
+      "resolved": "No hay hilos resueltos en este circuito.",
+      "all": "Nadie ha comentado este circuito todavía."
+    },
+    "signIn": "Inicia sesión para comentar",
+    "full": "Este circuito llegó a su límite de {{max}} hilos. Resuelve o borra uno para empezar otro.",
+    "compose": {
+      "label": "Nuevo comentario",
+      "about": "Quedará anclado a:",
+      "hint": "Hasta {{max}} caracteres. El texto entre acentos graves se muestra como notación.",
+      "submit": "Publicar comentario"
+    },
+    "reply": {
+      "open": "Responder",
+      "label": "Tu respuesta",
+      "submit": "Publicar respuesta",
+      "cancel": "Cancelar"
+    },
+    "thread": {
+      "reveal": "Mostrar esta compuerta en el lienzo",
+      "resolve": "Resolver",
+      "reopen": "Reabrir",
+      "resolvedBadge": "Resuelto",
+      "resolvedBy": "Resuelto por {{name}}."
+    },
+    "comment": {
+      "delete": "Borrar",
+      "deleteConfirm": "Borrar definitivamente",
+      "deleteWithReplies_one": "Borrar esto y su {{count}} respuesta",
+      "deleteWithReplies_other": "Borrar esto y sus {{count}} respuestas",
+      "deleteCancel": "Conservarlo"
+    },
+    "pager": {
+      "label": "Páginas de comentarios",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "position": "Página {{page}} de {{pages}} · {{total}} hilos"
+    },
+    "announce": {
+      "revealed": "Puerta seleccionada en {{qubit}}, columna {{column}}.",
+      "revealMissing": "La puerta de este comentario ya no está en el circuito.",
+      "replied": "Respuesta enviada.",
+      "resolved": "Hilo resuelto.",
+      "reopened": "Hilo reabierto.",
+      "deleted": "Comentario eliminado."
+    }
+  },
+  "session": {
+    "ended": {
+      "unauthorised": "Este circuito dejó de estar a tu alcance, así que la sesión compartida terminó.",
+      "overloaded": "La sesión compartida no pudo seguir el ritmo de los cambios y terminó. Vuelve a abrir el circuito para reincorporarte.",
+      "gone": "La sesión compartida se liberó. Vuelve a abrir el circuito para reincorporarte."
+    },
+    "readOnly": "Estás observando esta sesión. Solo quien es dueño puede editar.",
+    "reconnecting": "Reconectando con la sesión compartida…",
+    "invalid": "El documento compartido llegó a un estado que este circuito no admite, así que la sesión se liberó."
+  }
+}
