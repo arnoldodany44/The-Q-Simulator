@@ -43,6 +43,16 @@ pub struct Controls {
 }
 
 impl Controls {
+    /// The unconditional case, spelled out, for the tests below.
+    ///
+    /// Gated because `kernel` is a private module (`mod kernel;` in lib.rs),
+    /// so `pub` does not make this reachable from outside the crate and every
+    /// caller is in `mod tests`. Without the gate `-D warnings` fails the
+    /// build on `dead_code`, and it is right to: in a non-test build this
+    /// really is unused. The one production path that needs a `Controls`
+    /// builds it directly from the mask it was given — see `check_controls`,
+    /// where `mask == 0` arrives as data rather than as a named case.
+    #[cfg(test)]
     #[inline(always)]
     pub fn none() -> Self {
         Controls { mask: 0, value: 0 }
