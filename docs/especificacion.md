@@ -135,6 +135,77 @@ Límite: la matriz de densidad crece como 4ⁿ, así que este modo se topa alred
 - **Enlaces compartibles** y **embeds** (`<iframe>`) para blogs y material de clase, con opción de solo lectura.
 - **Edición colaborativa en tiempo real** (fase avanzada): dos personas editando el mismo circuito, con CRDT y cursores visibles.
 
+**Qué es exactamente un embed (decidido en la Fase 3).** Cinco decisiones, y
+las cinco son de seguridad antes que de producto. La autoridad es
+`apps/api/src/routes/embed.ts` para lo que se sirve y
+`apps/web/src/embed/headers.ts` para cómo se sirve.
+
+1. **Es un segundo documento, no una ruta más de la aplicación.** `embed.html`
+   tiene su propio punto de entrada y su propio grafo de módulos: no alcanza el
+   enrutador, ni el cliente de Supabase, ni React Query, ni dnd-kit, ni el
+   almacén del documento con su historial de deshacer, ni three.js — y
+   `.dependency-cruiser.cjs` rompe la compilación si alguna vez los alcanza.
+   Esa frontera compra dos cosas a la vez. La primera es peso: quien incrusta
+   seis circuitos en una entrada de blog no debe enviar seis copias del editor,
+   y una ruta perezosa dentro de la entrada actual no habría bastado, porque el
+   chunk de entrada construye la sesión y el cliente de API antes de dibujar
+   nada. La segunda es que **no hay sesión que leer**: el marco corre en el
+   origen de la app, así que un módulo capaz de leer la sesión enviaría el
+   token de un lector desde dentro de la página de un tercero. `fetchEmbed.ts`
+   tiene su propio transporte de once líneas con `credentials: 'omit'` y sin
+   cabecera `Authorization` en ninguna parte.
+
+2. **El servidor no consulta la cabecera `Authorization`.** `GET /embed/:handle`
+   es `auth: 'public'` —la política que `plugins/auth.ts` define como «la
+   identidad es irrelevante, y una rota también»— y no `auth: 'optional'` como
+   `GET /circuits/:id`. La diferencia importa en un caso concreto: si el marco
+   variara con el token de quien lo mira, la autora que previsualiza su propio
+   embed vería su circuito PRIVADO renderizado y publicaría una página que
+   muestra un 404 a todos los demás; y cualquier cambio posterior que hiciera
+   la petición credencial publicaría el circuito mismo. La ruta necesita que la
+   cabecera sea **ilegible**, no simplemente no leída, y eso solo lo garantiza
+   una ruta distinta con otra política.
+
+3. **Solo PUBLIC y UNLISTED son incrustables, y eso no es un `if`.** Es la forma
+   del filtro: `findReadable(handle, null)` compone §11 dentro de la consulta,
+   así que un slug alcanza PUBLIC y UNLISTED, un id alcanza solo PUBLIC, y todo
+   lo demás vuelve `null` — el mismo `null` que devuelve un slug que nadie ha
+   acuñado nunca. El manejador no puede distinguirlos y por lo tanto no puede
+   decir cuál era: un `NOT_FOUND`, un estado, un cuerpo. Un 403 confirmaría que
+   el identificador nombra algo, que es justo lo que protegen los 126 bits de
+   un slug UNLISTED. La respuesta tampoco se cachea (`no-store`): retirar la
+   visibilidad tiene que significar retirarla, y una caché es una copia de una
+   decisión vieja.
+
+4. **Las dos respuestas sobre el enmarcado son opuestas.** La aplicación
+   ordinaria manda `X-Frame-Options: DENY` y `frame-ancestors 'none'`: sostiene
+   una sesión, y `/settings` borra una cuenta con una pulsación — el perfil
+   exacto del clickjacking. El embed manda `frame-ancestors *` y, sobre todo,
+   **ninguna** `X-Frame-Options`: esa cabecera no tiene valor para «cualquier
+   origen» y un `SAMEORIGIN` heredado de una regla demasiado amplia rompería
+   todos los embeds del mundo pareciendo un endurecimiento. Por eso la regla de
+   cabeceras del despliegue excluye `/embed` con un _negative lookahead_ en vez
+   de sobrescribirlo después. El embed además manda `Referrer-Policy:
+no-referrer` —su propia ruta _es_ el slug— y `Cross-Origin-Resource-Policy:
+cross-origin`, para que una página que ya optó por COEP pueda enmarcarlo.
+
+5. **El embed renuncia a `SharedArrayBuffer`, y por eso no manda COOP ni COEP.**
+   El aislamiento de origen cruzado es una propiedad de todo el árbol de marcos:
+   un documento enmarcado solo está aislado si lo está el documento de nivel
+   superior, y ese pertenece al sitio de quien incrusta. Así que un embed nunca
+   está aislado, mande lo que mande, y COEP solo añadiría una forma de romperse
+   —cualquier subrecurso futuro sin CORP— a cambio de un beneficio que no puede
+   cobrarse. Mandar ninguna de las dos tiene además la consecuencia buena: el
+   marco se comporta igual abierto directamente que incrustado, así que lo que
+   se prueba es lo que se sirve. Lo que corre es el **camino de transferencia**
+   ya documentado en §5.6 (`encodeState`), porque `useEmbedSimulation` pregunta
+   por la capacidad (`sharedMemoryAvailable()`) en lugar de suponerla. Un
+   circuito por encima del techo del navegador **no** se despacha al servidor
+   como haría el editor (§4): un marco anónimo en un origen arbitrario sería una
+   forma de gastar el cómputo del proyecto al ritmo al que se carguen las
+   páginas que lo incrustan, así que se dibuja el diagrama y se imprime el
+   techo en una frase.
+
 ### 3.5 Interoperabilidad
 
 - **Exportar**: OpenQASM 3, código Python de Qiskit, JSON nativo, PNG/SVG del diagrama, PDF.
@@ -146,6 +217,18 @@ Límite: la matriz de densidad crece como 4ⁿ, así que este modo se topa alred
 - **Lecciones guiadas**: recorridos interactivos que combinan texto, circuito precargado y objetivos. Cubren: superposición, entrelazamiento, interferencia, Deutsch–Jozsa, Grover, teletransportación, codificación superdensa, BB84, QPE.
 - **Modo reto**: se te da un estado objetivo (o una tabla de verdad) y debes construir el circuito que lo produce. Validación en el servidor comparando fidelidad contra el objetivo, con umbral configurable y límite opcional de compuertas.
 - **Tabla de posiciones** por reto: menor número de compuertas, menor profundidad.
+
+**Qué es exactamente una tabla de posiciones (decidido en M3.3).** Cinco decisiones. La autoridad es `packages/db/src/challenges.ts` para la consulta y `apps/web/src/features/challenges/ChallengeLeaderboard.tsx` para lo que se dibuja.
+
+1. **Una fila por persona, y es su mejor intento.** Una tabla de intentos ordenada es un registro de quién pulsó más veces el botón: quien envía cuarenta veces la misma respuesta de tres compuertas ocuparía los cuarenta primeros puestos, y quien busca «quién resolvió esto con menos compuertas» leería un nombre repetido. La consulta es un `DISTINCT ON ("userId")` bajo el mismo orden con el que después se clasifica, así que la fila que se conserva de cada persona es exactamente la que la tabla usaría para compararla con las demás.
+
+2. **El orden es total, no solo el que pide esta sección.** «Menor número de compuertas, menor profundidad» empata con frecuencia —los conteos de compuertas se agrupan mucho en un reto cuya respuesta son tres—, así que se desempata por `createdAt`, que favorece a quien llegó primero y es el único criterio que no cambia cuando envía una tercera persona. Y después por `id`: una marca de tiempo son milisegundos, dos intentos pueden compartir uno, y un comparador que pueda terminar en empate le deja la última palabra al plan de consulta — es decir, una clasificación que se baraja entre dos peticiones idénticas y sin defecto que encontrar después.
+
+3. **Se clasifica lo que calculó el servidor, nunca lo que afirmó el cliente.** `gateCount` y `depth` son las columnas que escribió el validador tras simular (riesgo 5), sobre el circuito **expandido** (§3.1, decisión 3). El cuerpo de la petición no llega a esta consulta por ningún camino, y `apps/api/src/routes/challenges.test.ts` lo comprueba desde fuera: envía un circuito correcto envuelto en la afirmación de que mide una compuerta y comprueba que la tabla lo coloca por su longitud real.
+
+4. **Se puede pedir no aparecer, y ocultarse no mueve a nadie más.** Una tabla de posiciones es el único listado público de **personas** del producto: un circuito tiene visibilidad y un reto resuelto no, así que nada de lo que ya existía podía expresar «clasifícame, pero no publiques mi nombre». Lo hace `User.leaderboardOptOut`, y el filtro se aplica **después** de asignar la posición. La consecuencia es la que justifica la función: retirar el nombre no asciende a quien viene detrás —si lo hiciera, subir puestos sería cuestión de convencer a otros de esconderse— y quien se retiró sigue viendo dónde está. El precio visible es que la columna de posiciones puede saltarse un número, y ese hueco es la declaración honesta: dice «aquí hay alguien» sin decir quién.
+
+5. **El circuito ganador no se publica.** Sería publicar la respuesta, que es exactamente la fuga de la que se protege el objetivo, un intento más tarde y de parte de quien mejor resolvió el reto. Una fila es un nombre y dos números, y el esquema de respuesta no tiene campo donde poner otra cosa.
 
 ### 3.7 Hardware real
 
@@ -605,6 +688,7 @@ Notas de diseño:
 - `Circuit` guarda métricas denormalizadas (`gateCount`, `depth`, `starCount`) para poder ordenar la galería sin joins costosos.
 - **Ajuste M2.3**: §7 no tiene modelo para las compuertas personalizadas que pide §3.1 («se guardan por usuario y se pueden publicar»), así que se añade `CustomGate` — el único modelo que excede la especificación. Es una **biblioteca, no un grafo de dependencias**: ningún `CircuitVersion.data` apunta a una fila de esta tabla, instalar un bloque publicado copia la definición al documento, y por eso borrar, editar o despublicar una entrada no puede romper el circuito de nadie. Las reglas de visibilidad son las mismas que las de `Circuit` (`listableCustomGateFilter` y `customGateHandleFilter` en `packages/db/src/custom-gates.ts`), con la misma asimetría que `Collection`: el id alcanza un bloque UNLISTED porque es el único identificador que tiene. Una entrada guardada debe bastarse a sí misma —su cuerpo no puede nombrar otro bloque—, que es lo que impide que una fila dependa de otra fila.
 - **Ajuste M1.5b**: `Circuit.preview` guarda, por la misma razón, la miniatura que dibuja cada tarjeta de la galería — una versión acotada del circuito (unos pocos hilos y columnas, sin parámetros ni etiquetas) derivada por `previewOf` en las dos únicas escrituras que guardan un documento. Sin ella, pintar cincuenta miniaturas obligaría a leer cincuenta `CircuitVersion.data` de hasta 256 KiB cada uno en la ruta anónima más visitada del producto. Es anulable y se lee siempre con `safeParsePreview`: una imagen jamás vale un 500.
+- **Ajuste M3.3**: `User` gana una columna, `leaderboardOptOut Boolean @default(false)`, porque §3.6 publica una tabla de **personas** y §7 no tenía dónde decir «clasifícame, pero no publiques mi nombre» — la visibilidad de un circuito no habla de un reto resuelto. Se llama por la **decisión** y no por el listado a propósito: con un `showOnLeaderboard` por omisión `true`, «nunca expresó una preferencia» y «pidió aparecer» serían el mismo valor, y cambiar el valor por omisión reescribiría en silencio la preferencia declarada de quien sí tenía una. No viaja en `publicUserSelect`: una preferencia no es un hecho público sobre alguien, y ahí acompañaría a la firma de cada circuito de la galería. La lee `accountSelect`, que es `publicUserSelect` **extendido con un spread** —de modo que sigue habiendo un solo sitio donde se enumeran columnas de `User` y ninguna de las dos proyecciones puede ganar un `email` sin que lo gane la otra— y solo la usan las tres rutas donde quien consulta es el sujeto: `GET`, `PATCH` y `DELETE /me`. La segunda migración de este hito añade además el índice `[challengeId, passed, userId, gateCount, depth, createdAt, id]`, que es el orden exacto del `DISTINCT ON` de la tabla; los tres índices anteriores se conservan, porque ninguno lo sirve y borrar uno es justo la sentencia destructiva que el tripwire de migraciones rechaza.
 - `HardwareCredential` guarda el token cifrado en `Bytes`, nunca en texto plano, y jamás se devuelve por la API.
 - **Ajuste por Supabase Auth**: como la autenticación la maneja Supabase, los modelos `Account` y el campo `passwordHash` de `User` **se eliminan** — Supabase ya los cubre en su esquema `auth`. `User.id` deja de ser `cuid()` y pasa a ser el UUID que emite Supabase (`@id @db.Uuid`), y la fila se crea al primer login mediante un trigger en Postgres sobre `auth.users` o desde el backend en el primer request autenticado. Prisma solo administra el esquema `public`; nunca toca `auth`.
 
@@ -732,8 +816,48 @@ DELETE /hardware/jobs/:id         # cancelar
 GET    /challenges
 GET    /challenges/:slug
 POST   /challenges/:slug/submit
-GET    /challenges/:slug/leaderboard
+GET    /challenges/:slug/leaderboard?limit=
 ```
+
+Tres precisiones de M3.3, escritas aquí para que el documento y el código no se
+contradigan:
+
+- La respuesta del leaderboard es `{ entries, standing }`. `standing` es dónde
+  está **quien consulta** —posición, compuertas, profundidad y si su nombre
+  aparece— y viaja en el sobre y no en una entrada por la misma razón que
+  `starred` y `solved`: es una propiedad del par (reto, espectador). Es `null`
+  para una llamada anónima y para quien todavía no ha resuelto el reto, que son
+  la misma respuesta a «dónde estás». Existe porque una tabla de diez contesta
+  «quién va ganando» y nunca «cómo voy yo», que es la pregunta que hace volver a
+  alguien a acortar un circuito.
+- `entries[].rank` es una posición sobre **todo el mundo**, asignada antes de
+  retirar a quien pidió no aparecer, así que puede saltarse un número. No se
+  renumera en el cliente: hacerlo permitiría ganar puestos convenciendo a otro de
+  esconderse, y haría que la tabla contradijese el `standing` impreso debajo.
+- `PATCH /me` acepta `leaderboardOptOut`, y `GET`/`PATCH /me` responden
+  `{ user, leaderboardOptOut }` — el ajuste es hermano de `user` y no un campo
+  suyo, porque `PublicUserResponse` es la forma por la que se serializa cada
+  firma de circuito y una preferencia dentro de ella se publicaría a cualquier
+  desconocido que abra la galería.
+
+**Embeds** (Fase 3, §3.4)
+
+```
+GET    /embed/:handle             # anónimo SIEMPRE; solo PUBLIC y UNLISTED
+```
+
+Una ruta aparte y no un parámetro de `GET /circuits/:id`, porque la diferencia
+es la política de autenticación y no la forma de la respuesta: esta es
+`auth: 'public'`, así que la cabecera `Authorization` no se consulta nunca —ni
+siquiera para su propia dueña— y un circuito PRIVADO responde el mismo 404 que
+un slug que nadie acuñó. La respuesta es una proyección deliberadamente
+estrecha: `{ embed: { slug, title, qubitCount, gateCount, depth, author:
+{ username }, circuit } }`. No lleva `id` (un identificador en una respuesta es
+un identificador suelto), ni `visibility` (publicaría la decisión de la autora
+sobre quién debe encontrar su trabajo), ni `description`, ni `avatarUrl` (sería
+una petición a un tercero, y una dirección IP, por cada lector), ni contadores
+sociales, ni marcas de tiempo. El argumento completo de cada omisión está en
+`packages/contract/src/embed.ts`.
 
 **Interoperabilidad**
 
@@ -882,7 +1006,19 @@ Las versiones variables son lo que abarata esto: un archivo cubre todos los peso
 - **Límites de recursos** en simulación de servidor: máximo de qubits, máximo de compuertas, timeout duro, y ejecución en un worker aislado que se puede matar.
 - **Validación estricta con Zod** de todo circuito entrante, antes de tocar el motor. Un circuito malformado no debe poder provocar un bucle infinito ni una asignación de memoria gigante.
 - **Sanitización** de contenido generado por usuarios (títulos, descripciones, comentarios) contra XSS; renderizado de markdown con lista blanca.
-- **Embeds** servidos con CSP restrictiva y en modo solo lectura.
+- **Embeds** servidos con CSP restrictiva y en modo solo lectura. La política
+  es `default-src 'none'` con `script-src 'self'` (sin `'unsafe-inline'` y sin
+  `'unsafe-eval'`), `form-action 'none'`, `base-uri 'none'` y
+  `frame-ancestors *`. `style-src` sí lleva `'unsafe-inline'` y no puede
+  evitarlo: el largo de una barra y el ángulo de un fasor son atributos `style`
+  en línea, y un nonce no cubre un atributo. `connect-src` nombra un esquema
+  (`'self' https:`) y no un host, porque el origen de la API es una variable de
+  compilación que un archivo de cabeceras estático no puede nombrar; la
+  alternativa estrecha fallaría cerrada justo en los despliegues sobre los que
+  se equivoca. Las cabeceras viven en un solo módulo (`apps/web/src/embed/
+headers.ts`) que el servidor de desarrollo lee directamente y contra el que un
+  verificador compara `vercel.json`, porque una cabecera que solo se cumple en
+  desarrollo no se cumple en ninguna parte.
 - Circuitos `UNLISTED` con slug generado por `nanoid` de suficiente entropía; `PRIVATE` verificado siempre en servidor, nunca solo en el cliente.
 
 ---

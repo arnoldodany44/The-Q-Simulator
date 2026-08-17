@@ -1,0 +1,54 @@
+{
+  "loading": "Cargando el circuito…",
+  "untitled": "Circuito cuántico",
+  "byline": "de {{author}}",
+  "metrics": {
+    "qubits": "Qubits",
+    "gates": "Compuertas",
+    "depth": "Profundidad"
+  },
+  "diagram": {
+    "title": "Diagrama del circuito",
+    "description": "Un circuito cuántico de {{qubits}} qubits y {{columns}} columnas. El tiempo avanza de izquierda a derecha; cada línea horizontal es un qubit.",
+    "classical": "bits",
+    "truncated": "Se muestran las primeras {{drawn}} de {{total}} columnas."
+  },
+  "analysis": {
+    "heading": "Probabilidad de cada resultado",
+    "summary": "Qué tan probable es cada resultado si se midiera el registro ahora. La flecha pequeña de cada barra apunta en la dirección de la fase de esa amplitud.",
+    "running": "Simulando…",
+    "seeded": "Siempre los mismos tiros: este conteo se genera con una semilla fija, así que la figura no cambia entre recargas.",
+    "failed": {
+      "unknown": "Este circuito no se pudo simular aquí.",
+      "too-many-qubits": "{{qubits}} qubits superan los {{limit}} que este marco puede simular. El diagrama de arriba es el circuito completo; ábrelo en el editor para ejecutarlo.",
+      "sampling-too-large": "Muestrear este circuito cuesta demasiado dentro de un marco. Ábrelo en el editor para ejecutarlo.",
+      "invalid-circuit": "No se pudo leer este circuito.",
+      "measurement-in-analytic-mode": "Este circuito mide a mitad de camino, así que no tiene un único estado final.",
+      "no-classical-bits": "Este circuito mide pero no tiene registro clásico donde guardar la medición.",
+      "unsupported-operation": "Este circuito usa una operación que el simulador todavía no ejecuta.",
+      "worker-unavailable": "La simulación no pudo iniciarse en este marco, así que solo se muestra el diagrama. Todo lo que hay en él — los hilos, las compuertas, los contadores — sigue siendo este circuito.",
+      "worker-failed": "La simulación se detuvo de forma inesperada.",
+      "server-unavailable": "La simulación no pudo iniciarse en este marco, así que solo se muestra el diagrama.",
+      "server-too-large": "Este circuito es demasiado grande para simularlo dentro de un marco.",
+      "server-refused": "La simulación no pudo iniciarse en este marco, así que solo se muestra el diagrama."
+    }
+  },
+  "failure": {
+    "no-address": "A este marco no se le indicó qué circuito mostrar.",
+    "bad-link": "No se pudo leer el circuito de este enlace.",
+    "unavailable": "Este circuito no está disponible para incrustar.",
+    "no-api": "Este despliegue no puede consultar circuitos guardados.",
+    "failed": "No se pudo cargar el circuito."
+  },
+  "snippet": {
+    "heading": "Incrustar",
+    "hint": "Pega esto en una entrada de blog, una diapositiva o unos apuntes. Muestra el circuito y su análisis, en solo lectura y sin iniciar sesión.",
+    "field": "Marcado para incrustar",
+    "copy": "Copiar el marcado",
+    "copied": "Marcado copiado.",
+    "failed": "No se pudo copiar. El marcado está seleccionado: pulsa Ctrl+C.",
+    "credit": "hecho con The Q Simulator",
+    "sandbox": "Si tu sitio aísla los marcos, permite allow-scripts y allow-same-origin a la vez. Solo con scripts el marco se queda completamente en blanco: el navegador le da al documento un origen opaco y luego rechaza todos los scripts que intenta cargar.",
+    "private": "Solo se pueden incrustar los circuitos públicos y los compartidos por enlace. Cambia la visibilidad de arriba para obtener el marcado."
+  }
+}

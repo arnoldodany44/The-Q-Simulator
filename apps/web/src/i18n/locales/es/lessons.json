@@ -1,0 +1,609 @@
+{
+  "index": {
+    "heading": "Lecciones guiadas",
+    "intro": "Cada lección es un circuito que puedes tocar, junto al panel de análisis que lo explica. Lee un paso, mira cómo cambia la gráfica y construye el siguiente tú mismo.",
+    "steps": "{{total}} pasos",
+    "atStep": "Paso {{step}} de {{total}}",
+    "completed": "Terminada",
+    "start": "Empezar",
+    "resume": "Continuar",
+    "order": "Son una secuencia, no un menú: cada una da por vista la imagen que dejó la anterior, y todas dicen al principio qué están dando por sabido."
+  },
+  "player": {
+    "stepOf": "Paso {{step}} de {{total}}",
+    "previous": "Atrás",
+    "next": "Siguiente",
+    "showMe": "Muéstramelo",
+    "yourTurn": "Te toca",
+    "hint": "Pista",
+    "reveal": "Mostrar la respuesta",
+    "navLabel": "Pasos de la lección",
+    "readingLabel": "La lección",
+    "labLabel": "El circuito y su análisis",
+    "backToIndex": "Todas las lecciones",
+    "notFound": "No hay ninguna lección en esta dirección.",
+    "notFoundAction": "Volver a las lecciones",
+    "loading": "Buscando dónde te quedaste…",
+    "objective": {
+      "met": "Listo: ese es el estado.",
+      "unmet": "Todavía no.",
+      "unavailable": "Este circuito no tiene un único estado final que comprobar: una medición a mitad de camino le da varios."
+    },
+    "reading": {
+      "state": "Solapamiento con el estado objetivo: {{value}}",
+      "probabilities": "Mayor diferencia respecto a las probabilidades buscadas: {{value}}",
+      "outcomes": "Mayor diferencia respecto a un reparto uniforme: {{value}}",
+      "entangled": "Entropía de este qubit: {{value}} bits"
+    }
+  },
+  "superposition": {
+    "title": "Superposición",
+    "summary": "Qué hace un qubit cuando no es ni 0 ni 1, y por qué eso no es lo mismo que una moneda que nadie ha mirado.",
+    "goal": "Al terminar esta lección habrás visto en pantalla, en una sola gráfica, la diferencia entre una superposición y la ignorancia.",
+    "steps": {
+      "still": {
+        "title": "La certeza tiene una imagen",
+        "body": [
+          "Un hilo, ninguna compuerta. El qubit está en `|0⟩` y la gráfica de al lado tiene exactamente una barra: un solo resultado, con toda la probabilidad.",
+          "Así se ve saber algo aquí. Quédate con esta imagen: todo lo que viene después se aleja de ella."
+        ],
+        "notice": "El histograma de probabilidades: una sola barra, en `|0⟩`."
+      },
+      "hadamard": {
+        "title": "Una compuerta, dos barras",
+        "body": [
+          "La lección ha colocado una Hadamard, `H`, sobre el hilo. La barra única se ha convertido en dos, cada una con la mitad de la probabilidad.",
+          "Si mides este qubit obtienes `0` la mitad de las veces y `1` la otra mitad. Una moneda lanzada al aire hace lo mismo, y por eso existen los dos pasos siguientes."
+        ],
+        "notice": "Ahora hay dos barras, `|0⟩` y `|1⟩`, al cincuenta por ciento cada una."
+      },
+      "notACoin": {
+        "title": "No es una moneda",
+        "body": [
+          "Mira la esfera de Bloch. La flecha no se ha acortado: sigue midiendo lo mismo, solo que ahora está sobre el ecuador en lugar de en un polo.",
+          "Esa longitud es la lectura que importa. Una moneda bajo un vaso — un qubit que de verdad es `0` o `1` y simplemente no sabemos cuál — dibuja una flecha de longitud cero, en el centro de la esfera. Esta está en la superficie.",
+          "Así que el qubit no está en un estado desconocido. Está en un estado perfectamente conocido que resulta no ser ni `|0⟩` ni `|1⟩`."
+        ],
+        "notice": "La esfera de Bloch, y la longitud de la flecha, no solo hacia dónde apunta."
+      },
+      "phasors": {
+        "title": "Cada barra tiene una dirección",
+        "body": [
+          "Fíjate bien en las dos barras. Cada una lleva una flecha pequeña: la fase de esa amplitud, que es justo la parte que una probabilidad tira a la basura.",
+          "Ahora mismo las dos apuntan igual. Nada en las alturas registra eso, y por eso el paso siguiente puede cambiarlo sin cambiarlas."
+        ],
+        "notice": "Las flechitas sobre las barras: los fasores."
+      },
+      "turn": {
+        "title": "Algo cambió que las probabilidades no ven",
+        "body": [
+          "La lección ha añadido una `Z`. Mira las alturas: no se ha movido nada. Siguen al cincuenta y cincuenta.",
+          "Ahora mira los fasores: uno de ellos ha girado media vuelta. `Z` deja `|0⟩` intacto y multiplica `|1⟩` por −1.",
+          "Si una superposición fuera ignorancia, esta compuerta no habría hecho absolutamente nada. Quédate con eso: el paso siguiente mide la diferencia."
+        ],
+        "notice": "Las dos cosas a la vez: las alturas iguales y el segundo fasor girado."
+      },
+      "cancel": {
+        "title": "Dos caminos que se cancelan",
+        "body": [
+          "Una segunda `H`, y las dos barras han vuelto a ser una sola, en `|1⟩` y no en `|0⟩`.",
+          "Cada `H` manda cada estado base por los dos caminos. Al llegar a `|0⟩` los dos caminos venían apuntando en sentidos opuestos y se cancelaron; al llegar a `|1⟩` se alinearon y se sumaron. Eso es interferencia, y para eso estaba la `Z`.",
+          "Ninguna mezcla de monedas escondidas puede hacer esto. Mezclar incertidumbre con incertidumbre nunca da una certeza."
+        ],
+        "notice": "Otra vez una sola barra, y es `|1⟩`: `H`, luego `Z`, luego `H` es exactamente una `X`."
+      },
+      "equal": {
+        "title": "Te toca",
+        "body": [
+          "El circuito deja ahora el qubit en `|1⟩`, otra vez con toda la probabilidad en un solo resultado."
+        ],
+        "notice": "El histograma, de vuelta a dos barras de la misma altura.",
+        "task": "Añade una compuerta al hilo para que los dos resultados vuelvan a ser igual de probables.",
+        "hint": "`H` es la respuesta evidente y no es la única: `Ry` con un cuarto de vuelta también sirve, y `√X` también. La comprobación es sobre el resultado, no sobre qué compuerta elegiste."
+      }
+    }
+  },
+  "entanglement": {
+    "title": "Entrelazamiento",
+    "summary": "Dos qubits que no tienen estado propio, y una correlación que sobrevive a un cambio de pregunta, cosa que nada clásico puede hacer.",
+    "goal": "Esta lección da por vista la de superposición: ya sabes que una flecha de Bloch de longitud completa significa estado conocido y una corta significa ignorancia. Al terminar habrás visto las dos flechas encogerse hasta desaparecer mientras la pareja seguía siendo perfectamente conocida.",
+    "steps": {
+      "twoWires": {
+        "title": "Dos hilos, una certeza",
+        "body": [
+          "Ahora hay dos qubits, los dos en `|0⟩`. El histograma lista todas las combinaciones en las que se puede encontrar la pareja y le da toda la probabilidad a una de ellas.",
+          "El ket se lee de derecha a izquierda, que es el convenio de todo este producto: el carácter de más a la derecha es el primer hilo. Así que `|01⟩` significa que el primer qubit vale 1 y el segundo 0."
+        ],
+        "notice": "Una sola barra, en `|00⟩`, y tres estados base sin nada de altura."
+      },
+      "separate": {
+        "title": "Dos flechas, dos estados",
+        "body": [
+          "Una `H` sobre el primer hilo. La barra se parte en dos, `|00⟩` y `|01⟩`, que es la lección anterior ocurriendo en uno de los dos hilos.",
+          "Mira mejor las esferas de Bloch. Hay dos y las dos flechas miden lo máximo: una sobre el ecuador y otra en el polo. Cada qubit tiene un estado propio, y para describir la pareja basta con escribir esos dos estados. Eso es un estado producto, y es el caso corriente."
+        ],
+        "notice": "Dos esferas de Bloch, cada una con una flecha de longitud completa."
+      },
+      "link": {
+        "title": "Una compuerta, y las dos del medio desaparecen",
+        "body": [
+          "Un `CNOT` del primer hilo al segundo: invierte el segundo qubit exactamente cuando el primero vale 1. El histograma tiene ahora barras en `|00⟩` y `|11⟩` y nada en ningún otro sitio.",
+          "Los dos qubits van a coincidir siempre. Ninguno de los dos está decidido antes de que mires, y se deciden igual: eso es lo que significan las dos barras que faltan."
+        ],
+        "notice": "`|01⟩` y `|10⟩` han desaparecido: pase lo que pase, las dos respuestas coinciden."
+      },
+      "noArrows": {
+        "title": "Ninguno de los dos qubits tiene estado",
+        "body": [
+          "Vuelve a las esferas de Bloch. Las dos flechas se han encogido hasta el centro: longitud cero, la lectura que la lección anterior le daba a una moneda bajo un vaso.",
+          "Así que cada qubit por separado está en el estado de máxima ignorancia. Y sin embargo la pareja está en un estado que cabe en una línea y que estamos simulando exactamente. La información no se ha perdido. Ha dejado de pertenecer a ninguno de los dos hilos."
+        ],
+        "notice": "Dos esferas, dos flechas de longitud cero, y una pareja cuyo estado se conoce exactamente."
+      },
+      "oneBit": {
+        "title": "Un bit, compartido",
+        "body": [
+          "El panel de entrelazamiento le pone número. La entropía de cualquiera de los dos qubits es 1 bit, que es lo máximo que puede esconder un qubit solo; la concurrencia, que mide la pareja en vez de una parte, también está en su máximo.",
+          "Este estado es un par de Bell. Dos qubits, un bit de entropía cada uno y ninguno para la pareja entera: toda la incertidumbre está en la relación."
+        ],
+        "notice": "Entropía de 1 bit en cada qubit, y una pareja que aun así está en un estado puro."
+      },
+      "turnBoth": {
+        "title": "El mismo acuerdo, preguntado de otra forma",
+        "body": [
+          "Aquí está la objeción que merece tomarse en serio. Una máquina que lanzara una moneda e imprimiera el resultado en los dos hilos produciría exactamente el histograma que llevas viendo: dos barras, que coinciden, a la mitad cada una. Nada de lo anterior lo descarta.",
+          "Así que hazles a los dos qubits otra pregunta. Una `H` en cada hilo antes de leer pregunta si el qubit es `|+⟩` o `|−⟩` en vez de si es `|0⟩` o `|1⟩`. Las barras no se han movido. Las dos respuestas siguen coincidiendo siempre.",
+          "Una moneda impresa falla esto de inmediato: gira las dos copias y el acuerdo se deshace en los cuatro resultados a un cuarto cada uno, porque la correlación solo existía en una base. Un par de Bell coincide en todas las bases en las que puedas preguntarle. Esa es la diferencia entre compartir un dato y compartir un estado, y es el hecho sobre el que Bell construyó su teorema."
+        ],
+        "notice": "Siguen siendo dos barras, siguen siendo `|00⟩` y `|11⟩`, después de girar los dos qubits."
+      },
+      "disagree": {
+        "title": "Te toca",
+        "body": [
+          "Esta pareja siempre coincide. Hay otra, igual de entrelazada e igual de pura, cuyos dos qubits siempre discrepan."
+        ],
+        "notice": "Otra vez dos barras, esta vez en `|01⟩` y `|10⟩`.",
+        "task": "Añade una compuerta para que los dos qubits nunca salgan iguales.",
+        "hint": "Una `X` en cualquiera de los dos hilos lo consigue: reetiqueta un lado de la correlación y deja el entrelazamiento intacto. `Y` también sirve, por lo mismo y con una fase que este histograma no puede mostrar. La comprobación es sobre el resultado, no sobre la compuerta."
+      }
+    }
+  },
+  "interference": {
+    "title": "Interferencia",
+    "summary": "Por qué una fase que no puedes medir decide lo que sí mides, y por qué anotar qué camino se tomó destruye el efecto entero.",
+    "goal": "Esta lección da por vistas superposición y entrelazamiento. Al terminar habrás girado una compuerta por tres posiciones y visto las probabilidades pasar del 15 % al 50 % y al 100 %, y después habrás visto desaparecer todo eso porque un segundo hilo estaba escuchando.",
+    "steps": {
+      "split": {
+        "title": "Dos caminos",
+        "body": [
+          "Una `H` sobre el primer hilo, y el qubit está en `|0⟩` y `|1⟩` a la vez: dos amplitudes, en paralelo. Llámalas dos caminos, porque es como se comportan.",
+          "El segundo hilo está parado por ahora. Entra en el argumento en el paso 6, y hasta entonces puedes ignorarlo."
+        ],
+        "notice": "Dos barras, `|00⟩` y `|01⟩`: el primer hilo está partido, el segundo no."
+      },
+      "rejoin": {
+        "title": "Caminos que se vuelven a juntar",
+        "body": [
+          "Una segunda `H`, y los dos caminos se recombinan en una sola barra en `|00⟩`. El qubit vale 0 con certeza.",
+          "Esa certeza es una resta. Los dos caminos llegan a `|1⟩`, llegan apuntando en sentidos opuestos y se cancelan exactamente. Por el camino no se perdió nada: se restó al final.",
+          "Fíjate en la columna vacía entre las dos compuertas. Todo lo demás que hace esta lección, lo hace en ese hueco."
+        ],
+        "notice": "Una barra en `|00⟩`, y una columna vacía entre las dos compuertas `H`."
+      },
+      "eighth": {
+        "title": "Un octavo de vuelta",
+        "body": [
+          "Una `T` en el hueco. Gira la fase de `|1⟩` un octavo de vuelta completa y no hace nada más: mientras se aplica, no se mueve ni una probabilidad.",
+          "Pero ahora los dos caminos llegan ligeramente desfasados, así que ya no se cancelan del todo. Ha aparecido un 15 % de la probabilidad en `|01⟩`, y todo ese porcentaje salió de una cantidad que era invisible hasta que los caminos se juntaron."
+        ],
+        "notice": "Una segunda barra pequeña: alrededor del 15 % en `|01⟩`."
+      },
+      "quarter": {
+        "title": "Un cuarto de vuelta",
+        "body": [
+          "Cambia la `T` por una `S` — un cuarto de vuelta en lugar de un octavo — y los dos resultados quedan a la par. Cincuenta y cincuenta, desde una compuerta que no tocó ninguna probabilidad.",
+          "La tabla de amplitudes es donde se ve por qué. Las dos amplitudes tienen la misma longitud y direcciones distintas. Una probabilidad es una longitud al cuadrado, así que longitudes iguales dan probabilidades iguales; la dirección es lo que decidió cómo se sumaron los caminos al llegar."
+        ],
+        "notice": "Dos amplitudes de la misma longitud, apuntando en direcciones distintas."
+      },
+      "half": {
+        "title": "Media vuelta",
+        "body": [
+          "Ahora una `Z` — media vuelta — y vuelve la certeza, en el otro extremo. Toda la probabilidad está en `|01⟩`.",
+          "Ese es el rango: un octavo, un cuarto y media vuelta dan 15 %, 50 % y 100 %. La fase es un mando continuo y el resultado lo sigue. Esto no es un truco especial con tres posiciones; es lo que hacen las amplitudes."
+        ],
+        "notice": "Una barra, en `|01⟩`: ahora los caminos se suman donde antes se cancelaban."
+      },
+      "whichPath": {
+        "title": "Alguien está escuchando",
+        "body": [
+          "Quita la compuerta de fase y pon en su lugar un `CNOT` del primer hilo al segundo. Copia en qué camino está el primer qubit sobre un hilo que no hacía nada.",
+          "No se ha medido nada. Nadie ha mirado. El segundo hilo es un hilo. Y la interferencia ha desaparecido: cuatro resultados a un cuarto cada uno, con el primer qubit tan indeciso como si la segunda `H` no estuviera."
+        ],
+        "notice": "Cuatro barras a un cuarto cada una. La cancelación se ha parado."
+      },
+      "noSecret": {
+        "title": "Por qué se paró",
+        "body": [
+          "El panel de entrelazamiento dice qué ha pasado: un bit de entropía en el primer qubit, donde hace un momento no había nada. Está entrelazado con el registro de su propio camino.",
+          "Dos caminos solo pueden cancelarse si llegan al mismo sitio. Estos dos llegan pegados a estados distintos del segundo hilo, así que no hay ningún sitio donde se encuentren ni nada que restar. Basta con que el registro exista: nadie tiene que leerlo, y no hay ningún instante en el que se decida nada.",
+          "Por esto un algoritmo cuántico tiene que limpiar lo que ensucia. Cualquier rastro que quede de un resultado intermedio es un segundo hilo escuchando, y la interferencia de la que depende el algoritmo sencillamente no ocurrirá."
+        ],
+        "notice": "Un bit de entropía en el primer qubit, donde hace un momento no había nada."
+      },
+      "erase": {
+        "title": "Te toca",
+        "body": [
+          "El registro está en el segundo hilo y desde aquí no se puede borrar. Lo que sí se puede es hacerle otra pregunta, una cuya respuesta no diga qué camino se tomó.",
+          "Cuando vuelvan las dos barras, léelas con cuidado. Son `|00⟩` y `|11⟩`. El primer qubit sigue estando al cincuenta y cincuenta por su cuenta, y ninguna compuerta sobre el segundo hilo podría cambiar eso nunca. Lo que ha vuelto es el acuerdo entre los dos: ordena las repeticiones según lo que diga el segundo hilo y cada mitad es certera. No se ha enviado nada a ninguna parte y nada ha viajado hacia atrás. El patrón siempre estuvo repartido entre los dos, y esta compuerta es lo que te deja ordenarlos por lo correcto."
+        ],
+        "notice": "Otra vez dos barras, `|00⟩` y `|11⟩` a la mitad cada una.",
+        "task": "Añade una compuerta al segundo hilo para que el histograma tenga dos barras en lugar de cuatro.",
+        "hint": "`H` sobre el segundo hilo. Lee ese hilo en la base `|+⟩` y `|−⟩`, en la que el registro de qué camino se tomó sencillamente no está guardado. `Ry` con un cuarto de vuelta hace el mismo trabajo — con cualquiera de los dos signos, y el signo solo decide qué dos barras te quedan: `|00⟩` y `|11⟩`, o `|01⟩` y `|10⟩`. Las dos cosas son el borrado. Lo que no funciona es `√X`, que en esa base es diagonal en lugar de una lectura de ella, y deja las cuatro barras donde estaban."
+      }
+    }
+  },
+  "deutsch-jozsa": {
+    "summary": "Una función de la que te prometen que es constante o equilibrada, y una sola pregunta que lo resuelve. El primer circuito de aquí que calcula una respuesta.",
+    "goal": "Esta lección da por vista la de interferencia. Al terminar habrás visto a un oráculo convertir un bit en una fase, y a cuatro valores de entrada interferir hasta dejar la única respuesta que sobrevive. El problema es de juguete; la forma del circuito no lo es.",
+    "steps": {
+      "answerSheet": {
+        "title": "Una hoja de respuestas en un estado raro",
+        "body": [
+          "Tres hilos. Los dos primeros llevan la entrada — dos bits, o sea cuatro valores posibles — y el tercero es la hoja de respuestas sobre la que escribe la función.",
+          "Una `X` y luego una `H` ponen ese tercer hilo en `(|0⟩−|1⟩)/√2`, así que su flecha de Bloch queda sobre el ecuador con longitud completa mientras las otras dos apuntan al polo. Todavía no se ha escrito nada en él. Su estado está elegido para que escribir en él no haga lo que esperas."
+        ],
+        "notice": "La tercera esfera de Bloch: una flecha de longitud completa sobre el ecuador, mientras las dos primeras apuntan hacia arriba."
+      },
+      "everyInput": {
+        "title": "Todas las entradas a la vez",
+        "body": [
+          "Una `H` en cada hilo de entrada, y los dos bits de entrada contienen sus cuatro combinaciones simultáneamente. Ocho barras: cuatro valores de entrada, por las dos mitades de la hoja de respuestas.",
+          "Este es el paso que suena a magia y no lo es. El registro contiene una superposición de las cuatro entradas, así que preguntarle a la función produce una superposición de las cuatro respuestas, y hasta aquí nada dice cómo sacar una que sirva. Una superposición no son cuatro ordenadores."
+        ],
+        "notice": "Ocho barras de la misma altura: todos los valores de entrada, presentes a la vez."
+      },
+      "kickback": {
+        "title": "El oráculo escribe un bit y gira una fase",
+        "body": [
+          "Aquí está la función, como una sola compuerta: un `CNOT` que escribe el primer bit de entrada en la hoja de respuestas.",
+          "Mira la tabla de amplitudes. No ha cambiado ni una altura: la hoja de respuestas está exactamente como estaba, y medirla no te diría nada. Lo que ha cambiado son los signos: se han invertido las cuatro filas cuyo primer bit de entrada vale 1, y ninguna otra. Escribir un 1 en un hilo que contiene `(|0⟩−|1⟩)/√2` intercambia sus dos mitades, e intercambiar las mitades de ese estado en concreto es lo mismo que multiplicarlo por −1. El signo menos no tiene dónde ponerse salvo en la entrada.",
+          "Esto se llama retroceso de fase. Al oráculo se le pidió un bit y devolvió una fase, y sobre eso está construido todo algoritmo del resto de esta secuencia."
+        ],
+        "notice": "Las mismas alturas que en el paso anterior, y la mitad de los signos cambiados."
+      },
+      "readOff": {
+        "title": "Una pregunta, una respuesta",
+        "body": [
+          "Otra `H` en cada hilo de entrada, y los cuatro caminos de entrada interfieren: donde las fases coincidían se suman, donde discrepaban se cancelan. Las dos compuertas de más sobre la hoja de respuestas la devuelven a `|0⟩`, así que la única barra que queda es la respuesta.",
+          "Una barra, en `|001⟩`. Los hilos de entrada leen `01`, que no es cero, así que la función es equilibrada. Le has preguntado al oráculo una vez."
+        ],
+        "notice": "Una única barra en `|001⟩`: los hilos de entrada no son los dos cero."
+      },
+      "constant": {
+        "title": "El otro caso",
+        "body": [
+          "Quita el oráculo. Queda la función constante que siempre responde 0, cuyo oráculo de verdad no es ninguna compuerta: nunca escribe nada, así que nunca gira ninguna fase.",
+          "Una barra en `|000⟩`. Todos los hilos de entrada leen cero, y esa es la firma de una función constante. Cualquier función equilibrada da otra cosa.",
+          "Clásicamente, dos bits de entrada son cuatro preguntas posibles y un peor caso de tres de ellas antes de poder estar seguro. Aquí es una, siempre. Cuidado con lo que te llevas de ahí: la promesa — constante o equilibrada, nada intermedio — está haciendo muchísimo trabajo, y los problemas reales rara vez llegan con promesas así. Lo que sí merece la pena guardar es la forma. Mete todas las entradas a la vez, arregla las cosas para que las respuestas equivocadas se cancelen y lee lo que sobreviva."
+        ],
+        "notice": "Una barra en `|000⟩`: una función constante deja el registro de entrada intacto."
+      },
+      "yourOracle": {
+        "title": "Te toca",
+        "body": [
+          "La columna vacía del medio es el hueco del oráculo, y es tuya. El que usó la lección preguntaba por el primer bit de entrada; otra función equilibrada pregunta por el segundo."
+        ],
+        "notice": "Una barra en `|010⟩`: ahora los hilos de entrada leen `10`.",
+        "task": "Pon en la columna vacía un oráculo que pregunte por el segundo bit de entrada, de forma que los hilos de entrada lean `10` en lugar de `01`.",
+        "hint": "Un `CNOT` del segundo hilo de entrada a la hoja de respuestas es la respuesta directa. Una `Z` suelta sobre ese hilo también funciona, y merece la pena probarla: aplica exactamente la misma fase sin tocar en absoluto la hoja de respuestas, que es lo que el oráculo estaba haciendo de todas formas."
+      }
+    }
+  },
+  "grover": {
+    "summary": "Cuatro cajas, una marcada, y un circuito que abre la correcta a la primera. La aceleración es real y es menor de lo que suele contarse.",
+    "goal": "Esta lección da por vista Deutsch–Jozsa, y con ella la interferencia. Al terminar habrás visto una amplitud marcada pasar de −½ a 1 mediante una aritmética que puedes hacer tú, y habrás visto que una segunda ronda lo empeora.",
+    "steps": {
+      "fourItems": {
+        "title": "Cuatro cajas, ninguna información",
+        "body": [
+          "Dos hilos, o sea cuatro elementos: `|00⟩`, `|01⟩`, `|10⟩` y `|11⟩`. Una `H` en cada uno pone un cuarto de la probabilidad en cada elemento, que es exactamente el estado de no saber nada.",
+          "Uno de los cuatro está marcado. El trabajo es averiguar cuál sin abrirlos de uno en uno."
+        ],
+        "notice": "Cuatro barras de la misma altura, una por elemento."
+      },
+      "oracle": {
+        "title": "El oráculo marca sin decirlo",
+        "body": [
+          "Tres compuertas: un `CZ` entre los hilos, con una `X` a cada lado sobre el primer hilo. El `CZ` por su cuenta pone un signo menos en `|11⟩`; las dos `X` reetiquetan el primer hilo a la entrada y lo devuelven a la salida, así que el signo menos acaba en `|10⟩`.",
+          "Comprueba el histograma: no se ha movido nada. La marca está en la tabla de amplitudes: una amplitud de las cuatro es ahora −½ donde era ½. Este es el retroceso de fase de la lección anterior, y tiene la misma propiedad: ninguna medición puede verlo."
+        ],
+        "notice": "Una amplitud negativa en la tabla, y cuatro barras que no han cambiado."
+      },
+      "average": {
+        "title": "Reflejar respecto a la media",
+        "body": [
+          "Haz la aritmética antes de ejecutar la compuerta siguiente. Tres de las cuatro amplitudes valen ½ y una vale −½, así que su media es ¼.",
+          "Ahora refleja cada amplitud respecto a esa media: sustitúyela por el doble de la media menos ella misma. Las tres que valían ½ pasan a 0. La que valía −½ pasa a 1. El elemento marcado se queda con toda la probabilidad y los otros tres con nada, y cada paso de eso fue aritmética corriente sobre cuatro números.",
+          "Las compuertas del paso siguiente hacen exactamente esa reflexión, salvo un signo menos global — así que la tabla de amplitudes marcará −1 donde la aritmética decía 1. En el algoritmo no hay nada más, y en ese signo no hay nada medible: un factor global es justo lo único que ningún experimento puede ver."
+        ],
+        "notice": "Tres amplitudes en ½ y una en −½, con media ¼."
+      },
+      "diffuse": {
+        "title": "Una sola barra",
+        "body": [
+          "Esa es la reflexión, escrita como compuertas: `H` en los dos hilos, `X` en los dos, un `CZ`, y después deshacer las `X` y las `H`. Son las mismas nueve compuertas sea cual sea el elemento marcado — no saben nada del oráculo — y por eso vale la pena aprendérselas una vez.",
+          "Una barra, en `|10⟩`, con toda la probabilidad. No con casi toda: con toda. Cuatro elementos, una llamada al oráculo, y la respuesta es certera."
+        ],
+        "notice": "Una única barra en `|10⟩`: el elemento que marcó el oráculo."
+      },
+      "howMany": {
+        "title": "Cuántas rondas",
+        "body": [
+          "Cuatro elementos es el tamaño en el que una ronda es exacta. En general hacen falta alrededor de π/4 × √N rondas para N elementos: 25 para mil, 800 para un millón, frente a N/2 aperturas en promedio si los compruebas de uno en uno. Esa es la aceleración: una raíz cuadrada, no un exponente, y aquí nada se vuelve exponencialmente más rápido.",
+          "Es una rotación, no una acumulación. Si te pasas, gira más allá de la respuesta: una segunda ronda a este tamaño devuelve la probabilidad de 1 a un cuarto en todos los elementos, que es lo que da adivinar. Pruébalo si quieres. Fíjate en que el algoritmo no da ninguna señal de haberse pasado: hay que contar.",
+          "Un punto más de honestidad. El oráculo de este circuito lo escribió alguien que ya sabía la respuesta. Grover compensa cuando el elemento marcado está definido por una condición rápida de comprobar y lenta de buscar; no compensa sobre una lista que alguien tiene que construir antes, porque construir la lista es la búsqueda."
+        ],
+        "notice": "El circuito en sí: un oráculo de tres compuertas y un difusor que son siempre las mismas nueve."
+      },
+      "retarget": {
+        "title": "Te toca",
+        "body": [
+          "El oráculo busca `|10⟩`. Las dos `X` son lo que lo apunta ahí: el `CZ` marca siempre `|11⟩`, y ellas cambian lo que significa `|11⟩` al pasar."
+        ],
+        "notice": "Otra vez una barra, y esta vez en `|01⟩`.",
+        "task": "Mueve el oráculo al otro elemento, de forma que la búsqueda encuentre `|01⟩`.",
+        "hint": "El `CZ` se queda exactamente donde está. Quita las dos `X` del primer hilo y ponlas en el segundo, en las dos columnas de las que salieron."
+      }
+    }
+  },
+  "teleportation": {
+    "title": "Teletransportación",
+    "summary": "Enviar el estado de un qubit por un canal que nunca lo transporta, y pagar dos bits clásicos corrientes por el privilegio.",
+    "goal": "Esta lección da por vista la de entrelazamiento. Al terminar habrás visto una flecha salir de la primera esfera de Bloch y aparecer en la tercera, y habrás visto exactamente por qué nada de esto le gana a una llamada de teléfono.",
+    "steps": {
+      "payload": {
+        "title": "Lo que se va a enviar",
+        "body": [
+          "Dos rotaciones sobre el primer hilo lo ponen en un estado que no es ni `|0⟩` ni `|1⟩` y que lleva una fase además de una inclinación. Su flecha en la primera esfera de Bloch es de lo que trata esta lección: al terminar estará en la tercera esfera.",
+          "Fíjate en lo que no se puede hacer con ella. Una medición da un bit y destruye el resto, y por mucho que mires no descubres hacia dónde apunta esa flecha. Alice, que tiene este qubit, tampoco conoce su estado, y va a enviarlo igualmente. Ese es el fondo del asunto: el protocolo nunca necesita saber qué está moviendo."
+        ],
+        "notice": "La primera esfera de Bloch: una flecha inclinada respecto al polo, apuntando en una dirección propia alrededor del ecuador."
+      },
+      "resource": {
+        "title": "Una pareja, preparada de antemano",
+        "body": [
+          "Una `H` y un `CNOT` sobre el segundo y el tercer hilo: el par de Bell de hace dos lecciones. Alice se queda con el segundo qubit y Bob se lleva el tercero.",
+          "Esto ocurre antes de que Alice sepa qué va a querer enviar, y es lo único que viaja físicamente entre los dos alguna vez. Todo lo que viene después es una llamada de teléfono."
+        ],
+        "notice": "Un bit de entropía en el segundo y en el tercer qubit, y ninguno en el primero."
+      },
+      "mix": {
+        "title": "Mezclar el mensaje con la pareja",
+        "body": [
+          "Un `CNOT` del primer hilo al segundo, y después una `H` en el primero. Alice ha enredado su qubit desconocido con su mitad de la pareja.",
+          "Mira ahora la tercera esfera de Bloch, que es la de Bob. Su flecha tiene longitud cero. No ha llegado nada: en este momento su qubit no lleva ninguna información sobre el estado, que es precisamente por qué nada ha adelantado a un teléfono."
+        ],
+        "notice": "La tercera esfera: una flecha de longitud cero, en el hilo al que todavía no ha llegado ninguna corrección."
+      },
+      "twoBits": {
+        "title": "La parte que es una llamada de teléfono",
+        "body": [
+          "En el protocolo real Alice mide ahora sus dos qubits. Obtiene dos bits clásicos corrientes, uno de cuatro resultados, todos igual de probables, y ninguno de los dos dice nada del estado por su cuenta. Se los dicta por teléfono a Bob, que aplica una `X` si el bit de su mitad de la pareja vale 1, y una `Z` si el bit del qubit del mensaje vale 1. Qué bit manda cada corrección es fácil de intercambiar y conviene fijarlo ya: la `X` sigue a la pareja, la `Z` sigue al mensaje.",
+          "Este circuito hace el mismo trabajo con un `CNOT` y un `CZ` en lugar de la medición y la llamada. El efecto sobre el qubit de Bob es idéntico; lo que cambia es cuándo se resuelve el azar. La sustitución es estándar, y aquí además se gana su sitio: una medición a mitad de camino dejaría al circuito sin un único estado final, y las esferas de Bloch sobre las que se sigue toda esta lección se quedarían en blanco.",
+          "No te dejes la llamada de teléfono al contarlo. Sin esos dos bits el qubit de Bob se queda exactamente como está ahora: de longitud cero, sin llevar nada. La teletransportación mueve un estado a la velocidad de un mensaje clásico y ni un bit más rápido."
+        ],
+        "notice": "El circuito tal y como está: dos compuertas del lado de Alice y ninguna corrección todavía en el de Bob — el `CNOT` que ya hay en su hilo es la pareja de Bell fabricándose, no el mensaje llegando."
+      },
+      "firstFix": {
+        "title": "La mitad de la corrección",
+        "body": [
+          "La primera corrección: un `CNOT` de la mitad de la pareja que tiene Alice al qubit de Bob, que hace las veces de «si el primer bit vale 1, aplica una `X`».",
+          "La flecha de Bob ha vuelto, y no es la correcta. Su altura sobre el eje vertical ya está bien; falta todo lo del ecuador, es decir, la fase no ha llegado. Ha aterrizado uno de los dos bits."
+        ],
+        "notice": "La tercera esfera: una flecha corta recta sobre el eje, sin inclinarse en ninguna dirección."
+      },
+      "arrival": {
+        "title": "Te toca",
+        "body": [
+          "Queda una corrección, la que hace las veces de «si el segundo bit vale 1, aplica una `Z`».",
+          "Cuando aterrice, compara la tercera esfera de Bloch con la primera tal y como estaba en el paso 1: misma inclinación, misma dirección, longitud completa. Y ahora mira la primera esfera tal y como está: apunta a `|+⟩`, y apuntará a `|+⟩` con cualquier estado del que hubieras partido. El estado no se copió: se movió, y el original ya no está. Eso no es cortesía del circuito. Ningún circuito puede hacer otra cosa, que es el teorema de no clonación, y así es como se ve."
+        ],
+        "notice": "La tercera esfera con la flecha con la que empezó la primera, y la primera esfera apuntando a `|+⟩`.",
+        "task": "Añade la última corrección para que el tercer hilo lleve el estado con el que empezó el primero.",
+        "hint": "Un `CZ` entre el primer hilo y el tercero, en la última columna. Al `CZ` le da igual a qué extremo llames control, así que en cualquier sentido es la misma compuerta."
+      }
+    }
+  },
+  "superdense-coding": {
+    "title": "Codificación superdensa",
+    "summary": "Dos bits de mensaje en un qubit de correo, siempre que hayas enviado antes el otro qubit. La contabilidad es más interesante que el truco.",
+    "goal": "Esta lección da por vista la de teletransportación, o al menos el par de Bell que usaba. Al terminar habrás enviado los cuatro mensajes de dos bits con una compuerta cada uno, y habrás contado con honestidad lo que costó cada uno.",
+    "steps": {
+      "shared": {
+        "title": "Otra vez una pareja",
+        "body": [
+          "Las mismas dos compuertas de la lección anterior y el mismo par de Bell. Alice se queda con el primer qubit, el que va a viajar; Bob se queda con el segundo y se lo lleva.",
+          "No se ha enviado nada. El panel de entrelazamiento muestra un bit de entropía en cada qubit, que es un recurso compartido y no un mensaje: a estas alturas Alice ni siquiera ha decidido qué quiere decir."
+        ],
+        "notice": "Un bit de entropía en cada qubit, antes de que nadie haya elegido un mensaje."
+      },
+      "decoder": {
+        "title": "El decodificador de Bob",
+        "body": [
+          "Al otro extremo Bob deshace el entrelazado: un `CNOT` y una `H`, las mismas dos compuertas al revés. El histograma lee `|00⟩` con certeza.",
+          "Entre la pareja y el decodificador hay dos columnas vacías. Ese hueco es de Alice, y es el protocolo entero: lo que ella le haga a su propio qubit ahí es el mensaje. No ha hecho nada, y `00` es lo que recibe Bob."
+        ],
+        "notice": "Una barra en `|00⟩`, y dos columnas vacías en medio del circuito."
+      },
+      "flip": {
+        "title": "Un bit",
+        "body": [
+          "Una `X` en el hueco de Alice, y Bob lee `|10⟩`.",
+          "Ella ha tocado un qubit — el suyo — con una compuerta, y al otro extremo ha salido un mensaje distinto. La compuerta es local. El efecto es sobre la pareja."
+        ],
+        "notice": "Una barra, ahora en `|10⟩`."
+      },
+      "phase": {
+        "title": "El otro bit",
+        "body": [
+          "Cambia la `X` por una `Z`, y Bob lee `|01⟩`.",
+          "Esta es la interesante. El qubit de Alice por su cuenta está en el estado menos informativo que existe — su flecha de Bloch tiene longitud cero — y una `Z` lo deja exactamente como estaba, así que ninguna medición de su qubit a solas, en ninguna base, podría decirte si la aplicó. Eso no es una propiedad de la `Z`: sobre un qubit suelto en `|+⟩` una `Z` se ve perfectamente, que es lo que midió la lección de superposición con su segunda `H`. Es una propiedad de la mitad de una pareja entrelazada, y es lo que hace del entrelazamiento un recurso. Aplicada aquí y deshecha en el otro extremo, mueve el histograma entero."
+        ],
+        "notice": "Una barra en `|01⟩`, desde una compuerta que por su cuenta no cambia ninguna probabilidad."
+      },
+      "both": {
+        "title": "Te toca",
+        "body": [
+          "Dos compuertas, cuatro mensajes: nada, `X`, `Z` y las dos. Tres de los cuatro ya están en pantalla."
+        ],
+        "notice": "Una barra en `|11⟩`.",
+        "task": "Envía el cuarto mensaje, de forma que Bob lea `11`.",
+        "hint": "Añade una `X` en la segunda de las dos columnas de Alice, para que su qubit reciba una `Z` y luego una `X`. Una sola `Y` en lugar de la `Z` hace el mismo trabajo, porque `Y` es `X` y `Z` juntas salvo una fase que nadie puede medir."
+      },
+      "accounting": {
+        "title": "Lo que costó de verdad",
+        "body": [
+          "Cuenta los qubits que cruzaron la habitación. Dos: la mitad de la pareja de Bob, enviada antes de que Alice conociera su mensaje, y el qubit de Alice después. Dos qubits llevaron dos bits, lo cual no es ninguna ganga.",
+          "Lo que sí es genuinamente útil es el momento. La mitad del coste se puede pagar por adelantado, en un rato tranquilo, antes de que haya nada que decir, y cuando por fin existe el mensaje un solo qubit termina el trabajo.",
+          "Debajo de todo esto hay un límite duro: un qubit por su cuenta lleva como mucho un bit clásico, hagas lo que hagas con él. Eso es la cota de Holevo, y la codificación superdensa no la rompe: le pide prestado el segundo bit a una pareja que se envió antes. El nombre promete de más. El protocolo sigue mereciendo la pena, porque es la demostración más clara de que el entrelazamiento es un recurso que se puede guardar y gastar."
+        ],
+        "notice": "El circuito entero: dos compuertas para compartir una pareja, dos columnas de mensaje y dos compuertas para leerlo."
+      }
+    }
+  },
+  "bb84": {
+    "summary": "Una clave que no se puede copiar sin dejar marca, y la versión honesta, en la que la espía es invisible la mitad de las veces.",
+    "goal": "Esta lección da por vistas superposición, interferencia y entrelazamiento, y es la primera sobre un protocolo y no sobre un circuito. Al terminar habrás ejecutado una ronda de un intercambio de clave de cuatro formas y habrás visto al panel de entrelazamiento delatar a una espía que no midió nada.",
+    "steps": {
+      "sendBit": {
+        "title": "Un bit, una base",
+        "body": [
+          "Un hilo y una ronda. Alice tiene un bit — 1 — y una base en la que enviarlo. Elige la base rectilínea, en la que `|0⟩` significa 0 y `|1⟩` significa 1, así que una `X` es todo su mensaje.",
+          "Bob también elige una base, en privado y sin conocer la de ella. Esta vez ha elegido también la rectilínea, que se escribe «ninguna compuerta», y lee 1. Cuando las dos elecciones coinciden, el bit pasa."
+        ],
+        "notice": "Una barra en `|1⟩`: el bit que envió Alice es el bit que lee Bob."
+      },
+      "wrongBasis": {
+        "title": "La otra base",
+        "body": [
+          "Ahora Bob elige la base diagonal: una `H` antes de leer, que pregunta si el qubit es `|+⟩` o `|−⟩` en vez de si es `|0⟩` o `|1⟩`.",
+          "Cincuenta y cincuenta. Su respuesta es una moneda justa y no lleva nada del bit de Alice. Eso no es un fallo: después anuncian qué bases usaron, en voz alta, en público, las bases y nunca los bits, y descartan todas las rondas en las que difirieron. Alrededor de la mitad."
+        ],
+        "notice": "Dos barras a la mitad cada una: un bit que no significa nada."
+      },
+      "sameBasis": {
+        "title": "Acuerdo",
+        "body": [
+          "Alice se pasa también a la base diagonal — una `H` de su lado también, así que envía `|−⟩` en vez de `|1⟩` — y la `H` de Bob deshace la de ella.",
+          "Otra vez una barra, en `|1⟩`. Misma base, mismo bit, y funciona en cualquiera de las dos bases, que es lo que hace que la elección se pueda tomar al azar. Las rondas que sobreviven a la comparación son la clave."
+        ],
+        "notice": "Una barra en `|1⟩`: bases que coinciden, bits que coinciden."
+      },
+      "sifting": {
+        "title": "Cuánto vale una ronda",
+        "body": [
+          "Lo que hay en pantalla es una ronda. El protocolo ejecuta miles: Alice elige cada vez un bit al azar y una base al azar, Bob elige una base al azar, y después comparan las bases en abierto y se quedan con la mitad que coincide. Luego sacrifican algunas de esas, comparan los bits mismos y cuentan cuántos discrepan.",
+          "Las tres columnas vacías del medio son el viaje. En un enlace real eso es un tramo de fibra, y es la única parte de todo esto a la que puede llegar quien esté escuchando."
+        ],
+        "notice": "El hueco en medio del circuito: la parte del protocolo que no controla nadie en ninguno de los dos extremos."
+      },
+      "eve": {
+        "title": "Alguien en la fibra",
+        "body": [
+          "Aparece un segundo hilo, el de Eve. Su `CNOT` copia en él el valor del qubit que viaja, en la base rectilínea, que es exactamente lo que hace medirlo en la base rectilínea una vez que se dibuja el aparato como parte del circuito.",
+          "Alice y Bob eligieron la misma base esta ronda, así que este debería haber sido un bit certero. En su lugar hay cuatro barras a un cuarto cada una: la respuesta de Bob es un lanzamiento de moneda. Eve se equivocó de base al adivinar, y por mirar cambió lo que él recibe."
+        ],
+        "notice": "Cuatro barras donde debería haber habido una."
+      },
+      "mark": {
+        "title": "La marca que deja",
+        "body": [
+          "El panel de entrelazamiento lo dice con precisión: un bit de entropía en el qubit que viaja, que hace un paso no tenía ninguno. Está entrelazado con la copia de Eve, y un qubit entrelazado con otra cosa no tiene estado propio que entregar.",
+          "Ese es el argumento de seguridad, y es un teorema y no una dificultad de ingeniería. Averiguar el valor de un qubit en una base cuesta una perturbación en la otra, y no hay aparato más listo que se libre de eso.",
+          "Los números: en las rondas en las que Alice y Bob usaron la misma base, una Eve que elige su base al azar se equivoca la mitad de las veces, y cuando se equivoca Bob se equivoca la mitad de esas. Discrepa un cuarto de los bits cribados. Alice y Bob comparan una muestra en abierto, ven un 25 % donde esperaban ninguno, y tiran la clave."
+        ],
+        "notice": "Un bit de entropía en un hilo que no debería haber llevado ninguno."
+      },
+      "lucky": {
+        "title": "Te toca: la mitad que nadie menciona",
+        "body": [
+          "La escucha de Eve lee la base rectilínea y esta ronda es diagonal, y por eso la destrozó. Dale a cambio la base diagonal: el mismo patrón de antes y después que usan Alice y Bob, en las columnas vacías a cada lado de su `CNOT`.",
+          "Cuando aterrice: una barra, `|11⟩`. Bob obtiene el bit de Alice, correcto y con certeza. El hilo de Eve lleva una copia. El panel de entrelazamiento marca cero y no hay nada en ninguna parte que nadie pueda notar. Esa es la mitad honesta del protocolo: una espía con suerte no deja marca alguna, y BB84 es seguro no porque Eve no pueda tener éxito, sino porque no puede tenerlo siempre, y las rondas en las que falla bastan para delatarla."
+        ],
+        "notice": "Una barra en `|11⟩`, y ninguna entropía en ningún sitio: Bob acierta y Eve conoce el bit.",
+        "task": "Dale a Eve la base correcta: añade dos compuertas para que los dos hilos lean el mismo bit con certeza.",
+        "hint": "Una `H` en la columna anterior a su `CNOT` y otra en la columna posterior. Es el mismo par de compuertas que usan Alice y Bob para cambiar de base, aplicado alrededor de la copia en vez de alrededor del viaje."
+      }
+    }
+  },
+  "qpe": {
+    "title": "Estimación de fase",
+    "summary": "La más difícil de las nueve. Una compuerta guarda un número al que ninguna medición de ella llega, y este circuito escribe ese número en un registro en binario. `QPE` es el nombre con el que te la vas a encontrar, y el algoritmo de Shor está construido sobre ella.",
+    "goal": "Esta lección da por vista Deutsch–Jozsa para el retroceso de fase y Grover para leer una respuesta de un registro uniforme. Al terminar habrás leído tres dígitos binarios de una fase en un histograma, y habrás visto qué pasa cuando la fase no cabe en tres dígitos. Hay un bloque, la transformada de Fourier inversa, que aquí se usa y no se explica; el paso que la usa lo dice.",
+    "steps": {
+      "eigenstate": {
+        "title": "Un número que no puedes medir",
+        "body": [
+          "Cuatro hilos: tres hilos de conteo y un cuarto que lleva el estado por el que preguntamos. Una `X` pone ese último hilo en `|1⟩`.",
+          "La compuerta bajo examen es `P`, que multiplica `|1⟩` por una fase y deja `|0⟩` en paz. Por tanto `|1⟩` es un estado propio suyo: aplicar la compuerta multiplica el estado por un número de módulo uno y no cambia nada más. Ahora mismo hay una sobre el hilo, y el histograma está exactamente donde estaba sin ella.",
+          "Ese número es lo que buscamos, y es invisible por construcción: una fase sobre el estado entero no cambia ninguna medición de ese estado. Todo lo que viene después trata de hacerla visible en otro sitio."
+        ],
+        "notice": "Una barra, completamente inmóvil ante la compuerta que supuestamente hacía algo."
+      },
+      "ruler": {
+        "title": "Una regla en superposición",
+        "body": [
+          "Sale la compuerta de demostración y entra una `H` en cada uno de los tres hilos de conteo, que ahora contienen todos los valores del 0 al 7 a la vez.",
+          "Léelos como un número binario: el primer hilo vale 1, el segundo 2, el tercero 4. Esa es la regla contra la que se va a medir la fase, y tres hilos significa que la lectura solo puede ser un número entero de octavos de vuelta."
+        ],
+        "notice": "Ocho barras de la misma altura: el registro de conteo con el 0 al 7 a la vez."
+      },
+      "kickback": {
+        "title": "Una aplicación controlada",
+        "body": [
+          "Una `P` controlada: aplicar la compuerta al último hilo, pero solo cuando el primer hilo de conteo vale 1. Como el último hilo es un estado propio, la compuerta no puede cambiarlo, así que la fase sale por el control: el mismo retroceso que usaba el oráculo en Deutsch–Jozsa.",
+          "La tabla de amplitudes: ocho amplitudes, todas con la misma altura que antes, y las cuatro cuyo primer bit de conteo vale 1 han girado. El histograma no se ha movido y no volverá a moverse hasta el bloque final."
+        ],
+        "notice": "La mitad de las amplitudes giradas, y ni una altura cambiada."
+      },
+      "doubling": {
+        "title": "El doble, y otra vez el doble",
+        "body": [
+          "Dos aplicaciones controladas más: el doble de la fase desde el segundo hilo, el cuádruple desde el tercero. Cada hilo recibe la fase multiplicada por lo que ese hilo vale como dígito binario.",
+          "El registro lleva ahora una fase que avanza el mismo paso cada vez que el número contado sube en uno. Todo lo que hay que saber de la compuerta que estamos midiendo está en ese tamaño de paso, y nada de ello está en ninguna de las alturas.",
+          "Aquí también es donde vive el coste. Un dígito binario más significa un hilo más y el doble de aplicaciones de la compuerta, así que la precisión se paga a un precio exponencial en llamadas — que es por qué la estimación de fase es cara en la práctica y por qué el algoritmo de Shor necesita una compuerta que se pueda aplicar barata y repetidamente."
+        ],
+        "notice": "Las fases avanzan ahora a pasos iguales según sube el número contado."
+      },
+      "readOut": {
+        "title": "Convertir un tamaño de paso en un número",
+        "body": [
+          "El último bloque es la transformada de Fourier cuántica inversa, y una sola frase cubre lo que hace aquí: dado un registro cuya fase avanza a pasos fijos, escribe de qué tamaño era ese paso, en binario. Es la transformada que habría producido esas fases, ejecutada al revés.",
+          "Esta lección no la desmonta: eso es una lección aparte, y fingir que se han explicado nueve compuertas es peor que decir qué frase se está dando por buena. Aun así merece la pena señalar el `SWAP` del principio: la transformada entrega sus hilos en el orden contrario al que entraron, así que el bloque empieza devolviéndolos a su sitio.",
+          "Una barra, en `|1011⟩`. El último hilo es el `|1⟩` del que partimos; el registro de conteo lee `011`, que es tres. La fase era de tres octavos de vuelta, y tres octavos de vuelta es lo que dice."
+        ],
+        "notice": "Una única barra: los hilos de conteo leen `011`, que es 3 de 8."
+      },
+      "awkward": {
+        "title": "Cuando no encaja",
+        "body": [
+          "Ahora tres décimos de vuelta, en lugar de tres octavos. Tres hilos no pueden escribir eso: tres décimos son 2,4 octavos, y no hay ninguna barra en 2,4.",
+          "Así que el histograma se reparte. La barra más alta está en `010` — dos octavos, el valor más cercano por debajo — con alrededor del 58 % de la probabilidad, y `011` se lleva alrededor del 26 %. Los dos valores más cercanos suman más o menos el 84 % entre los dos y el resto se va apagando.",
+          "Este es el caso normal, no una avería, y es por lo que la palabra estimación está en el nombre. Una sola ejecución cae en el valor más cercano alrededor del 58 % de las veces, y en uno de los dos más cercanos alrededor del 84 %. Esa segunda cifra es una garantía del algoritmo y no una casualidad afortunada de esta fase: nunca baja de `8/π²`, sea cual sea la fase y por muchos hilos que uses. Hacerlo mejor consiste en ejecutarlo otra vez y quedarse con la respuesta más frecuente, y en añadir un hilo por cada dígito binario de más."
+        ],
+        "notice": "Un grupo de barras en lugar de una sola, con la más alta en `010`."
+      },
+      "yourTurn": {
+        "title": "Te toca",
+        "body": [
+          "Volvamos a una fase que encaja. Cinco octavos de vuelta deberían hacer que el registro de conteo lea `101`, que es cinco.",
+          "Tres ángulos que fijar, y el patrón es el del paso 4: el primer hilo de conteo se lleva la fase, el segundo el doble y el tercero el cuádruple. Una fase se repite cada vuelta completa, así que puedes restarle una vuelta entera a cualquiera de ellos cuando el número se ponga incómodo. La compuerta no nota la diferencia."
+        ],
+        "notice": "Una barra en `|1101⟩`: los hilos de conteo leen `101`, que es 5 de 8.",
+        "task": "Fija las tres fases controladas para que el registro lea cinco octavos de vuelta.",
+        "hint": "Cinco octavos de vuelta son `5π/4`. El doble es `5π/2`, que es el mismo ángulo que `π/2`; el cuádruple es `5π`, que es el mismo ángulo que `π`. El deslizador se detiene en dieciseisavos de `π`, así que los tres caen exactamente en una parada: las flechas del teclado avanzan de una en una, y el campo de al lado acepta el número escrito."
+      }
+    }
+  }
+}

@@ -109,6 +109,15 @@ export const UpdateProfileBody = z
     displayName: DisplayNameSchema.optional(),
     username: UsernameSchema.optional(),
     avatar: AvatarSourceSchema.optional(),
+    /**
+     * "Do not print my name on a challenge leaderboard" (§3.6, Phase 3).
+     *
+     * The one field here that is a *setting* rather than a description of the
+     * person, which is why it is not part of the user shape below: a
+     * preference is not a public fact, and on `PublicUserResponse` it would be
+     * published in every circuit byline to strangers who have no use for it.
+     */
+    leaderboardOptOut: z.boolean().optional(),
   })
   .refine((body) => Object.keys(body).length > 0, {
     error: 'at least one field must be present',
@@ -157,8 +166,19 @@ function buildUserResponses<User extends z.ZodType>(user: User) {
   })
 
   return {
-    /** `GET /me` and `PATCH /me`. The same shape a stranger sees. */
-    AccountResponse: z.object({ user }),
+    /**
+     * `GET /me` and `PATCH /me`. The same *user* shape a stranger sees, plus
+     * the settings that are nobody else's business.
+     *
+     * `leaderboardOptOut` is a sibling of `user` rather than a field on it, and
+     * the split is the whole privacy design in one line: the user shape is what
+     * this API is willing to print beside somebody's work, and a preference is
+     * not that. Putting it inside would publish it on every gallery card, since
+     * `PublicUserResponse` is what a byline serialises through. Here it can
+     * only leave the process on the three routes that require the caller to be
+     * the subject.
+     */
+    AccountResponse: z.object({ user, leaderboardOptOut: z.boolean() }),
     /**
      * `GET /users/:username`.
      *

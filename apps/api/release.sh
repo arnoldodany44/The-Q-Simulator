@@ -69,5 +69,19 @@ echo "release: applying migrations"
 # cannot race each other.
 pnpm --filter @qsim/db exec prisma migrate deploy
 
+# ---------------------------------------------------------------------------
+# The challenge ladder (§3.6, Phase 3).
+#
+# After the migrations, because it writes rows, and before the server, because
+# a deployment serving an empty ladder would 404 every challenge page. It is an
+# upsert keyed on the unique slug, so running it on every release converges the
+# rows rather than duplicating them, and it deletes nothing.
+#
+# Its targets are computed by @qsim/core from the reference circuits in the
+# catalog, which is why it is a Node process and not SQL.
+# ---------------------------------------------------------------------------
+echo "release: seeding challenges"
+node apps/api/dist/seed-challenges.js
+
 echo "release: starting the server"
 exec node apps/api/dist/server.js

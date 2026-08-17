@@ -183,6 +183,86 @@ function flatten(circuit: Circuit): Circuit {
 }
 
 /**
+ * Every gate identifier the circuit actually runs, sorted, without repeats.
+ *
+ * ── Why it is the *expanded* circuit, like `gateCount` and `depth` ────────
+ *
+ * A §3.6 challenge may restrict which gates a solution is allowed to use, and
+ * the server enforces that (risk 5). If this read `circuit.operations`, a
+ * submission could hide a forbidden gate inside a custom-gate definition and
+ * the check would see one operation named `myBlock` and be satisfied — while
+ * the engine ran the very gate the challenge excluded. Expanding first is the
+ * same decision M2.3 made for the two counters, for the same reason: the
+ * numbers and the names a challenge is judged on are about the primitives the
+ * hardware would run, not about how the document is packaged.
+ *
+ * ── `barrier` is excluded, and nothing else is ────────────────────────────
+ *
+ * A barrier applies no matrix, moves no amplitude and is not counted by
+ * `gateCount`; it is an annotation about scheduling. Refusing a submission for
+ * carrying one would be refusing it for a comment. `measure` and `reset` are
+ * *not* excluded, because both change the state — so a challenge whose allowed
+ * list does not name them is a challenge where they are genuinely not allowed.
+ */
+export function gatesUsed(circuit: Circuit): string[] {
+  const used = new Set<string>()
+  for (const operation of flatten(circuit).operations) {
+    if (operation.gate === 'barrier') continue
+    used.add(operation.gate)
+  }
+  return [...used].sort()
+}
+
+/**
+ * The same document with every custom-gate definition nothing reaches removed.
+ *
+ * A definition is *data* rather than an operation (§3.1, decision 2), so an
+ * unreferenced one costs the expansion budget nothing, changes no count, no
+ * depth and no state — and is carried verbatim into whatever stores the
+ * document. That asymmetry is a storage amplifier: a two-gate answer with two
+ * thousand definitions nobody invokes is still a two-gate answer and is a
+ * quarter of a megabyte of permanent row.
+ *
+ * Reachability is transitive, because a definition may invoke another, and it
+ * is computed from the operations rather than from the keys: what a document
+ * *does* is the only thing that decides what it needs.
+ *
+ * Returns the input unchanged when there is nothing to drop, so a caller can
+ * store the result without wondering whether it is a different document.
+ */
+export function pruneUnusedDefinitions(circuit: Circuit): Circuit {
+  const definitions = circuit.customGates
+  if (definitions === undefined) return circuit
+
+  const reachable = new Set<string>()
+  const pending = circuit.operations.map((operation) => operation.gate)
+  while (pending.length > 0) {
+    const name = pending.pop() as string
+    if (reachable.has(name)) continue
+    const definition = definitions[name]
+    if (definition === undefined) continue
+    reachable.add(name)
+    for (const operation of definition.operations) pending.push(operation.gate)
+  }
+
+  const names = Object.keys(definitions)
+  if (names.length === reachable.size) return circuit
+
+  const kept: Record<string, (typeof definitions)[string]> = {}
+  for (const name of names) {
+    const definition = definitions[name]
+    if (reachable.has(name) && definition !== undefined) kept[name] = definition
+  }
+  // An empty record is dropped rather than stored: `customGates` is optional,
+  // and `{}` is a key that says nothing.
+  if (Object.keys(kept).length === 0) {
+    const { customGates: _dropped, ...rest } = circuit
+    return rest
+  }
+  return { ...circuit, customGates: kept }
+}
+
+/**
  * Close the gaps in the column numbering, so occupied columns become
  * `0, 1, 2, …` in their original order.
  *

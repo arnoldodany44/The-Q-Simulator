@@ -1,19 +1,26 @@
 /**
- * `/settings` — display name, username, picture, language, and the way out
- * (§3.4, milestone M1.9).
+ * `/settings` — display name, username, picture, leaderboard listing, language,
+ * and the way out (§3.4, §3.6, milestones M1.9 and the leaderboard).
  *
- * ── Four fields, three of which live on the server ────────────────────────
+ * ── Five settings, four of which live on the server ───────────────────────
  *
- * The name, the handle and the picture are columns on `User` and are saved
- * with `PATCH /me`. The *language* is not, and that is a decision rather than
- * an omission: it is chosen before anyone has an account, it is what the
- * detector already resolved from the browser, and `qsim.language` in
- * `localStorage` already persists it. Storing a second copy on the server
- * would create two sources of truth that disagree the first time somebody
- * switches language while signed out — and the loser of that argument would be
- * the choice the reader just made with their own hands. So the picker on this
- * page is the same `LanguagePicker` the header carries, and the page says
- * plainly that the setting belongs to this browser.
+ * The name, the handle, the picture and the leaderboard listing are columns on
+ * `User` and are saved with `PATCH /me`. The *language* is not, and that is a
+ * decision rather than an omission: it is chosen before anyone has an account,
+ * it is what the detector already resolved from the browser, and
+ * `qsim.language` in `localStorage` already persists it. Storing a second copy
+ * on the server would create two sources of truth that disagree the first time
+ * somebody switches language while signed out — and the loser of that argument
+ * would be the choice the reader just made with their own hands. So the picker
+ * on this page is the same `LanguagePicker` the header carries, and the page
+ * says plainly that the setting belongs to this browser.
+ *
+ * ── Why the leaderboard control is not a fifth field in the profile form ──
+ *
+ * It is the only setting here that governs what *other people* see, and it is
+ * the only one that should take effect at the moment it is chosen rather than
+ * when a form is submitted. A privacy control behind a save button is one
+ * somebody will believe they used. `PrivacySection` below has the rest.
  *
  * ── The username is the one field that can be refused ─────────────────────
  *
@@ -157,6 +164,7 @@ function SettingsScreen({
             user={account.data.user}
             email={session.user?.email ?? null}
           />
+          <PrivacySection optedOut={account.data.leaderboardOptOut} />
           <LanguageSection />
           <DangerSection
             username={account.data.user.username}
@@ -462,6 +470,73 @@ function ProfileForm({
         </button>
       </form>
     </>
+  )
+}
+
+/**
+ * Whether this account's name appears on a challenge leaderboard (§3.6).
+ *
+ * ── Why this is a section of its own and not a fourth field above ─────────
+ *
+ * Everything in `ProfileSection` describes the person and is saved together
+ * behind one button. This is a *decision about other people's screens*, and it
+ * takes effect the moment it is made rather than when a form is submitted —
+ * the same immediacy the language picker has, and for the same reason: a
+ * privacy control that needs a second click to take hold is a control somebody
+ * will believe they used.
+ *
+ * ── What the sentence has to say, and what it must not imply ──────────────
+ *
+ * Opting out withdraws the *name* from the listing and nothing else: the
+ * result still counts, the rank is still the reader's own, and the page still
+ * shows them where they stand. Saying so matters, because the obvious guess —
+ * "this deletes my scores" — would make the honest choice look expensive.
+ * `privacy.note` is that sentence, and the server enforces the same rule by
+ * filtering after the rank is assigned.
+ *
+ * The checkbox is phrased positively ("show my name") while the stored column
+ * is the refusal, so the two are inverses. That is deliberate on both sides: a
+ * control reads better as a thing you turn on, and a column reads better as a
+ * choice somebody made — see the model comment in schema.prisma.
+ */
+function PrivacySection({ optedOut }: { readonly optedOut: boolean }) {
+  const { t } = useTranslation('settings')
+  const describeError = useApiErrorMessage()
+  const update = useUpdateProfile()
+
+  return (
+    <section className="settings-section" aria-labelledby="settings-privacy">
+      <h3 id="settings-privacy">{t('privacy.heading')}</h3>
+
+      {update.isError ? (
+        <p className="auth-alert" role="alert">
+          {describeError(update.error)}
+        </p>
+      ) : null}
+
+      <div className="field">
+        <label>
+          <input
+            type="checkbox"
+            checked={!optedOut}
+            /*
+             * `aria-disabled`, never `disabled`, exactly as the save button
+             * above: a disabled control cannot hold focus, so a keyboard
+             * reader who toggles this would be dropped to the document body
+             * for the length of a round trip. Announced as unavailable, still
+             * reachable, and the handler declines.
+             */
+            aria-disabled={update.isPending}
+            onChange={(event) => {
+              if (update.isPending) return
+              update.mutate({ leaderboardOptOut: !event.target.checked })
+            }}
+          />{' '}
+          {t('privacy.listMe')}
+        </label>
+        <p className="field__hint">{t('privacy.note')}</p>
+      </div>
+    </section>
   )
 }
 

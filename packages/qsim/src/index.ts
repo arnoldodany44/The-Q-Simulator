@@ -28,6 +28,7 @@
  *   - `trajectories.ts` the same channels sampled on a statevector — 2ⁿ (§5.4)
  *   - `rng.ts`          the seeded generator every sampler takes
  *   - `runner.ts`       circuit JSON in, result out, with incremental caching
+ *   - `unitary.ts`      a circuit as a matrix, compared up to global phase
  *
  * A minimal Bell pair, end to end:
  *
@@ -272,6 +273,7 @@ export {
   invalidateFrom,
   run,
   runFrom,
+  runFromState,
   runNoisy,
   runNoisyDensity,
   runTrajectory,
@@ -291,3 +293,19 @@ export type {
   ParameterLike,
   TrajectoryRun,
 } from './runner.js'
+
+/*
+ * `unitary.ts` is what a §3.6 challenge with a *unitary* target compares
+ * against: the circuit as a matrix, and the fidelity that ignores an overall
+ * phase — because two operations differing by one are the same operation, and
+ * a validator that failed them would be wrong.
+ */
+export {
+  MAX_UNITARY_QUBITS,
+  UnitaryTooLargeError,
+  allocUnitary,
+  circuitUnitary,
+  transitionProbability,
+  unitaryFidelity,
+} from './unitary.js'
+export type { Unitary } from './unitary.js'

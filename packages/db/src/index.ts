@@ -36,6 +36,13 @@
  *   - `accounts.ts`           the settings write, the username race, and what
  *                             deleting an account has to clean up that no
  *                             foreign key will
+ *   - `lessons.ts`            a reader's bookmark in a guided lesson, and why
+ *                             it is a bookmark rather than a score
+ *   - `challenges.ts`         the opposite table: a judged submission, the two
+ *                             projections that keep the target off the wire,
+ *                             the ranking that is one row per person and total
+ *                             rather than merely specified, and the idempotent
+ *                             seed
  */
 
 export {
@@ -90,6 +97,7 @@ export type {
 } from './runs.js'
 
 export {
+  accountSelect,
   circuitCardSelect,
   circuitDetailSelect,
   circuitVersionSummarySelect,
@@ -101,6 +109,7 @@ export {
   toCollectionCard,
 } from './projections.js'
 export type {
+  AccountUser,
   CircuitCard,
   CircuitCardRow,
   CircuitDetail,
@@ -134,6 +143,29 @@ export type {
 } from './accounts.js'
 
 export {
+  challengeRuleSelect,
+  challengeWithTargetSelect,
+  prismaChallengeRepository,
+} from './challenges.js'
+export type {
+  ChallengeRepository,
+  ChallengeRules,
+  ChallengeSeed,
+  ChallengeWithTarget,
+  LeaderboardRow,
+  LeaderboardStanding,
+  RecordSubmissionInput,
+  SubmissionRecord,
+} from './challenges.js'
+
+export { prismaLessonRepository } from './lessons.js'
+export type {
+  LessonProgressRecord,
+  LessonRepository,
+  SaveLessonProgressInput,
+} from './lessons.js'
+
+export {
   attachCircuitTags,
   isNormalizedTagName,
   MAX_TAG_LENGTH,
@@ -165,6 +197,7 @@ export {
   CircuitTooLargeError,
   circuitJsonByteLength,
   MAX_CIRCUIT_JSON_BYTES,
+  MAX_SUBMISSION_JSON_BYTES,
   parseCircuitVersion,
   parseStoredCircuit,
   parseStoredPreview,

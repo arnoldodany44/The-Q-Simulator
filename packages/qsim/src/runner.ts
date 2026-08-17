@@ -348,6 +348,47 @@ export function run(
 }
 
 /**
+ * Run a whole circuit from a state the caller supplies, instead of from |0…0⟩.
+ *
+ * The state is **consumed in place** — it is the machine's own register — so
+ * the returned state is the argument, evolved. Clone first if the input is
+ * still needed; `unitary.ts`, the only caller in this package, deliberately
+ * does not, because it allocates one basis state per column and throws it away.
+ *
+ * ── Why this exists, and why it is not an option on `run()` ───────────────
+ *
+ * A circuit's *unitary* is what it does to every basis state, so building one
+ * needs 2ⁿ runs from 2ⁿ different starting points. `run()` cannot express that:
+ * it allocates the ground state itself, which is right for every other caller —
+ * a circuit document describes a preparation, and a preparation starts from the
+ * ground state (§5.1). Adding an `initialState` to `ExecutionOptions` would put
+ * that choice in front of every call site, including the worker's, where the
+ * only correct answer is |0…0⟩ and an accidental one is silent wrong physics.
+ *
+ * Analytic only, and it takes no checkpoint cache. A cache is keyed by column
+ * and says nothing about which state the run began in, so filling one from here
+ * would leave `runFrom()` resuming a *different* circuit's history — the exact
+ * failure `run()`'s cache reset exists to prevent.
+ */
+export function runFromState(
+  circuit: CircuitLike,
+  state: Statevector
+): AnalyticResult {
+  if (state.qubits !== circuit.qubits) {
+    throw new CircuitRunError(
+      `A state on ${state.qubits} qubits cannot run a circuit on ` +
+        `${circuit.qubits}.`
+    )
+  }
+  const plan = planColumns(circuit)
+  rejectMidCircuit(circuit)
+  const machine = createMachine(circuit, state)
+  const context = createContext(circuit, analyticMode(), plan.length, undefined)
+  evolve(machine, plan, 0, plan.length, context)
+  return { mode: 'analytic', state: machine.state }
+}
+
+/**
  * Re-simulate after an edit at `fromColumn`, resuming from the latest
  * checkpoint that is still valid instead of starting over. The result is the
  * same final state `run()` would produce; only the work differs.

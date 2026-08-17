@@ -37,7 +37,7 @@
 
 import { USER_ROUTES } from '@qsim/contract'
 import type { AvatarSource } from '@qsim/contract'
-import type { PublicUser } from '@qsim/db'
+import type { AccountUser } from '@qsim/db'
 import type {
   FastifyInstance,
   FastifyPluginCallback,
@@ -77,7 +77,7 @@ export interface UserRoutesOptions {
 async function ownRow(
   app: FastifyInstance,
   request: FastifyRequest
-): Promise<PublicUser> {
+): Promise<AccountUser> {
   const identity = request.auth
   // Unreachable on a route declaring `auth: 'required'`; throwing rather than
   // asserting keeps a policy mistake a 401 instead of a 500.
@@ -96,6 +96,21 @@ async function ownRow(
   // caller deleting their account from a second tab.
   if (user === null) throw new ApiError('NOT_FOUND')
   return user
+}
+
+/**
+ * The account row split into the two halves the contract keeps apart: the
+ * public face, and the settings only its owner reads.
+ *
+ * Written out rather than spread, like `toChallengeResponse` and for the same
+ * reason: this is the one row in the API whose projection deliberately carries
+ * more than the public shape, so which half each column lands in is a decision
+ * one function makes rather than a property of what Prisma happened to select.
+ * `leaderboardOptOut` on the `user` half would ride into every circuit byline.
+ */
+function toAccountResponse(row: AccountUser) {
+  const { leaderboardOptOut, ...user } = row
+  return { user, leaderboardOptOut }
 }
 
 /**
@@ -206,7 +221,7 @@ const plugin: FastifyPluginCallback<UserRoutesOptions> = (
       config: { auth: 'required' },
       schema: { response: { 200: AccountResponse } },
     },
-    async (request) => ({ user: await ownRow(app, request) })
+    async (request) => toAccountResponse(await ownRow(app, request))
   )
 
   app.patch(
@@ -238,7 +253,7 @@ const plugin: FastifyPluginCallback<UserRoutesOptions> = (
           ? {}
           : { avatarUrl: avatarFor(avatar, request.auth) }),
       })
-      return { user }
+      return toAccountResponse(user)
     }
   )
 

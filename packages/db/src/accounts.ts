@@ -1,7 +1,7 @@
 import type { PrismaClient } from './generated/prisma/client.js'
 import { isUniqueConstraintError } from './prisma-errors.js'
-import { publicUserSelect } from './projections.js'
-import type { PublicUser } from './projections.js'
+import { accountSelect } from './projections.js'
+import type { AccountUser } from './projections.js'
 import { uniqueConflictField } from './users.js'
 
 /**
@@ -9,16 +9,26 @@ import { uniqueConflictField } from './users.js'
  *
  * ── Why there is no second user projection ────────────────────────────────
  *
- * `GET /me` answers with `publicUserSelect`, the same columns a stranger
- * reading a profile gets, and in particular *without* `email`. That looks like
- * an oversight and it is the design: the caller already knows their own
- * address — it is a claim in the token they authenticated with, and
- * `apps/web` reads it off the Supabase session — so returning it buys nothing
- * and costs the one invariant this schema is easiest to break by accident.
- * With no projection that selects `email`, no response anywhere in this API
- * can carry it, whatever a future handler does; with two projections, the
- * question "which one does this route use" has to be answered correctly every
- * time somebody adds a route.
+ * `GET /me` answers with `accountSelect`, which is `publicUserSelect` — the
+ * same columns a stranger reading a profile gets, and in particular *without*
+ * `email` — spread and widened by the settings that belong to the caller
+ * alone. That `email` is absent looks like an oversight and it is the design:
+ * the caller already knows their own address — it is a claim in the token they
+ * authenticated with, and `apps/web` reads it off the Supabase session — so
+ * returning it buys nothing and costs the one invariant this schema is easiest
+ * to break by accident. Because the wider projection is written as a spread of
+ * the narrower one, there is still exactly one place a user column is listed,
+ * and no future edit can give either of them an address without giving it to
+ * both at once.
+ *
+ * ── What a setting is doing on the account row ────────────────────────────
+ *
+ * `leaderboardOptOut` (Phase 3) is here rather than on `publicUserSelect`
+ * because it is a preference and not a public fact: on the shared projection
+ * it would ride along in every circuit byline and every profile page, telling
+ * strangers something they have no use for. The three routes that read this
+ * projection are the three that require a session and act on the caller's own
+ * row.
  *
  * ── What a username change is ─────────────────────────────────────────────
  *
@@ -122,6 +132,16 @@ export interface UpdateProfileInput {
    * family of reasons.
    */
   readonly avatarUrl?: string | null
+  /**
+   * "Do not print my name on a challenge leaderboard" (§3.6, Phase 3). Absent
+   * leaves it alone, like every other field here.
+   *
+   * It withdraws the *row* from the listing and not the result from the
+   * standings — see `challenges.ts`, which ranks first and filters afterwards
+   * — so setting it cannot move anybody else up, and the person who set it can
+   * still see where they stand.
+   */
+  readonly leaderboardOptOut?: boolean
 }
 
 /**
@@ -170,12 +190,12 @@ const TRANSACTION_OPTIONS = { maxWait: 15_000, timeout: 20_000 } as const
 
 export interface AccountRepository {
   /** The caller's own row, by id. `null` if `ensureUser` has never run. */
-  findUserById(id: string): Promise<PublicUser | null>
+  findUserById(id: string): Promise<AccountUser | null>
 
   /**
    * @throws {UsernameTakenError} when the username belongs to another row.
    */
-  updateProfile(input: UpdateProfileInput): Promise<PublicUser>
+  updateProfile(input: UpdateProfileInput): Promise<AccountUser>
 
   /**
    * Destroys every row in `public` belonging to this user, including the ones
@@ -190,7 +210,7 @@ export function prismaAccountRepository(
 ): AccountRepository {
   return {
     findUserById(id) {
-      return prisma.user.findUnique({ where: { id }, select: publicUserSelect })
+      return prisma.user.findUnique({ where: { id }, select: accountSelect })
     },
 
     async updateProfile({ userId, ...changes }) {
@@ -198,7 +218,7 @@ export function prismaAccountRepository(
         return await prisma.user.update({
           where: { id: userId },
           data: changes,
-          select: publicUserSelect,
+          select: accountSelect,
         })
       } catch (error) {
         /*

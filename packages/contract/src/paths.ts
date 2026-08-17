@@ -103,6 +103,76 @@ export type CollectionRoute =
   (typeof COLLECTION_ROUTES)[keyof typeof COLLECTION_ROUTES]
 
 /**
+ * Lesson progress — §3.6, Phase 3.
+ *
+ * There is no `GET /lessons` and there must not be: a lesson is a file in
+ * `apps/web`, so the list of them changes with a deploy of the client rather
+ * than with one of the API. What the server owns is the bookmark, addressed by
+ * the caller's token and the slug, which is why `item` is a `PUT` with no
+ * companion `POST` — see `lessons.ts` for the whole argument.
+ */
+export const LESSON_ROUTES = {
+  /** Every lesson this caller has a bookmark in. */
+  progress: '/lessons/progress',
+  /** `PUT` to record where they stopped in one lesson. */
+  item: '/lessons/:slug/progress',
+} as const
+
+export type LessonRoute = (typeof LESSON_ROUTES)[keyof typeof LESSON_ROUTES]
+
+/**
+ * Challenges — §3.6, §8, Phase 3.
+ *
+ * The opposite arrangement to `LESSON_ROUTES` above, and deliberately so.
+ * There *is* a `GET /challenges`, because a challenge is a database row: its
+ * target, its gate budget and its fidelity threshold live on the server, which
+ * is the whole of risk 5. A lesson has nothing to win and is a file in the
+ * client; a challenge is judged, so the server owns it.
+ *
+ * `submit` is a `POST` and not a `PUT`, again unlike the lesson bookmark: every
+ * attempt is its own resource, the leaderboard ranks attempts, and sending the
+ * same circuit twice is genuinely two attempts rather than one write repeated.
+ */
+export const CHALLENGE_ROUTES = {
+  collection: '/challenges',
+  item: '/challenges/:slug',
+  /** `POST` a circuit; the server simulates it and decides (§4, risk 5). */
+  submit: '/challenges/:slug/submit',
+  leaderboard: '/challenges/:slug/leaderboard',
+} as const
+
+export type ChallengeRoute =
+  (typeof CHALLENGE_ROUTES)[keyof typeof CHALLENGE_ROUTES]
+
+/**
+ * The read behind an `<iframe>` — §3.4, §11.
+ *
+ * A separate route rather than a flag on `GET /circuits/:id`, and the
+ * separation is the security rather than tidiness. `/circuits/:id` is
+ * `auth: 'optional'`: it consults the `Authorization` header, and it is
+ * supposed to — that is what lets an owner open their own PRIVATE circuit.
+ * An embed must never be able to do that, because a page that renders a
+ * private circuit whenever its author happens to be signed in would publish
+ * that circuit to every reader of the blog post the moment the author
+ * previewed it themselves.
+ *
+ * So the embed's read is `auth: 'public'` — the header is not consulted at
+ * all — and the only way to guarantee that is for it to be a different route
+ * with a different policy. A parameter on the existing one would have been a
+ * conditional inside a handler, which is the shape of rule that gets forgotten.
+ *
+ * `:handle` rather than `:id`, unlike every other route here, because that is
+ * what it means: only a *slug* reaches an UNLISTED circuit
+ * (`slugAddressableCircuitFilter` in `@qsim/db`), so the embeddable set and
+ * the set this parameter can name are the same set.
+ */
+export const EMBED_ROUTES = {
+  item: '/embed/:handle',
+} as const
+
+export type EmbedRoute = (typeof EMBED_ROUTES)[keyof typeof EMBED_ROUTES]
+
+/**
  * Substitutes `:name` placeholders, encoding each value.
  *
  * Throws on a placeholder nobody supplied rather than leaving `:id` in the
@@ -155,6 +225,24 @@ export const userPath = {
 export const simulatePath = {
   collection: (): string => SIMULATE_ROUTES.collection,
   run: (runId: string): string => fillRoute(SIMULATE_ROUTES.run, { runId }),
+} as const
+
+export const lessonPath = {
+  progress: (): string => LESSON_ROUTES.progress,
+  item: (slug: string): string => fillRoute(LESSON_ROUTES.item, { slug }),
+} as const
+
+export const challengePath = {
+  collection: (): string => CHALLENGE_ROUTES.collection,
+  item: (slug: string): string => fillRoute(CHALLENGE_ROUTES.item, { slug }),
+  submit: (slug: string): string =>
+    fillRoute(CHALLENGE_ROUTES.submit, { slug }),
+  leaderboard: (slug: string): string =>
+    fillRoute(CHALLENGE_ROUTES.leaderboard, { slug }),
+} as const
+
+export const embedPath = {
+  item: (handle: string): string => fillRoute(EMBED_ROUTES.item, { handle }),
 } as const
 
 export const collectionPath = {

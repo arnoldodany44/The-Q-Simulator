@@ -1,0 +1,609 @@
+{
+  "index": {
+    "heading": "Guided lessons",
+    "intro": "Each lesson is a circuit you can touch, beside the analysis panel that explains it. Read a step, watch the chart change, and build the next one yourself.",
+    "steps": "{{total}} steps",
+    "atStep": "Step {{step}} of {{total}}",
+    "completed": "Finished",
+    "start": "Start",
+    "resume": "Resume",
+    "order": "They are a sequence, not a menu: each one assumes the picture the one before it left behind, and every lesson says at the top what it is taking for granted."
+  },
+  "player": {
+    "stepOf": "Step {{step}} of {{total}}",
+    "previous": "Back",
+    "next": "Next",
+    "showMe": "Show me",
+    "yourTurn": "Your turn",
+    "hint": "Hint",
+    "reveal": "Show me the answer",
+    "navLabel": "Lesson steps",
+    "readingLabel": "The lesson",
+    "labLabel": "The circuit and its analysis",
+    "backToIndex": "All lessons",
+    "notFound": "There is no lesson at this address.",
+    "notFoundAction": "Back to the lessons",
+    "loading": "Finding your place…",
+    "objective": {
+      "met": "Done — that is the state.",
+      "unmet": "Not there yet.",
+      "unavailable": "This circuit has no single final state to check — a measurement in the middle gives it several."
+    },
+    "reading": {
+      "state": "Overlap with the target state: {{value}}",
+      "probabilities": "Largest gap from the target odds: {{value}}",
+      "outcomes": "Largest gap from an even split: {{value}}",
+      "entangled": "Entropy of this qubit: {{value}} bits"
+    }
+  },
+  "superposition": {
+    "title": "Superposition",
+    "summary": "What a qubit is doing when it is neither 0 nor 1 — and why that is not the same as a coin nobody has looked at.",
+    "goal": "By the end of this lesson you will have seen the difference between a superposition and ignorance, on screen, in one chart.",
+    "steps": {
+      "still": {
+        "title": "Certainty has a picture",
+        "body": [
+          "One wire, no gates. The qubit is in `|0⟩`, and the chart beside it has exactly one bar: one outcome, carrying all of the probability.",
+          "That is what knowing looks like here. Keep the picture — everything that follows is a departure from it."
+        ],
+        "notice": "The probability histogram: one bar, at `|0⟩`."
+      },
+      "hadamard": {
+        "title": "One gate, two bars",
+        "body": [
+          "The lesson has placed a Hadamard, `H`, on the wire. The single bar has become two, each carrying half of the probability.",
+          "Measure this qubit and you get `0` about half the time and `1` about half the time. A tossed coin does that too, which is exactly why the next two steps exist."
+        ],
+        "notice": "Two bars now, `|0⟩` and `|1⟩`, at fifty per cent each."
+      },
+      "notACoin": {
+        "title": "Not a coin",
+        "body": [
+          "Look at the Bloch sphere. The arrow has not got shorter: it is still full length, lying on the equator instead of at a pole.",
+          "That length is the reading that matters. A coin under a cup — a qubit that really is `0` or `1` while we simply do not know which — draws an arrow of length zero, at the centre of the sphere. This one is on the surface.",
+          "So the qubit is not in an unknown state. It is in a perfectly known state that happens not to be `|0⟩` or `|1⟩`."
+        ],
+        "notice": "The Bloch sphere, and the length of the arrow — not only where it points."
+      },
+      "phasors": {
+        "title": "Every bar has a direction",
+        "body": [
+          "Look closely at the two bars. Each carries a small arrow: the phase of that amplitude, which is the part a probability throws away.",
+          "Right now both point the same way. Nothing in the heights records that — which is why the next step can change it without changing them."
+        ],
+        "notice": "The small arrows on the bars: the phasors."
+      },
+      "turn": {
+        "title": "Something changed that the odds cannot see",
+        "body": [
+          "The lesson has added a `Z`. Look at the heights: nothing moved. Still fifty and fifty.",
+          "Now look at the phasors: one of them has turned half a turn. `Z` leaves `|0⟩` alone and multiplies `|1⟩` by −1.",
+          "If a superposition were ignorance, this gate would have done nothing whatsoever. Hold on to that — the next step measures the difference."
+        ],
+        "notice": "Both facts at once: the heights unchanged, and the second phasor turned around."
+      },
+      "cancel": {
+        "title": "Two paths that cancel",
+        "body": [
+          "A second `H`, and the two bars have collapsed back into one — at `|1⟩`, not at `|0⟩`.",
+          "Each `H` sends every basis state down both paths. Arriving at `|0⟩` the two paths came in pointing opposite ways and cancelled; arriving at `|1⟩` they lined up and added. That is interference, and it is what the `Z` was for.",
+          "No mixture of hidden coins can do this. Mixing uncertainty with uncertainty never produces a certainty."
+        ],
+        "notice": "One bar again, and it is `|1⟩`: `H` then `Z` then `H` is exactly an `X`."
+      },
+      "equal": {
+        "title": "Your turn",
+        "body": [
+          "The circuit now leaves the qubit at `|1⟩`, with all of the probability on one outcome again."
+        ],
+        "notice": "The histogram, back to two bars of equal height.",
+        "task": "Add one gate to the wire so that both outcomes are equally likely again.",
+        "hint": "`H` is the obvious answer and it is not the only one: `Ry` at a quarter turn does it, and so does `√X`. The check is on the outcome, not on which gate you chose."
+      }
+    }
+  },
+  "entanglement": {
+    "title": "Entanglement",
+    "summary": "Two qubits with no state of their own, and a correlation that survives a change of question — which nothing classical can do.",
+    "goal": "This lesson assumes the superposition lesson: you have seen that a full-length Bloch arrow means a known state and a short one means ignorance. By the end you will have watched both arrows shrink to nothing while the pair stayed perfectly known.",
+    "steps": {
+      "twoWires": {
+        "title": "Two wires, one certainty",
+        "body": [
+          "Two qubits now, both in `|0⟩`. The histogram lists every combination the pair could be found in and gives all of the probability to one of them.",
+          "The ket is read right to left, which is the convention this whole product uses: the rightmost character is the first wire. So `|01⟩` means the first qubit is 1 and the second is 0."
+        ],
+        "notice": "One bar, at `|00⟩`, and three basis states with no height at all."
+      },
+      "separate": {
+        "title": "Two arrows, two states",
+        "body": [
+          "An `H` on the first wire. The bar splits in two, `|00⟩` and `|01⟩`, which is the last lesson happening on one wire of two.",
+          "Look at the Bloch spheres instead. There are two of them and both arrows are full length — one on the equator, one at the pole. Each qubit has a state of its own, and to describe the pair you write those two states down. That is what a product state is, and it is the ordinary case."
+        ],
+        "notice": "Two Bloch spheres, each with an arrow of full length."
+      },
+      "link": {
+        "title": "One gate, and the middle two vanish",
+        "body": [
+          "A `CNOT` from the first wire to the second: it flips the second qubit exactly when the first one is 1. The histogram now has bars at `|00⟩` and `|11⟩` and nothing anywhere else.",
+          "The two qubits will always agree. Neither of them is settled before you look, and they settle the same way — which is what the two missing bars mean."
+        ],
+        "notice": "`|01⟩` and `|10⟩` have gone: whatever happens, the two answers match."
+      },
+      "noArrows": {
+        "title": "Neither qubit has a state",
+        "body": [
+          "Back to the Bloch spheres. Both arrows have collapsed to the centre — length zero, the reading the last lesson gave to a coin under a cup.",
+          "So each qubit on its own is in the state of maximum ignorance. And yet the pair is in a state we can write on one line and are simulating exactly. The information did not go missing. It stopped belonging to either wire."
+        ],
+        "notice": "Two spheres, two arrows of length zero — and a pair whose state is known exactly."
+      },
+      "oneBit": {
+        "title": "One bit, shared",
+        "body": [
+          "The entanglement panel puts a number on it. The entropy of either qubit is 1 bit, which is the most a single qubit can hide; concurrence, which measures the pair rather than a part of it, is at its maximum as well.",
+          "This state is a Bell pair. Two qubits, one bit of entropy each, and none at all for the pair as a whole — the whole of the uncertainty sits in the relationship."
+        ],
+        "notice": "Entropy of 1 bit on each qubit, and a pair that is nevertheless in a pure state."
+      },
+      "turnBoth": {
+        "title": "The same agreement, asked differently",
+        "body": [
+          "Here is the objection worth taking seriously. A machine that flipped one coin and printed the answer on both wires would produce exactly the histogram you have been looking at: two bars, agreeing, half each. Nothing so far rules that out.",
+          "So ask both qubits a different question. An `H` on each wire before reading asks whether the qubit is `|+⟩` or `|−⟩` rather than whether it is `|0⟩` or `|1⟩`. The bars have not moved. The two answers still always agree.",
+          "A printed coin fails this at once: turn both copies and the agreement washes out into all four outcomes at a quarter each, because the correlation only ever existed in one basis. A Bell pair agrees in every basis you can ask it about. That is the difference between sharing a fact and sharing a state, and it is the fact Bell built his theorem on."
+        ],
+        "notice": "Still two bars, still `|00⟩` and `|11⟩`, after both qubits were turned."
+      },
+      "disagree": {
+        "title": "Your turn",
+        "body": [
+          "This pair always agrees. There is another pair, just as entangled and just as pure, whose two qubits always disagree instead."
+        ],
+        "notice": "Two bars again, this time at `|01⟩` and `|10⟩`.",
+        "task": "Add one gate so that the two qubits never come out the same.",
+        "hint": "An `X` on either wire does it: it relabels one side of the correlation and leaves the entanglement untouched. `Y` works too, for the same reason and with a phase this histogram cannot show. The check is on the outcome, not on the gate."
+      }
+    }
+  },
+  "interference": {
+    "title": "Interference",
+    "summary": "Why a phase you cannot measure decides what you measure — and why writing down which path was taken destroys the whole effect.",
+    "goal": "This lesson assumes superposition and entanglement. By the end you will have turned one gate through three settings and watched the odds go 15%, 50%, 100% — then watched all of it disappear because a second wire was listening.",
+    "steps": {
+      "split": {
+        "title": "Two paths",
+        "body": [
+          "An `H` on the first wire, and the qubit is on `|0⟩` and `|1⟩` at once: two amplitudes, running side by side. Call them two paths, because that is how they behave.",
+          "The second wire is idle for now. It joins the argument at step 6, and until then you can ignore it."
+        ],
+        "notice": "Two bars, `|00⟩` and `|01⟩`: the first wire is split, the second is not."
+      },
+      "rejoin": {
+        "title": "Paths that meet again",
+        "body": [
+          "A second `H`, and the two paths recombine into a single bar at `|00⟩`. The qubit is certainly 0.",
+          "That certainty is a subtraction. Both paths reach `|1⟩`, they arrive pointing opposite ways, and they cancel exactly. Nothing was lost along the way; it was subtracted at the end.",
+          "Note the empty column between the two gates. Everything else this lesson does, it does in that gap."
+        ],
+        "notice": "One bar at `|00⟩`, and an empty column between the two `H` gates."
+      },
+      "eighth": {
+        "title": "An eighth of a turn",
+        "body": [
+          "A `T` in the gap. It turns the phase of `|1⟩` by an eighth of a full turn and does nothing else — while it is being applied, no probability moves at all.",
+          "But the two paths now arrive slightly out of step, so they no longer cancel exactly. About 15 per cent of the probability has appeared on `|01⟩`, and all of it came out of a quantity that was invisible until the paths met."
+        ],
+        "notice": "A small second bar: roughly 15 per cent on `|01⟩`."
+      },
+      "quarter": {
+        "title": "A quarter of a turn",
+        "body": [
+          "Swap the `T` for an `S` — a quarter turn instead of an eighth — and the two outcomes are level. Fifty-fifty, from a gate that never touched a probability.",
+          "The amplitude table is where to see why. The two amplitudes have the same length and different directions. A probability is a length squared, so equal lengths mean equal odds; the direction is what decided how the paths added on the way there."
+        ],
+        "notice": "Two amplitudes of equal length, pointing in different directions."
+      },
+      "half": {
+        "title": "Half a turn",
+        "body": [
+          "A `Z` now — half a turn — and the certainty is back, at the other end. All of the probability is on `|01⟩`.",
+          "That is the range: an eighth, a quarter and a half of a turn give 15 per cent, 50 per cent and 100 per cent. The phase is a continuous knob and the outcome follows it. This is not a special trick with three settings; it is what amplitudes do."
+        ],
+        "notice": "One bar, at `|01⟩`: the paths now add where they used to cancel."
+      },
+      "whichPath": {
+        "title": "Somebody is listening",
+        "body": [
+          "Take the phase gate out and put a `CNOT` in its place, from the first wire to the second. It copies which path the first qubit is on onto a wire that was doing nothing.",
+          "Nothing was measured. Nobody looked. The second wire is a wire. And the interference is gone: four outcomes at a quarter each, the first qubit as undecided as if the second `H` were not there."
+        ],
+        "notice": "Four bars at a quarter each. The cancellation has stopped."
+      },
+      "noSecret": {
+        "title": "Why it stopped",
+        "body": [
+          "The entanglement panel says what happened: one bit of entropy on the first qubit, where a moment ago there was none. It is entangled with the record of its own path.",
+          "Two paths can only cancel if they arrive at the same place. These two arrive attached to different states of the second wire, so there is nowhere they meet and nothing to subtract. It is enough that the record exists — nobody has to read it, and there is no moment at which anything is decided.",
+          "This is why a quantum algorithm has to clean up after itself. Any leftover trace of an intermediate result is a second wire listening, and the interference the algorithm depends on will simply not happen."
+        ],
+        "notice": "One bit of entropy on the first qubit, where a moment ago there was none."
+      },
+      "erase": {
+        "title": "Your turn",
+        "body": [
+          "The record is on the second wire and cannot be unwritten from here. It can, however, be asked a different question — one whose answer does not say which path was taken.",
+          "When the two bars come back, read them carefully. They are `|00⟩` and `|11⟩`. The first qubit is still fifty-fifty on its own, and no gate on the second wire could ever change that. What has come back is the agreement between them: sort the runs by what the second wire says and each half is certain. Nothing was sent anywhere and nothing travelled backwards. The pattern was always spread across the pair, and this gate is what lets you sort by the right thing."
+        ],
+        "notice": "Two bars again, `|00⟩` and `|11⟩` at half each.",
+        "task": "Add one gate to the second wire so that the histogram has two bars instead of four.",
+        "hint": "`H` on the second wire. It reads that wire in the `|+⟩` and `|−⟩` basis, in which the record of which path was taken is not stored at all. `Ry` at a quarter turn does the same job — either sign, and the sign only decides which two bars you get: `|00⟩` and `|11⟩`, or `|01⟩` and `|10⟩`. Both are the eraser. What does not work is `√X`, which is diagonal in that basis rather than a reading of it, and leaves all four bars where they are."
+      }
+    }
+  },
+  "deutsch-jozsa": {
+    "summary": "A function you are promised is either constant or balanced, and one question that settles it. The first circuit here that computes an answer.",
+    "goal": "This lesson assumes interference. By the end you will have watched an oracle turn a bit into a phase, and four input values interfere down to the one answer that survives. The problem is a toy; the shape of the circuit is not.",
+    "steps": {
+      "answerSheet": {
+        "title": "An answer sheet in an odd state",
+        "body": [
+          "Three wires. The first two hold the input — two bits, so four possible values — and the third is the answer sheet the function writes on.",
+          "An `X` and then an `H` put that third wire in `(|0⟩−|1⟩)/√2`, so its Bloch arrow lies on the equator at full length while the other two point at the pole. Nothing has been written on it yet. Its state is chosen so that writing on it will not do what you expect."
+        ],
+        "notice": "The third Bloch sphere: a full-length arrow on the equator, while the first two point up."
+      },
+      "everyInput": {
+        "title": "Every input at once",
+        "body": [
+          "An `H` on each input wire, and the two input bits hold all four of their combinations simultaneously. Eight bars: four input values, times the two halves of the answer sheet.",
+          "This is the step that sounds like magic and is not. The register holds a superposition of all four inputs, so asking the function about it produces a superposition of all four answers — and nothing so far says how to get a useful one out. A superposition is not four computers."
+        ],
+        "notice": "Eight bars of equal height: every input value, present at once."
+      },
+      "kickback": {
+        "title": "The oracle writes a bit and turns a phase",
+        "body": [
+          "Here is the function, as one gate: a `CNOT` that writes the first input bit onto the answer sheet.",
+          "Look at the amplitude table. Not one height has changed — the answer sheet is exactly as it was, and measuring it would tell you nothing. What changed is the signs: the four rows whose first input bit is 1 have flipped, and no others. Writing a 1 onto a wire holding `(|0⟩−|1⟩)/√2` swaps its two halves, and swapping the halves of that particular state is the same as multiplying it by −1. The minus sign has nowhere to sit except on the input.",
+          "This is phase kickback. The oracle was asked for a bit and gave back a phase, and every algorithm in the rest of this sequence is built on it."
+        ],
+        "notice": "The same heights as the step before, and half the signs flipped."
+      },
+      "readOff": {
+        "title": "One question, one answer",
+        "body": [
+          "An `H` on each input wire again, and the four input paths interfere: where the phases agreed they add, where they disagreed they cancel. The two extra gates on the answer sheet put it back to `|0⟩`, so the only bar left is the answer.",
+          "One bar, at `|001⟩`. The input wires read `01`, which is not zero, so the function is balanced. You asked the oracle once."
+        ],
+        "notice": "A single bar at `|001⟩`: the input wires are not both zero."
+      },
+      "constant": {
+        "title": "The other case",
+        "body": [
+          "Take the oracle out. That leaves the constant function that always answers 0, whose oracle really is no gate at all: it never writes anything, so it never turns a phase.",
+          "One bar at `|000⟩`. All of the input wires read zero, and that is the signature of a constant function. Every balanced function gives something else.",
+          "Classically, two input bits mean four possible questions and a worst case of three of them before you can be sure. Here it is one, every time. Be careful what you take from that: the promise — constant or balanced, nothing in between — is doing a great deal of the work, and real problems rarely arrive with promises like it. What is worth keeping is the shape. Put every input in at once, arrange for the wrong answers to cancel, read what survives."
+        ],
+        "notice": "One bar at `|000⟩`: a constant function leaves the input register untouched."
+      },
+      "yourOracle": {
+        "title": "Your turn",
+        "body": [
+          "The empty column in the middle is the oracle slot, and it is yours. The one the lesson used asked about the first input bit; another balanced function asks about the second."
+        ],
+        "notice": "One bar at `|010⟩`: the input wires now read `10`.",
+        "task": "Put an oracle in the empty column that asks about the second input bit, so that the input wires read `10` instead of `01`.",
+        "hint": "A `CNOT` from the second input wire onto the answer sheet is the direct answer. A bare `Z` on that wire works too, and is worth trying: it applies exactly the same phase without touching the answer sheet at all, which is what the oracle was doing anyway."
+      }
+    }
+  },
+  "grover": {
+    "summary": "Four boxes, one of them marked, and a circuit that opens the right one on the first try. The speedup is real and it is smaller than it is usually made to sound.",
+    "goal": "This lesson assumes Deutsch–Jozsa, and through it interference. By the end you will have watched a marked amplitude go from −½ to 1 by arithmetic you can do yourself, and seen a second round make it worse.",
+    "steps": {
+      "fourItems": {
+        "title": "Four boxes, no information",
+        "body": [
+          "Two wires, so four items: `|00⟩`, `|01⟩`, `|10⟩` and `|11⟩`. An `H` on each puts a quarter of the probability on every one of them, which is exactly the state of knowing nothing.",
+          "One of the four is marked. The job is to find out which, without opening them one at a time."
+        ],
+        "notice": "Four bars of equal height, one per item."
+      },
+      "oracle": {
+        "title": "The oracle marks without telling",
+        "body": [
+          "Three gates: a `CZ` between the wires, with an `X` on either side of it on the first wire. The `CZ` on its own puts a minus sign on `|11⟩`; the two `X` gates relabel the first wire on the way in and back again on the way out, so the minus sign lands on `|10⟩` instead.",
+          "Check the histogram: nothing moved. The mark is in the amplitude table — one amplitude out of four is now −½ where it was ½. This is the phase kickback of the last lesson, and it has the same property: no measurement can see it."
+        ],
+        "notice": "One negative amplitude in the table, and four bars that have not changed."
+      },
+      "average": {
+        "title": "Reflect about the average",
+        "body": [
+          "Do the arithmetic before you run the next gate. Three of the four amplitudes are ½ and one is −½, so their average is ¼.",
+          "Now reflect each amplitude about that average: replace it by twice the average minus itself. The three at ½ become 0. The one at −½ becomes 1. The marked item ends up with all of the probability and the other three with none — and every step of that was ordinary arithmetic on four numbers.",
+          "The gates in the next step do exactly that reflection, up to an overall minus sign — so the amplitude table will read −1 where the arithmetic said 1. There is nothing else in the algorithm, and nothing measurable in that sign: an overall factor is the one thing no experiment can see."
+        ],
+        "notice": "Three amplitudes at ½ and one at −½, averaging ¼."
+      },
+      "diffuse": {
+        "title": "One bar",
+        "body": [
+          "That is the reflection, written as gates: `H` on both wires, `X` on both, a `CZ`, and then the `X` and `H` gates undone. It is the same nine gates whatever is marked — it knows nothing about the oracle, which is why it is worth learning once.",
+          "One bar, at `|10⟩`, with all of the probability. Not most of it: all of it. Four items, one call to the oracle, and the answer is certain."
+        ],
+        "notice": "A single bar at `|10⟩` — the item the oracle marked."
+      },
+      "howMany": {
+        "title": "How many rounds",
+        "body": [
+          "Four items is the size at which one round is exact. In general you need about π/4 × √N rounds for N items: 25 for a thousand, 800 for a million, against N/2 openings on average if you check them one at a time. That is the speedup — a square root, not an exponent, and nothing here gets exponentially faster.",
+          "It is a rotation, not an accumulation. Overshoot and it turns past the answer: a second round at this size takes the probability from 1 back down to a quarter on every item, which is what guessing gets you. Try it if you like. Note that the algorithm gives you no signal that it has gone too far — you have to count.",
+          "One more honest point. The oracle in this circuit was written by somebody who already knew the answer. Grover pays off where the marked item is defined by a condition that is quick to check and slow to search for; it does not pay off on a list that somebody has to build first, because building the list is the search."
+        ],
+        "notice": "The circuit itself: an oracle of three gates, and a diffuser that is the same nine every time."
+      },
+      "retarget": {
+        "title": "Your turn",
+        "body": [
+          "The oracle is looking for `|10⟩`. The two `X` gates are what point it there: the `CZ` always marks `|11⟩`, and they change what `|11⟩` means on the way through."
+        ],
+        "notice": "One bar again, and this time at `|01⟩`.",
+        "task": "Move the oracle onto the other item, so that the search finds `|01⟩`.",
+        "hint": "The `CZ` stays exactly where it is. Take the two `X` gates off the first wire and put them on the second, in the two columns they came out of."
+      }
+    }
+  },
+  "teleportation": {
+    "title": "Teleportation",
+    "summary": "Sending the state of a qubit down a channel that never carries it — and paying two ordinary classical bits for the privilege.",
+    "goal": "This lesson assumes entanglement. By the end you will have watched an arrow leave the first Bloch sphere and appear on the third, and seen exactly why none of it beats a telephone call.",
+    "steps": {
+      "payload": {
+        "title": "The thing being sent",
+        "body": [
+          "Two rotations on the first wire put it in a state that is neither `|0⟩` nor `|1⟩` and carries a phase as well as a tilt. Its arrow on the first Bloch sphere is what this lesson is about: by the end it will be on the third sphere.",
+          "Note what cannot be done with it. One measurement yields one bit and destroys the rest, and no amount of looking reveals where that arrow points. Alice, who holds this qubit, does not know its state either — and she is going to send it anyway. That is the point: the protocol never needs to know what it is moving."
+        ],
+        "notice": "The first Bloch sphere: an arrow tilted away from the pole, leaning in a direction of its own around the equator."
+      },
+      "resource": {
+        "title": "A pair, made in advance",
+        "body": [
+          "An `H` and a `CNOT` on the second and third wires: the Bell pair from two lessons ago. Alice keeps the second qubit and Bob takes the third one away with him.",
+          "This happens before Alice knows what she will want to send, and it is the only thing that ever physically travels between them. Everything after it is a phone call."
+        ],
+        "notice": "One bit of entropy on each of the second and third qubits, and none on the first."
+      },
+      "mix": {
+        "title": "Mixing the message into the pair",
+        "body": [
+          "A `CNOT` from the first wire onto the second, then an `H` on the first. Alice has tangled her unknown qubit together with her half of the pair.",
+          "Now look at the third Bloch sphere, which is Bob’s. Its arrow has length zero. Nothing has arrived: at this moment his qubit carries no information about the state whatsoever, which is precisely why nothing has outrun a telephone."
+        ],
+        "notice": "The third sphere: an arrow of length zero, on the wire no correction has reached yet."
+      },
+      "twoBits": {
+        "title": "The part that is a phone call",
+        "body": [
+          "In the real protocol Alice now measures her two qubits. She gets two ordinary classical bits, one of four results, all equally likely, and neither bit says anything about the state on its own. She telephones them to Bob, who applies an `X` if the bit from her half of the pair is 1, and a `Z` if the bit from the message qubit is. Which bit drives which correction is easy to swap and worth fixing now: the `X` follows the pair, the `Z` follows the message.",
+          "This circuit does the same job with a `CNOT` and a `CZ` in place of the measurement and the call. The effect on Bob’s qubit is identical; what differs is when the randomness is settled. The substitution is standard, and here it also earns its place: a measurement in the middle would leave the circuit with no single final state, and the Bloch spheres this whole lesson is watched on would go blank.",
+          "Do not drop the phone call when you retell this. Without those two bits Bob’s qubit stays exactly as it is now — length zero, carrying nothing. Teleportation moves a state at the speed of a classical message and not one bit faster."
+        ],
+        "notice": "The circuit as it stands: two gates on Alice’s side, and no correction yet on Bob’s — the `CNOT` already on his wire is the Bell pair being made, not the message arriving."
+      },
+      "firstFix": {
+        "title": "Half of the correction",
+        "body": [
+          "The first correction: a `CNOT` from Alice’s half of the pair onto Bob’s qubit, standing in for “if the first bit is 1, apply an `X`”.",
+          "Bob’s arrow is back, and it is not the right one. Its height on the vertical axis is already correct; everything around the equator is missing, which is to say the phase has not arrived. One of the two bits has landed."
+        ],
+        "notice": "The third sphere: a short arrow straight up the axis, with no lean in any direction."
+      },
+      "arrival": {
+        "title": "Your turn",
+        "body": [
+          "One correction left, standing in for “if the second bit is 1, apply a `Z`”.",
+          "When it lands, compare the third Bloch sphere with the first one as it was at step 1: same tilt, same direction, full length. Then look at the first sphere as it is now. It points at `|+⟩`, and it will point at `|+⟩` whatever state you started it in. The state was not copied — it moved, and the original is gone. That is not politeness on the circuit’s part. No circuit can do otherwise, which is the no-cloning theorem, and this is what it looks like."
+        ],
+        "notice": "The third sphere holding the arrow the first one started with, and the first sphere pointing at `|+⟩`.",
+        "task": "Add the last correction so that the third wire carries the state the first wire started with.",
+        "hint": "A `CZ` between the first wire and the third, in the last column. `CZ` does not care which end you call the control, so either way round is the same gate."
+      }
+    }
+  },
+  "superdense-coding": {
+    "title": "Superdense coding",
+    "summary": "Two bits of message in one qubit of post — provided you posted the other qubit first. The accounting is more interesting than the trick.",
+    "goal": "This lesson assumes teleportation, or at least the Bell pair it used. By the end you will have sent all four two-bit messages with one gate each, and counted honestly what each one cost.",
+    "steps": {
+      "shared": {
+        "title": "A pair, again",
+        "body": [
+          "The same two gates as the last lesson and the same Bell pair. Alice keeps the first qubit, the one that will travel; Bob keeps the second and takes it away.",
+          "Nothing has been sent. The entanglement panel shows one bit of entropy on each qubit, which is a shared resource rather than a message — at this point Alice has not even decided what she wants to say."
+        ],
+        "notice": "One bit of entropy on each qubit, before anybody has chosen a message."
+      },
+      "decoder": {
+        "title": "Bob’s decoder",
+        "body": [
+          "At the far end Bob undoes the entangling: a `CNOT` and an `H`, the same two gates run backwards. The histogram reads `|00⟩` with certainty.",
+          "Between the pair and the decoder sit two empty columns. That gap is Alice’s, and it is the whole protocol: whatever she does to her own qubit there is the message. She has done nothing, and `00` is what Bob receives."
+        ],
+        "notice": "One bar at `|00⟩`, and two empty columns in the middle of the circuit."
+      },
+      "flip": {
+        "title": "One bit",
+        "body": [
+          "An `X` in Alice’s slot, and Bob reads `|10⟩`.",
+          "She touched one qubit — hers — with one gate, and a different message came out at the other end. The gate is local. The effect is on the pair."
+        ],
+        "notice": "One bar, now at `|10⟩`."
+      },
+      "phase": {
+        "title": "The other bit",
+        "body": [
+          "Swap the `X` for a `Z`, and Bob reads `|01⟩`.",
+          "This is the interesting one. Alice’s qubit on its own is in the least informative state there is — its Bloch arrow has length zero — and a `Z` leaves that state exactly as it was, so no measurement of her qubit alone, in any basis, could tell you whether she applied it. That is not a property of `Z`: on a lone qubit in `|+⟩` a `Z` is perfectly visible, which is what the superposition lesson measured with its second `H`. It is a property of half of an entangled pair, and it is what makes entanglement a resource. Applied here and undone at the other end, the gate moves the entire histogram."
+        ],
+        "notice": "One bar at `|01⟩`, from a gate that changes no probability on its own."
+      },
+      "both": {
+        "title": "Your turn",
+        "body": [
+          "Two gates, four messages: nothing, `X`, `Z`, and both of them. Three of the four are on screen already."
+        ],
+        "notice": "One bar at `|11⟩`.",
+        "task": "Send the fourth message, so that Bob reads `11`.",
+        "hint": "Add an `X` in the second of Alice’s two columns, so her qubit gets a `Z` and then an `X`. A single `Y` in place of the `Z` does the same job, because `Y` is `X` and `Z` together give or take a phase nobody can measure."
+      },
+      "accounting": {
+        "title": "What it actually cost",
+        "body": [
+          "Count the qubits that crossed the room. Two: Bob’s half of the pair, sent before Alice knew her message, and Alice’s qubit afterwards. Two qubits carried two bits, which is not a bargain.",
+          "What is genuinely useful is the timing. Half the cost can be paid in advance, at a quiet moment, before there is anything to say — and when the message finally exists, one qubit finishes the job.",
+          "There is a hard limit underneath all of this: one qubit on its own carries at most one classical bit, whatever you do to it. That is Holevo’s bound, and superdense coding does not break it — it borrows the second bit from a pair that was sent earlier. The name oversells the result. The protocol is still worth knowing, because it is the clearest demonstration that entanglement is a resource you can store and spend."
+        ],
+        "notice": "The whole circuit: two gates to share a pair, two columns of message, two gates to read it."
+      }
+    }
+  },
+  "bb84": {
+    "summary": "A key that cannot be copied without leaving a mark — and the honest version, in which the eavesdropper is invisible half the time.",
+    "goal": "This lesson assumes superposition, interference and entanglement, and it is the first about a protocol rather than a circuit. By the end you will have run one round of a key exchange four ways and watched the entanglement panel report an eavesdropper who never measured anything.",
+    "steps": {
+      "sendBit": {
+        "title": "One bit, one basis",
+        "body": [
+          "One wire and one round. Alice has a bit — 1 — and a basis to send it in. She chooses the straight basis, in which `|0⟩` means 0 and `|1⟩` means 1, so an `X` is her whole message.",
+          "Bob chooses a basis too, privately, without knowing hers. This time he has also chosen the straight one, which is spelled “no gate at all”, and he reads 1. When the two choices happen to agree, the bit gets through."
+        ],
+        "notice": "One bar at `|1⟩`: the bit Alice sent is the bit Bob reads."
+      },
+      "wrongBasis": {
+        "title": "The other basis",
+        "body": [
+          "Now Bob chooses the diagonal basis instead: an `H` before he reads, which asks whether the qubit is `|+⟩` or `|−⟩` rather than whether it is `|0⟩` or `|1⟩`.",
+          "Fifty-fifty. His answer is a fair coin and carries nothing of Alice’s bit. That is not a failure — afterwards they announce which bases they used, out loud, in public, the bases and never the bits, and discard every round where the two differed. Around half of them."
+        ],
+        "notice": "Two bars at half each: a bit that means nothing."
+      },
+      "sameBasis": {
+        "title": "Agreement",
+        "body": [
+          "Alice moves to the diagonal basis as well — an `H` on her side too, so she sends `|−⟩` rather than `|1⟩` — and Bob’s `H` undoes hers.",
+          "One bar again, at `|1⟩`. Same basis, same bit, and it works in either basis, which is what makes the choice free to make at random. The rounds that survive the comparison are the key."
+        ],
+        "notice": "One bar at `|1⟩`: matching bases, matching bit."
+      },
+      "sifting": {
+        "title": "What one round is worth",
+        "body": [
+          "What is on screen is one round. The protocol runs thousands of them: Alice picks a random bit and a random basis each time, Bob picks a random basis, and afterwards they compare bases in the open and keep the matching half. Then they sacrifice some of those, compare the bits themselves, and count how many disagree.",
+          "The three empty columns in the middle are the journey. In a real link that is a length of fibre, and it is the only part of any of this that an eavesdropper can reach."
+        ],
+        "notice": "The gap in the middle of the circuit: the part of the protocol nobody at either end controls."
+      },
+      "eve": {
+        "title": "Somebody in the fibre",
+        "body": [
+          "A second wire appears — Eve’s. Her `CNOT` copies the value of the travelling qubit onto it in the straight basis, which is exactly what measuring it in the straight basis does, once the apparatus is drawn as part of the circuit.",
+          "Alice and Bob chose the same basis this round, so this should have been a certain bit. Instead there are four bars at a quarter each: Bob’s answer is a coin flip. Eve guessed the wrong basis, and by looking she changed what he receives."
+        ],
+        "notice": "Four bars where there should have been one."
+      },
+      "mark": {
+        "title": "The mark she leaves",
+        "body": [
+          "The entanglement panel puts it precisely: one bit of entropy on the travelling qubit, which had none a step ago. It is entangled with Eve’s copy, and a qubit entangled with something else has no state of its own to deliver.",
+          "That is the security argument, and it is a theorem rather than an engineering difficulty. Learning a qubit’s value in one basis costs a disturbance in the other, and no cleverer device gets around it.",
+          "The numbers: on the rounds where Alice and Bob used the same basis, an Eve who guesses her basis at random is wrong half the time, and when she is wrong Bob is wrong half of those. A quarter of the sifted bits disagree. Alice and Bob compare a sample in the open, see 25 per cent where they expected none, and throw the key away."
+        ],
+        "notice": "One bit of entropy on a wire that should have carried none."
+      },
+      "lucky": {
+        "title": "Your turn: the half nobody mentions",
+        "body": [
+          "Eve’s tap reads the straight basis and this round is diagonal, which is why she wrecked it. Give her the diagonal basis instead — the same before-and-after pattern Alice and Bob use, in the empty columns on either side of her `CNOT`.",
+          "When it lands: one bar, `|11⟩`. Bob gets Alice’s bit, correctly and with certainty. Eve’s wire holds a copy of it. The entanglement panel reads zero, and there is nothing anywhere for anybody to notice. That is the honest half of the protocol — a lucky eavesdropper leaves no mark whatsoever, and BB84 is secure not because Eve cannot succeed but because she cannot succeed every time, and the rounds where she fails are enough to give her away."
+        ],
+        "notice": "One bar at `|11⟩`, and no entropy anywhere: Bob is right and Eve knows the bit.",
+        "task": "Give Eve the right basis: add two gates so that both wires read the same bit with certainty.",
+        "hint": "An `H` in the column before her `CNOT` and another in the column after it. It is the same pair of gates Alice and Bob use to change basis, applied around the copy instead of around the journey."
+      }
+    }
+  },
+  "qpe": {
+    "title": "Phase estimation",
+    "summary": "The hardest of the nine. A gate holds a number that no measurement of it can reach, and this circuit writes that number into a register in binary. `QPE` is the name you will meet it under, and Shor’s algorithm is built on it.",
+    "goal": "This lesson assumes Deutsch–Jozsa for kickback and Grover for reading an answer out of a uniform register. By the end you will have read three binary digits of a phase out of a histogram, and seen what happens when the phase does not fit in three digits. One block, the inverse Fourier transform, is used here and not explained — the step that uses it says so.",
+    "steps": {
+      "eigenstate": {
+        "title": "A number you cannot measure",
+        "body": [
+          "Four wires: three counting wires, and a fourth holding the state we are asking about. An `X` puts that last wire in `|1⟩`.",
+          "The gate under examination is `P`, which multiplies `|1⟩` by a phase and leaves `|0⟩` alone. `|1⟩` is therefore an eigenstate of it: applying the gate multiplies the state by a number of size one and changes nothing else. There is one on the wire right now, and the histogram is exactly where it was without it.",
+          "That number is what we are after, and it is invisible by construction — a phase on the whole state changes no measurement of that state. Everything that follows is about making it visible somewhere else."
+        ],
+        "notice": "One bar, entirely unmoved by the gate that was supposed to do something."
+      },
+      "ruler": {
+        "title": "A ruler in superposition",
+        "body": [
+          "The demonstration gate comes out and an `H` goes on each of the three counting wires, which now hold every value from 0 to 7 at once.",
+          "Read them as a binary number: the first wire is worth 1, the second 2, the third 4. That is the ruler the phase will be measured against, and three wires means the reading can only ever be a whole number of eighths of a turn."
+        ],
+        "notice": "Eight bars of equal height: the counting register holding 0 to 7 at once."
+      },
+      "kickback": {
+        "title": "One controlled application",
+        "body": [
+          "A controlled `P`: apply the gate to the last wire, but only when the first counting wire is 1. Because the last wire is an eigenstate the gate cannot change it, so the phase comes back out onto the control — the same kickback the oracle used in Deutsch–Jozsa.",
+          "The amplitude table: eight amplitudes, every one of them still the same height, and the four whose first counting bit is 1 have turned. The histogram has not moved and will not move again until the final block."
+        ],
+        "notice": "Half the amplitudes turned, and not one height changed."
+      },
+      "doubling": {
+        "title": "Twice, and twice again",
+        "body": [
+          "Two more controlled applications: twice the phase from the second wire, four times from the third. Each wire receives the phase multiplied by what that wire is worth as a binary digit.",
+          "The register now carries a phase that advances by the same step every time the counted number goes up by one. Everything about the gate we are measuring is in that step size, and none of it is in any of the heights.",
+          "This is also where the cost lives. One more binary digit means one more wire and twice as many applications of the gate, so precision is bought at an exponential price in gate calls — which is why phase estimation is expensive in practice and why Shor’s algorithm needs a gate that can be applied cheaply many times over."
+        ],
+        "notice": "The phases now advance in even steps as the counted number goes up."
+      },
+      "readOut": {
+        "title": "Turning a step size into a number",
+        "body": [
+          "The last block is the inverse quantum Fourier transform, and one sentence covers what it does here: given a register whose phase advances by a fixed step, it writes down how big that step was, in binary. It is the transform that would have produced those phases, run backwards.",
+          "This lesson does not take it apart — that is a lesson of its own, and pretending nine gates have been explained is worse than saying which sentence is being taken on faith. The `SWAP` at the front is worth pointing at, though: the transform delivers its wires in the opposite order to the one they went in, so the block starts by putting them back.",
+          "One bar, at `|1011⟩`. The last wire is the `|1⟩` we started with; the counting register reads `011`, which is three. The phase was three eighths of a turn, and three eighths of a turn is what it says."
+        ],
+        "notice": "A single bar: the counting wires read `011`, which is 3 out of 8."
+      },
+      "awkward": {
+        "title": "When it does not fit",
+        "body": [
+          "Three tenths of a turn now, instead of three eighths. Three wires cannot write that down: three tenths is 2.4 eighths, and there is no bar at 2.4.",
+          "So the histogram spreads. The tallest bar is at `010` — two eighths, the nearest value below — with about 58 per cent of the probability, and `011` takes about 26 per cent. The two nearest values hold roughly 84 per cent between them and the rest trails away.",
+          "This is the normal case rather than a malfunction, and it is why the word estimation is in the name. A single run lands on the nearest value about 58 per cent of the time, and on one of the two nearest about 84 per cent of the time. That second figure is a guarantee of the algorithm rather than a happy accident of this phase: it never drops below `8/π²`, whatever the phase and however many wires you use. Doing better means running it again and taking the most common answer, and adding one wire for each further binary digit."
+        ],
+        "notice": "A cluster instead of a single bar, with the tallest at `010`."
+      },
+      "yourTurn": {
+        "title": "Your turn",
+        "body": [
+          "Back to a phase that fits. Five eighths of a turn should make the counting register read `101`, which is five.",
+          "Three angles to set, and the pattern is the one from step 4: the first counting wire takes the phase itself, the second twice it, the third four times it. A phase repeats every full turn, so you may subtract a full turn from any of them whenever the number gets awkward. The gate cannot tell the difference."
+        ],
+        "notice": "One bar at `|1101⟩`: the counting wires read `101`, which is 5 out of 8.",
+        "task": "Set the three controlled phases so that the register reads five eighths of a turn.",
+        "hint": "Five eighths of a turn is `5π/4`. Twice that is `5π/2`, which is the same angle as `π/2`; four times it is `5π`, which is the same angle as `π`. The slider stops on sixteenths of `π`, so all three land exactly on a stop — the arrow keys move one stop at a time, and the field beside it takes the number typed."
+      }
+    }
+  }
+}

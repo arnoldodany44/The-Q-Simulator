@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Q Simulator</title>
+    <!--
+      The embedded document (§3.4, §11). It is served into somebody else's
+      page, so it is deliberately the emptiest head in the project.
+
+      NO SOCIAL METADATA. `index.html` carries a description, an Open Graph
+      card and a Twitter card because it is a page people bookmark, share and
+      find in a search result. This one is a figure inside another document:
+      the card that matters belongs to the page around it, and metadata here
+      would only compete with the author's own in a preview.
+
+      NO `robots` OPT-OUT EITHER, and that is a decision rather than an
+      omission — a crawler that reaches this address reaches a PUBLIC or
+      UNLISTED circuit and nothing else, because the API refuses the rest
+      (`apps/api/src/routes/embed.ts`). An UNLISTED one is protected by the
+      126 bits of its slug, and a crawler only holds that slug if the page
+      linking to it already published it.
+
+      `lang` is a pre-boot value, rewritten by `src/embed/i18n.ts` from the
+      language the *teacher* pinned in `?lang=` before the first render — see
+      that file for why an embed does not detect the reader's.
+
+      The security headers this document is served with are NOT here: framing
+      is decided by `frame-ancestors`, which browsers ignore inside a `<meta>`
+      by specification, and the rest travels with it so that one policy lives
+      in one place. That place is `src/embed/headers.ts`, which the dev server
+      reads directly and which `verification/embed-isolation/` compares
+      `vercel.json` against.
+    -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/embed/main.tsx"></script>
+  </body>
+</html>

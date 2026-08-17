@@ -1,0 +1,51 @@
+-- The two reads challenge mode makes that §7's index cannot serve — §3.6,
+-- Phase 3.
+--
+-- Two indexes. No table is created, no column is added, no row is read, moved
+-- or written, and nothing existing is altered. It is the least invasive shape
+-- a migration has, which matters here because this project has one database
+-- and it is shared between development and production.
+--
+-- ── Why this migration is hand-written ────────────────────────────────────
+--
+-- The same reason every migration since the second is: `prisma migrate dev
+-- --create-only` replays the whole folder into a shadow database, and
+-- `20260815181340_lock_public_schema_to_the_api` ends with
+-- `ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY` — a table the
+-- shadow database does not yet have when the replay reaches it (P3006/P3018,
+-- 42P01). The SQL below is what `prisma migrate diff` emits for the two
+-- `@@index` lines added to `ChallengeSubmission`, and it is applied with
+-- `prisma migrate deploy`, which uses no shadow database.
+--
+-- ── Why RLS is not enabled here ───────────────────────────────────────────
+--
+-- `migrations.test.ts` requires every `CREATE TABLE` to be paired with an
+-- `ENABLE ROW LEVEL SECURITY` in the same migration. This one creates no
+-- table: `ChallengeSubmission` was created by the initial migration and locked
+-- down by `20260815181340_lock_public_schema_to_the_api` along with the other
+-- fourteen. An index inherits its table's posture and has none of its own.
+--
+-- ── What each one is for ──────────────────────────────────────────────────
+--
+-- 1. The leaderboard. §3.6 ranks by "menor número de compuertas, menor
+--    profundidad", and this table breaks the remaining tie in favour of
+--    whoever got there first — so the ORDER BY is
+--    (gateCount, depth, createdAt) under a WHERE on (challengeId, passed).
+--    §7's index stops at `gateCount`, which leaves Postgres sorting every row
+--    that shares a gate count; on a challenge whose answer is three gates,
+--    that is most of the table. The §7 index is deliberately kept rather than
+--    replaced: it is what the specification asks for, dropping an index is
+--    exactly the destructive statement the migration tripwire refuses, and it
+--    remains the narrower one for a query that only sorts by gate count.
+--
+-- 2. "My attempts at this challenge", which §7 gives no index at all. It is
+--    the read behind the best-attempt line on a challenge page and behind the
+--    solved marks on the ladder — both of which run on an ordinary page load —
+--    and this table grows by a row per *attempt*, not per user. `createdAt`
+--    descending because the newest attempt is the one a page shows first.
+
+-- CreateIndex
+CREATE INDEX "ChallengeSubmission_leaderboard_idx" ON "ChallengeSubmission"("challengeId", "passed", "gateCount", "depth", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ChallengeSubmission_userId_challengeId_idx" ON "ChallengeSubmission"("userId", "challengeId", "createdAt" DESC);

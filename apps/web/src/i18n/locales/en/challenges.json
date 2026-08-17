@@ -1,0 +1,128 @@
+{
+  "index": {
+    "heading": "Challenges",
+    "intro": "You are given a state, an operation or a truth table. You build the circuit that produces it. The server runs your circuit with the same engine this page uses and decides — so what is on your screen and what is on the leaderboard can never disagree.",
+    "order": "The order is a curriculum: one qubit before two, a state before an operation, an operation before a truth table. Each challenge assumes the ones above it.",
+    "loading": "Loading the ladder…",
+    "empty": "No challenges are available yet.",
+    "difficulty": "Difficulty {{level}} of 5",
+    "qubits": "Register: {{qubits}}",
+    "solved": "Solved",
+    "unsolved": "Not solved yet",
+    "start": "Try it",
+    "improve": "Try for fewer gates"
+  },
+  "brief": {
+    "qubits": "Register",
+    "allowedGates": "Gates you may use",
+    "anyGate": "Any gate in the palette",
+    "maxGates": "Gate budget",
+    "noLimit": "No limit",
+    "threshold": "Fidelity needed",
+    "targetNote": {
+      "state": "The target is a state. Your circuit is compared with it up to an overall phase, because two states differing by one are physically the same.",
+      "unitary": "The target is an operation, not a state. What is compared is what your circuit does to every input — so a circuit that happens to get |0…0⟩ right is not enough.",
+      "truth_table": "The target is a truth table. Only the listed basis inputs are checked: it asks what your circuit does to definite bits and nothing about the phases between them."
+    }
+  },
+  "player": {
+    "briefLabel": "The challenge",
+    "labLabel": "Your circuit and its analysis",
+    "backToIndex": "All challenges",
+    "yourCircuit": "Your circuit: {{gates}} gates, depth {{depth}}.",
+    "submit": "Submit to the server",
+    "submitting": "Checking…",
+    "signInToSubmit": "Sign in to submit an answer",
+    "best": "Your best so far: {{gates}} gates, depth {{depth}}.",
+    "bestNone": "You have not solved this one yet.",
+    "notFound": "No such challenge",
+    "notFoundHint": "This address does not name a challenge. It may have been renamed.",
+    "unavailable": "The challenges could not be loaded"
+  },
+  "local": {
+    "wrongRegister": "This challenge is on {{qubits}} qubits. Add or remove wires until your register matches.",
+    "overBudget": "Over the gate budget of {{max}}. The server will not accept it, but it will still tell you whether the physics is right.",
+    "disallowed": "This challenge does not allow:"
+  },
+  "verdict": {
+    "passed": "Solved",
+    "failed": "Not yet",
+    "fidelity": "Fidelity",
+    "gateCount": "Gates",
+    "depth": "Depth"
+  },
+  "feedback": {
+    "solved": "Your circuit reaches the target, with a fidelity of {{value}}.",
+    "orthogonal": "Your state has no overlap at all with the target. This is not a small correction away — try a different construction rather than a different angle.",
+    "relative-phase": "Every magnitude is right and the phases between them are not. The histogram cannot show this; the phasors on each bar can, and so can the amplitude table.",
+    "qubit-order-reversed": "Reversing the order of your qubits would solve it. Qubit 0 is the least significant bit here, as it is in Qiskit.",
+    "entanglement-missing": "The target is entangled and your qubits are independent. Watch the Bloch arrows: on an entangled qubit the arrow shrinks towards the centre.",
+    "entanglement-unwanted": "Your qubits are entangled and the target’s are not. Something is correlating wires that should be left alone.",
+    "too-few-outcomes": "Your state reaches {{value}} basis states and the target reaches more. Something is not being put into superposition.",
+    "too-many-outcomes": "Your state reaches {{value}} basis states and the target reaches fewer. Something is spreading amplitude where the target has none.",
+    "nearly-there": "Close — a fidelity of {{value}}. Look for one wrong angle rather than one wrong gate.",
+    "wrong-qubit-count": "Your circuit is on {{value}} qubits, which is not this challenge’s register, so there is nothing to compare it with.",
+    "empty-circuit": "There are no gates on the canvas yet.",
+    "gate-not-allowed": "This challenge does not allow this gate:",
+    "not-scored": "Your circuit was not compared with the target at all, because it uses a gate this challenge does not allow. The fidelity above is not a reading. Take the gate out and submit again.",
+    "no-final-state": "This circuit has no single final state, so there is nothing to compare: something in it measures, resets, or depends on a classical bit. Remove it and the whole circuit becomes one operation again.",
+    "gate-budget-exceeded": "Your circuit uses {{value}} gates, which is over the budget. The physics above still applies — this is about length, not correctness.",
+    "basis-states-only": "Checked on {{value}} basis inputs. A truth table says nothing about superposed inputs: two very different operations can share one.",
+    "rows-wrong": "{{value}} of the checked inputs came out somewhere else.",
+    "row-not-a-basis-state": "{{value}} of them did not come out as a definite bit pattern at all — the circuit left them in a superposition.",
+    "global-phase-ignored": "Your state carries an overall phase of {{value}} radians relative to the target. That is not a difference: no measurement can detect an overall phase, and it was ignored."
+  },
+  "board": {
+    "heading": "Fewest gates",
+    "caption": "One row per person: their shortest solution, then their shallowest. A number may be missing where somebody asked not to be listed.",
+    "rank": "Rank",
+    "who": "Who",
+    "gates": "Gates",
+    "depth": "Depth",
+    "you": " (you)",
+    "empty": "Nobody has solved this one yet.",
+    "noneListed": "Everybody who has solved this has chosen to keep their name off the table.",
+    "yourStanding": "You are number {{rank}}, with {{gates}} gates and depth {{depth}}.",
+    "youUnranked": "You are not on this board yet. Solve it once and you will be.",
+    "withheld": "Your name is not shown to anybody else, by your own choice in settings.",
+    "loading": "Loading the table…"
+  },
+  "catalog": {
+    "superposition": {
+      "title": "A coin in the air",
+      "prompt": "Put the single qubit into an equal superposition, so that measuring it gives `|0⟩` half the time and `|1⟩` the other half. One gate is enough."
+    },
+    "minus-state": {
+      "title": "The same halves, the other sign",
+      "prompt": "Produce `(|0⟩ − |1⟩)/√2`. Its probabilities are exactly those of the previous challenge — the histogram will look identical — and its phase is not. Watch the phasor on the second bar."
+    },
+    "bell-pair": {
+      "title": "Two qubits, one answer",
+      "prompt": "Produce `(|00⟩ + |11⟩)/√2`: two qubits that each look random on their own and always agree with each other. When you have it, both Bloch arrows collapse to the centre of their spheres."
+    },
+    "ghz-three": {
+      "title": "All three at once",
+      "prompt": "Extend the pair to three qubits: `(|000⟩ + |111⟩)/√2`. Three wires, all or nothing."
+    },
+    "y-eigenstate": {
+      "title": "A quarter turn",
+      "prompt": "Produce `(|0⟩ + i|1⟩)/√2`. The same two halves again, with the phase a quarter of the way round the circle instead of half."
+    },
+    "hadamard-conjugation": {
+      "title": "Z without a Z",
+      "prompt": "Build the `Z` gate using only `H` and `X`. The target here is an operation rather than a state: what is compared is what your circuit does to every input, so getting `|0⟩` right proves nothing."
+    },
+    "cnot-reversed": {
+      "title": "Turn the arrow around",
+      "prompt": "Build a `CNOT` whose control is qubit 1 and whose target is qubit 0, using only a `CZ` and `H` gates. A `CZ` has no arrow — it treats both wires alike — so the `H` gates are the entire content of the answer: they are what decides which way the `CNOT` points."
+    },
+    "swap-from-cnots": {
+      "title": "Exchange, with nothing to exchange with",
+      "prompt": "Swap two qubits using `CNOT` gates alone. Hardware often has no `SWAP`, and this is what it does instead — which is why moving a qubit across a chip is expensive."
+    },
+    "toffoli-truth-table": {
+      "title": "A classical gate, built from quantum ones",
+      "prompt": "Flip qubit 2 exactly when qubits 0 and 1 are both `1`, using only `H`, `T`, `T†` and `CNOT`. This one is scored on the eight basis inputs: it asks what your circuit does to definite bits, and nothing about the phases."
+    }
+  }
+}

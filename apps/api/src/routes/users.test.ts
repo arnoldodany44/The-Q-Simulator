@@ -259,6 +259,22 @@ describe('GET /me', () => {
     expect(response.payload).not.toContain('ada@example.com')
   })
 
+  /**
+   * The one setting on this response, and the reason it is a sibling of `user`
+   * rather than a field on it: `PublicUserResponse` is what every circuit
+   * byline serialises through, so a preference living inside it would be
+   * published to every stranger reading the gallery. Here it can only leave
+   * the process on the three routes where the caller is the subject.
+   */
+  it('reports the leaderboard preference beside the user, not inside it', async () => {
+    const response = await inject('GET', ME, { headers: harness.owner })
+    const body = response.json<AccountBody & { leaderboardOptOut: boolean }>()
+
+    // Nobody has expressed a preference, so the column default stands: listed.
+    expect(body.leaderboardOptOut).toBe(false)
+    expect(Object.keys(body.user)).not.toContain('leaderboardOptOut')
+  })
+
   it('creates the row on first use', async () => {
     // Somebody who signed up and went straight to settings has no
     // `public.User` row yet — see `users.ts` in @qsim/db for why it is created
@@ -295,6 +311,43 @@ describe('PATCH /me', () => {
     })
     expect(response.statusCode).toBe(200)
     expect(response.json<AccountBody>().user.displayName).toBe('Ada Lovelace')
+  })
+
+  it('records a refusal to be listed, and the change of mind after it', async () => {
+    const out = await inject('PATCH', ME, {
+      headers: harness.owner,
+      body: { leaderboardOptOut: true },
+    })
+    expect(out.statusCode).toBe(200)
+    expect(
+      out.json<AccountBody & { leaderboardOptOut: boolean }>().leaderboardOptOut
+    ).toBe(true)
+
+    const back = await inject('PATCH', ME, {
+      headers: harness.owner,
+      body: { leaderboardOptOut: false },
+    })
+    expect(
+      back.json<AccountBody & { leaderboardOptOut: boolean }>()
+        .leaderboardOptOut
+    ).toBe(false)
+  })
+
+  it('leaves the preference alone when the body does not mention it', async () => {
+    await inject('PATCH', ME, {
+      headers: harness.owner,
+      body: { leaderboardOptOut: true },
+    })
+    // Absent means "leave it", exactly as it does for the display name. A
+    // settings form that saved a name must not quietly republish somebody.
+    const response = await inject('PATCH', ME, {
+      headers: harness.owner,
+      body: { displayName: 'Ada Lovelace' },
+    })
+    expect(
+      response.json<AccountBody & { leaderboardOptOut: boolean }>()
+        .leaderboardOptOut
+    ).toBe(true)
   })
 
   it('refuses a username that belongs to somebody else', async () => {

@@ -1,0 +1,128 @@
+{
+  "index": {
+    "heading": "Retos",
+    "intro": "Se te da un estado, una operación o una tabla de verdad. Tú construyes el circuito que lo produce. El servidor ejecuta tu circuito con el mismo motor que usa esta página y decide, así que lo que ves en pantalla y lo que aparece en la tabla de posiciones nunca pueden discrepar.",
+    "order": "El orden es un plan de estudios: un qubit antes que dos, un estado antes que una operación, una operación antes que una tabla de verdad. Cada reto da por sabidos los anteriores.",
+    "loading": "Cargando los retos…",
+    "empty": "Todavía no hay retos disponibles.",
+    "difficulty": "Dificultad {{level}} de 5",
+    "qubits": "Registro: {{qubits}}",
+    "solved": "Resuelto",
+    "unsolved": "Sin resolver",
+    "start": "Intentarlo",
+    "improve": "Intentarlo con menos compuertas"
+  },
+  "brief": {
+    "qubits": "Registro",
+    "allowedGates": "Compuertas permitidas",
+    "anyGate": "Cualquier compuerta de la paleta",
+    "maxGates": "Presupuesto de compuertas",
+    "noLimit": "Sin límite",
+    "threshold": "Fidelidad requerida",
+    "targetNote": {
+      "state": "El objetivo es un estado. Tu circuito se compara con él salvo una fase global, porque dos estados que solo difieren en ella son físicamente el mismo.",
+      "unitary": "El objetivo es una operación, no un estado. Lo que se compara es lo que tu circuito le hace a cada entrada, así que acertar con |0…0⟩ no basta.",
+      "truth_table": "El objetivo es una tabla de verdad. Solo se comprueban los estados de la base que aparecen en ella: pregunta qué hace tu circuito con bits definidos y nada sobre las fases entre ellos."
+    }
+  },
+  "player": {
+    "briefLabel": "El reto",
+    "labLabel": "Tu circuito y su análisis",
+    "backToIndex": "Todos los retos",
+    "yourCircuit": "Tu circuito: {{gates}} compuertas, profundidad {{depth}}.",
+    "submit": "Enviar al servidor",
+    "submitting": "Comprobando…",
+    "signInToSubmit": "Inicia sesión para enviar una respuesta",
+    "best": "Tu mejor intento: {{gates}} compuertas, profundidad {{depth}}.",
+    "bestNone": "Todavía no has resuelto este reto.",
+    "notFound": "No existe ese reto",
+    "notFoundHint": "Esta dirección no corresponde a ningún reto. Puede que se haya renombrado.",
+    "unavailable": "No se pudieron cargar los retos"
+  },
+  "local": {
+    "wrongRegister": "Este reto es de {{qubits}} qubits. Añade o quita hilos hasta que tu registro coincida.",
+    "overBudget": "Supera el presupuesto de {{max}} compuertas. El servidor no lo aceptará, pero aun así te dirá si la física es correcta.",
+    "disallowed": "Este reto no permite:"
+  },
+  "verdict": {
+    "passed": "Resuelto",
+    "failed": "Todavía no",
+    "fidelity": "Fidelidad",
+    "gateCount": "Compuertas",
+    "depth": "Profundidad"
+  },
+  "feedback": {
+    "solved": "Tu circuito alcanza el objetivo, con una fidelidad de {{value}}.",
+    "orthogonal": "Tu estado no tiene ningún solapamiento con el objetivo. No estás a una corrección pequeña de distancia: prueba otra construcción en lugar de otro ángulo.",
+    "relative-phase": "Todas las magnitudes son correctas y las fases entre ellas no. El histograma no puede mostrarlo; las flechas de cada barra sí, y la tabla de amplitudes también.",
+    "qubit-order-reversed": "Invertir el orden de tus qubits lo resolvería. Aquí el qubit 0 es el bit menos significativo, igual que en Qiskit.",
+    "entanglement-missing": "El objetivo está entrelazado y tus qubits son independientes. Fíjate en las flechas de Bloch: en un qubit entrelazado la flecha se encoge hacia el centro.",
+    "entanglement-unwanted": "Tus qubits están entrelazados y los del objetivo no. Algo está correlacionando hilos que deberían quedarse en paz.",
+    "too-few-outcomes": "Tu estado alcanza {{value}} estados de la base y el objetivo alcanza más. Algo no está entrando en superposición.",
+    "too-many-outcomes": "Tu estado alcanza {{value}} estados de la base y el objetivo alcanza menos. Algo está repartiendo amplitud donde el objetivo no tiene ninguna.",
+    "nearly-there": "Cerca: una fidelidad de {{value}}. Busca un ángulo equivocado más que una compuerta equivocada.",
+    "wrong-qubit-count": "Tu circuito tiene {{value}} qubits, que no es el registro de este reto, así que no hay nada con qué compararlo.",
+    "empty-circuit": "Todavía no hay ninguna compuerta en el lienzo.",
+    "gate-not-allowed": "Este reto no permite esta compuerta:",
+    "not-scored": "Tu circuito no se ha comparado con el objetivo en absoluto, porque usa una compuerta que este reto no permite. La fidelidad de arriba no es una medida. Quita la compuerta y vuelve a enviarlo.",
+    "no-final-state": "Este circuito no tiene un único estado final, así que no hay nada que comparar: algo dentro mide, reinicia o depende de un bit clásico. Quítalo y el circuito volverá a ser una sola operación.",
+    "gate-budget-exceeded": "Tu circuito usa {{value}} compuertas, por encima del presupuesto. Lo que dice la física sigue valiendo: esto es cuestión de longitud, no de corrección.",
+    "basis-states-only": "Comprobado sobre {{value}} estados de la base. Una tabla de verdad no dice nada sobre entradas en superposición: dos operaciones muy distintas pueden compartir la misma.",
+    "rows-wrong": "{{value}} de los estados de la base comprobados terminaron en otro sitio.",
+    "row-not-a-basis-state": "{{value}} de ellos ni siquiera terminaron en un patrón de bits definido: el circuito los dejó en superposición.",
+    "global-phase-ignored": "Tu estado lleva una fase global de {{value}} radianes respecto al objetivo. Eso no es una diferencia: ninguna medición puede detectar una fase global, y se ha ignorado."
+  },
+  "board": {
+    "heading": "Menos compuertas",
+    "caption": "Una fila por persona: su solución más corta y, a igualdad, la menos profunda. Puede faltar un número donde alguien pidió no aparecer.",
+    "rank": "Puesto",
+    "who": "Quién",
+    "gates": "Compuertas",
+    "depth": "Profundidad",
+    "you": " (tú)",
+    "empty": "Todavía nadie ha resuelto este reto.",
+    "noneListed": "Todas las personas que lo han resuelto han elegido mantener su nombre fuera de la tabla.",
+    "yourStanding": "Ocupas el puesto {{rank}}, con {{gates}} compuertas y profundidad {{depth}}.",
+    "youUnranked": "Todavía no estás en esta tabla. Resuélvelo una vez y entrarás.",
+    "withheld": "Tu nombre no se le muestra a nadie más, porque así lo elegiste en los ajustes.",
+    "loading": "Cargando la tabla…"
+  },
+  "catalog": {
+    "superposition": {
+      "title": "Una moneda en el aire",
+      "prompt": "Pon el único qubit en superposición equilibrada, de modo que al medirlo dé `|0⟩` la mitad de las veces y `|1⟩` la otra mitad. Basta con una compuerta."
+    },
+    "minus-state": {
+      "title": "Las mismas mitades, el otro signo",
+      "prompt": "Produce `(|0⟩ − |1⟩)/√2`. Sus probabilidades son exactamente las del reto anterior —el histograma se verá idéntico— y su fase no. Fíjate en la flecha de la segunda barra."
+    },
+    "bell-pair": {
+      "title": "Dos qubits, una sola respuesta",
+      "prompt": "Produce `(|00⟩ + |11⟩)/√2`: dos qubits que por separado parecen aleatorios y que siempre coinciden entre sí. Cuando lo consigas, las dos flechas de Bloch se colapsan al centro de sus esferas."
+    },
+    "ghz-three": {
+      "title": "Los tres a la vez",
+      "prompt": "Extiende el par a tres qubits: `(|000⟩ + |111⟩)/√2`. Tres hilos, todo o nada."
+    },
+    "y-eigenstate": {
+      "title": "Un cuarto de vuelta",
+      "prompt": "Produce `(|0⟩ + i|1⟩)/√2`. Otra vez las mismas dos mitades, con la fase a un cuarto de vuelta del círculo en lugar de a la mitad."
+    },
+    "hadamard-conjugation": {
+      "title": "Una Z sin usar Z",
+      "prompt": "Construye la compuerta `Z` usando solo `H` y `X`. Aquí el objetivo es una operación y no un estado: lo que se compara es lo que tu circuito le hace a cada entrada, así que acertar con `|0⟩` no demuestra nada."
+    },
+    "cnot-reversed": {
+      "title": "Dale la vuelta a la flecha",
+      "prompt": "Construye un `CNOT` cuyo control sea el qubit 1 y cuyo objetivo sea el qubit 0, usando solo un `CZ` y compuertas `H`. Un `CZ` no tiene flecha — trata igual a los dos hilos —, así que las `H` son todo el contenido de la respuesta: son ellas las que deciden hacia dónde apunta el `CNOT`."
+    },
+    "swap-from-cnots": {
+      "title": "Intercambiar sin nada con qué intercambiar",
+      "prompt": "Intercambia dos qubits usando únicamente compuertas `CNOT`. El hardware a menudo no tiene `SWAP` y hace esto en su lugar, y por eso mover un qubit por el chip sale caro."
+    },
+    "toffoli-truth-table": {
+      "title": "Una compuerta clásica, hecha de cuánticas",
+      "prompt": "Invierte el qubit 2 exactamente cuando los qubits 0 y 1 valen `1`, usando solo `H`, `T`, `T†` y `CNOT`. Este reto se puntúa sobre los ocho estados de la base: pregunta qué hace tu circuito con bits definidos y nada sobre las fases."
+    }
+  }
+}

@@ -55,10 +55,13 @@ import {
 } from './plugins/validation.js'
 import type { ZodTypeProvider } from './plugins/validation.js'
 import type { JwksCache } from './auth/jwks.js'
+import { challengeRoutes } from './routes/challenges.js'
 import { circuitRoutes } from './routes/circuits.js'
 import { collectionRoutes } from './routes/collections.js'
+import { embedRoutes } from './routes/embed.js'
 import { galleryRoutes } from './routes/gallery.js'
 import { healthRoutes } from './routes/health.js'
+import { lessonRoutes } from './routes/lessons.js'
 import { simulateRoutes } from './routes/simulate.js'
 import { userRoutes } from './routes/users.js'
 import { webSocketRoutes } from './routes/ws.js'
@@ -240,6 +243,21 @@ export async function buildApp(options: BuildAppOptions) {
     // The API answers JSON only; nosniff removes the whole class of bugs
     // where a browser decides a response is something else.
     reply.header('x-content-type-options', 'nosniff')
+    /*
+     * Nothing this service serves is a document, so nothing it serves has any
+     * business inside a frame. This is the *ordinary* half of the framing
+     * answer that `apps/web` splits in two (see `src/embed/headers.ts`): the
+     * app and its API refuse to be framed, and exactly one route of the client
+     * — the embed — opts back in. Setting it here rather than per route means
+     * a route added later inherits the refusal instead of having to remember
+     * it.
+     *
+     * It is cheap rather than decorative: `X-Frame-Options` is what stops a
+     * JSON response being loaded into a frame and read through a rendering
+     * side channel, and the error pages this handler emits are HTML-adjacent
+     * enough that a browser will happily display one.
+     */
+    reply.header('x-frame-options', 'DENY')
   })
 
   await app.register(cors, {
@@ -330,6 +348,9 @@ export async function buildApp(options: BuildAppOptions) {
   await app.register(circuitRoutes, { prefix: API_PREFIX, env })
   await app.register(galleryRoutes, { prefix: API_PREFIX })
   await app.register(collectionRoutes, { prefix: API_PREFIX, env })
+  await app.register(embedRoutes, { prefix: API_PREFIX })
+  await app.register(lessonRoutes, { prefix: API_PREFIX })
+  await app.register(challengeRoutes, { prefix: API_PREFIX, env })
   await app.register(simulateRoutes, { prefix: API_PREFIX, env })
   await app.register(userRoutes, { prefix: API_PREFIX, env })
 

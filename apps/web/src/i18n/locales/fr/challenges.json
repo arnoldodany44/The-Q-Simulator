@@ -1,0 +1,128 @@
+{
+  "index": {
+    "heading": "Défis",
+    "intro": "On vous donne un état, une opération ou une table de vérité. Vous construisez le circuit qui y correspond. Le serveur exécute votre circuit avec le moteur qu’utilise cette page et tranche, de sorte que ce qui est à l’écran et ce qui figure au classement ne peuvent jamais se contredire.",
+    "order": "L’ordre est un programme : un qubit avant deux, un état avant une opération, une opération avant une table de vérité. Chaque défi suppose acquis les précédents.",
+    "loading": "Chargement des défis…",
+    "empty": "Aucun défi n’est encore disponible.",
+    "difficulty": "Difficulté {{level}} sur 5",
+    "qubits": "Registre : {{qubits}}",
+    "solved": "Résolu",
+    "unsolved": "Pas encore résolu",
+    "start": "Essayer",
+    "improve": "Essayer avec moins de portes"
+  },
+  "brief": {
+    "qubits": "Registre",
+    "allowedGates": "Portes autorisées",
+    "anyGate": "N’importe quelle porte de la palette",
+    "maxGates": "Budget de portes",
+    "noLimit": "Sans limite",
+    "threshold": "Fidélité requise",
+    "targetNote": {
+      "state": "La cible est un état. Votre circuit lui est comparé à une phase globale près, car deux états qui ne diffèrent que par elle sont physiquement le même.",
+      "unitary": "La cible est une opération, pas un état. Ce que l’on compare, c’est ce que votre circuit fait à chaque entrée : réussir sur |0…0⟩ ne suffit donc pas.",
+      "truth_table": "La cible est une table de vérité. Seuls les états de base qui y figurent sont vérifiés : elle demande ce que votre circuit fait à des bits définis, et rien sur les phases entre eux."
+    }
+  },
+  "player": {
+    "briefLabel": "Le défi",
+    "labLabel": "Votre circuit et son analyse",
+    "backToIndex": "Tous les défis",
+    "yourCircuit": "Votre circuit : {{gates}} portes, profondeur {{depth}}.",
+    "submit": "Envoyer au serveur",
+    "submitting": "Vérification…",
+    "signInToSubmit": "Connectez-vous pour envoyer une réponse",
+    "best": "Votre meilleure tentative : {{gates}} portes, profondeur {{depth}}.",
+    "bestNone": "Vous n’avez pas encore résolu ce défi.",
+    "notFound": "Ce défi n’existe pas",
+    "notFoundHint": "Cette adresse ne désigne aucun défi. Il a peut-être été renommé.",
+    "unavailable": "Les défis n’ont pas pu être chargés"
+  },
+  "local": {
+    "wrongRegister": "Ce défi porte sur {{qubits}} qubits. Ajoutez ou retirez des fils jusqu’à ce que votre registre corresponde.",
+    "overBudget": "Au-delà du budget de {{max}} portes. Le serveur ne l’acceptera pas, mais il vous dira quand même si la physique est juste.",
+    "disallowed": "Ce défi n’autorise pas :"
+  },
+  "verdict": {
+    "passed": "Résolu",
+    "failed": "Pas encore",
+    "fidelity": "Fidélité",
+    "gateCount": "Portes",
+    "depth": "Profondeur"
+  },
+  "feedback": {
+    "solved": "Votre circuit atteint la cible, avec une fidélité de {{value}}.",
+    "orthogonal": "Votre état n’a aucun recouvrement avec la cible. Vous n’êtes pas à une petite correction près : essayez une autre construction plutôt qu’un autre angle.",
+    "relative-phase": "Toutes les amplitudes ont le bon module et les phases entre elles ne l’ont pas. L’histogramme ne peut pas le montrer ; les flèches de chaque barre, si, et la table des amplitudes aussi.",
+    "qubit-order-reversed": "Inverser l’ordre de vos qubits résoudrait le défi. Ici le qubit 0 est le bit de poids faible, comme dans Qiskit.",
+    "entanglement-missing": "La cible est intriquée et vos qubits sont indépendants. Regardez les flèches de Bloch : sur un qubit intriqué, la flèche se raccourcit vers le centre.",
+    "entanglement-unwanted": "Vos qubits sont intriqués et ceux de la cible ne le sont pas. Quelque chose corrèle des fils qui devraient rester tranquilles.",
+    "too-few-outcomes": "Votre état atteint {{value}} états de base et la cible en atteint davantage. Quelque chose n’est pas mis en superposition.",
+    "too-many-outcomes": "Votre état atteint {{value}} états de base et la cible en atteint moins. Quelque chose répand de l’amplitude là où la cible n’en a pas.",
+    "nearly-there": "Presque : une fidélité de {{value}}. Cherchez un angle faux plutôt qu’une porte fausse.",
+    "wrong-qubit-count": "Votre circuit porte sur {{value}} qubits, ce qui n’est pas le registre de ce défi : il n’y a donc rien à quoi le comparer.",
+    "empty-circuit": "Il n’y a encore aucune porte sur la grille.",
+    "gate-not-allowed": "Ce défi n’autorise pas cette porte :",
+    "not-scored": "Votre circuit n’a pas du tout été comparé à la cible, car il utilise une porte que ce défi n’autorise pas. La fidélité ci-dessus n’est pas une mesure. Retirez la porte et renvoyez-le.",
+    "no-final-state": "Ce circuit n’a pas d’état final unique : il n’y a donc rien à comparer, car quelque chose y mesure, réinitialise ou dépend d’un bit classique. Retirez-le et le circuit redeviendra une seule opération.",
+    "gate-budget-exceeded": "Votre circuit utilise {{value}} portes, au-delà du budget. Ce que dit la physique reste vrai : il s’agit de longueur, pas de justesse.",
+    "basis-states-only": "Vérifié sur {{value}} états de base. Une table de vérité ne dit rien des entrées en superposition : deux opérations très différentes peuvent partager la même.",
+    "rows-wrong": "{{value}} des états de base vérifiés ont abouti ailleurs.",
+    "row-not-a-basis-state": "{{value}} d’entre eux n’ont même pas abouti à une configuration de bits définie : le circuit les a laissés en superposition.",
+    "global-phase-ignored": "Votre état porte une phase globale de {{value}} radians par rapport à la cible. Ce n’est pas une différence : aucune mesure ne peut détecter une phase globale, et elle a été ignorée."
+  },
+  "board": {
+    "heading": "Le moins de portes",
+    "caption": "Une ligne par personne : sa solution la plus courte et, à égalité, la moins profonde. Un numéro peut manquer là où quelqu’un a demandé à ne pas figurer.",
+    "rank": "Rang",
+    "who": "Qui",
+    "gates": "Portes",
+    "depth": "Profondeur",
+    "you": " (vous)",
+    "empty": "Personne n’a encore résolu ce défi.",
+    "noneListed": "Toutes les personnes qui l’ont résolu ont choisi de garder leur nom hors du tableau.",
+    "yourStanding": "Vous êtes au rang {{rank}}, avec {{gates}} portes et une profondeur de {{depth}}.",
+    "youUnranked": "Vous ne figurez pas encore dans ce classement. Résolvez le défi une fois et vous y entrerez.",
+    "withheld": "Votre nom n’est montré à personne d’autre, selon votre propre choix dans les réglages.",
+    "loading": "Chargement du classement…"
+  },
+  "catalog": {
+    "superposition": {
+      "title": "Une pièce en l’air",
+      "prompt": "Mettez l’unique qubit en superposition équilibrée, de sorte que le mesurer donne `|0⟩` une fois sur deux et `|1⟩` l’autre fois. Une seule porte suffit."
+    },
+    "minus-state": {
+      "title": "Les mêmes moitiés, l’autre signe",
+      "prompt": "Produisez `(|0⟩ − |1⟩)/√2`. Ses probabilités sont exactement celles du défi précédent — l’histogramme aura l’air identique — et sa phase, non. Regardez la flèche de la deuxième barre."
+    },
+    "bell-pair": {
+      "title": "Deux qubits, une seule réponse",
+      "prompt": "Produisez `(|00⟩ + |11⟩)/√2` : deux qubits qui, pris séparément, semblent aléatoires et qui sont toujours d’accord entre eux. Quand vous y arriverez, les deux flèches de Bloch s’effondreront au centre de leurs sphères."
+    },
+    "ghz-three": {
+      "title": "Tous les trois à la fois",
+      "prompt": "Étendez la paire à trois qubits : `(|000⟩ + |111⟩)/√2`. Trois fils, tout ou rien."
+    },
+    "y-eigenstate": {
+      "title": "Un quart de tour",
+      "prompt": "Produisez `(|0⟩ + i|1⟩)/√2`. Les deux mêmes moitiés à nouveau, avec la phase au quart du cercle au lieu de la moitié."
+    },
+    "hadamard-conjugation": {
+      "title": "Un Z sans Z",
+      "prompt": "Construisez la porte `Z` en n’utilisant que `H` et `X`. Ici la cible est une opération et non un état : ce que l’on compare, c’est ce que votre circuit fait à chaque entrée, donc réussir sur `|0⟩` ne prouve rien."
+    },
+    "cnot-reversed": {
+      "title": "Retourner la flèche",
+      "prompt": "Construisez un `CNOT` dont le contrôle est le qubit 1 et la cible le qubit 0, en n’utilisant qu’un `CZ` et des portes `H`. Un `CZ` n’a pas de flèche — il traite les deux fils de la même façon —, si bien que les `H` sont tout le contenu de la réponse : ce sont elles qui décident dans quel sens pointe le `CNOT`."
+    },
+    "swap-from-cnots": {
+      "title": "Échanger sans rien pour échanger",
+      "prompt": "Échangez deux qubits en n’utilisant que des portes `CNOT`. Le matériel n’a souvent pas de `SWAP` et fait ceci à la place, et c’est pourquoi déplacer un qubit sur une puce coûte cher."
+    },
+    "toffoli-truth-table": {
+      "title": "Une porte classique, faite de portes quantiques",
+      "prompt": "Inversez le qubit 2 exactement quand les qubits 0 et 1 valent tous deux `1`, en n’utilisant que `H`, `T`, `T†` et `CNOT`. Ce défi est noté sur les huit états de base : il demande ce que votre circuit fait à des bits définis, et rien sur les phases."
+    }
+  }
+}

@@ -80,6 +80,7 @@ function deletion(counts: { circuits: number; collections: number }) {
 }
 
 function accountPayload(overrides: Record<string, unknown> = {}) {
+  const { leaderboardOptOut = false, ...user } = overrides
   return {
     user: {
       id: USER_ID,
@@ -87,8 +88,14 @@ function accountPayload(overrides: Record<string, unknown> = {}) {
       displayName: 'Ada',
       avatarUrl: null,
       createdAt: CREATED_AT,
-      ...overrides,
+      ...user,
     },
+    /*
+     * A sibling of `user` and not a field on it: the user shape is what this
+     * API prints beside somebody's work, and a preference is not that. See
+     * `AccountResponse` in @qsim/contract.
+     */
+    leaderboardOptOut,
   }
 }
 
@@ -178,6 +185,84 @@ describe('the settings screen', () => {
       enSettings.profile.avatarGenerated
     )
     expect((generated as HTMLInputElement).checked).toBe(true)
+  })
+
+  /**
+   * The leaderboard control (§3.6).
+   *
+   * The checkbox is phrased positively and the stored column is the refusal,
+   * so the two are inverses — which is exactly the kind of thing that ships
+   * backwards and looks fine. Both directions are asserted against the body
+   * that actually leaves the browser.
+   */
+  it('shows the leaderboard listing as on when nobody has opted out', async () => {
+    mount([jsonResponse(accountPayload())])
+
+    const box = await screen.findByLabelText(enSettings.privacy.listMe)
+    expect((box as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('shows it as off for somebody who withdrew their name', async () => {
+    mount([jsonResponse(accountPayload({ leaderboardOptOut: true }))])
+
+    const box = await screen.findByLabelText(enSettings.privacy.listMe)
+    expect((box as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('sends the refusal, and the change of mind, the right way round', async () => {
+    const { transport } = mount([
+      jsonResponse(accountPayload()),
+      jsonResponse(accountPayload({ leaderboardOptOut: true })),
+      jsonResponse(accountPayload({ leaderboardOptOut: true })),
+      jsonResponse(accountPayload()),
+      jsonResponse(accountPayload()),
+    ])
+
+    /*
+     * The *writes*, and not simply the last request: a successful save
+     * invalidates the account, so the newest call at assert time is the
+     * refetch behind it rather than the PATCH under test.
+     */
+    const writes = (): unknown[] =>
+      transport.calls
+        .filter((call) => call.init?.method === 'PATCH')
+        .map((call) =>
+          typeof call.init?.body === 'string'
+            ? (JSON.parse(call.init.body) as unknown)
+            : call.init?.body
+        )
+
+    const box = await screen.findByLabelText(enSettings.privacy.listMe)
+    // Unchecking "show my name" is opting out.
+    fireEvent.click(box)
+    await waitFor(() => {
+      expect(writes()).toEqual([{ leaderboardOptOut: true }])
+    })
+
+    // The screen now shows the stored state, and checking it again is the
+    // change of mind — which has to send the opposite value and not the same
+    // one twice.
+    await waitFor(() => {
+      const again = screen.getByLabelText(enSettings.privacy.listMe)
+      expect((again as HTMLInputElement).checked).toBe(false)
+    })
+    fireEvent.click(screen.getByLabelText(enSettings.privacy.listMe))
+    await waitFor(() => {
+      expect(writes()).toEqual([
+        { leaderboardOptOut: true },
+        { leaderboardOptOut: false },
+      ])
+    })
+  })
+
+  /*
+   * Saying that opting out deletes a result would make the honest choice look
+   * expensive, and it is not what the server does: the rank is assigned before
+   * anybody is withheld.
+   */
+  it('says that hiding a name does not withdraw a result', async () => {
+    mount([jsonResponse(accountPayload())])
+    expect(await screen.findByText(enSettings.privacy.note)).toBeTruthy()
   })
 
   it('keeps the delete control behind a disclosure', async () => {

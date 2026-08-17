@@ -159,10 +159,11 @@ describe('collection request bodies', () => {
 
 describe('account responses', () => {
   it('round-trips the caller’s own row', () => {
-    const sent = throughTheWire(serverUserResponses.AccountResponse, { user })
+    const account = { user, leaderboardOptOut: false }
+    const sent = throughTheWire(serverUserResponses.AccountResponse, account)
     const received = wireUserResponses.AccountResponse.parse(sent)
 
-    expect(received).toEqual({ user })
+    expect(received).toEqual(account)
   })
 
   it('never lets an email reach GET /me either', () => {
@@ -174,9 +175,27 @@ describe('account responses', () => {
      */
     const sent = throughTheWire(serverUserResponses.AccountResponse, {
       user: { ...user, email: 'ada@example.com' },
+      leaderboardOptOut: false,
     })
 
     expect(JSON.stringify(sent)).not.toContain('ada@example.com')
+  })
+
+  /**
+   * The leaderboard preference is a sibling of `user` and not a field on it,
+   * because `PublicUserResponse` is what every circuit byline serialises
+   * through — a setting placed inside it would be published to every stranger
+   * reading the gallery. Asserted here rather than only in `apps/api`, because
+   * the schema is what actually decides.
+   */
+  it('keeps the leaderboard preference out of the public user shape', () => {
+    const sent = throughTheWire(serverUserResponses.ProfileResponse, {
+      user: { ...user, leaderboardOptOut: true },
+      circuitCount: 0,
+      collectionCount: 0,
+    })
+
+    expect(JSON.stringify(sent)).not.toContain('leaderboardOptOut')
   })
 
   it('round-trips a profile with its two counts', () => {

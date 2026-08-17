@@ -168,6 +168,34 @@ export type PublicUser = Prisma.UserGetPayload<{
 }>
 
 /**
+ * The caller's own row: the public face plus the preferences only its owner
+ * has any business reading.
+ *
+ * ── Why this is not a second projection in the sense §8 rules out ─────────
+ *
+ * `accounts.ts` argues that there is one user projection and that it has no
+ * `email`, so that no future handler can pick the wrong one. This does not
+ * reopen that: it is `publicUserSelect` *spread*, so it inherits every column
+ * that one has and cannot acquire one it does not — in particular it cannot
+ * grow an `email` without the shared constant growing one first.
+ *
+ * What it adds is a setting, and a setting is not a public fact about
+ * somebody. `leaderboardOptOut` on the shared projection would ride along in
+ * every circuit byline and every profile, publishing a preference that only
+ * its owner and the leaderboard query have a use for. The three routes that
+ * select through this — `GET`, `PATCH` and `DELETE /me` — are the three that
+ * require a session and act on the caller's own row.
+ */
+export const accountSelect = {
+  ...publicUserSelect,
+  leaderboardOptOut: true,
+} satisfies Prisma.UserSelect
+
+export type AccountUser = Prisma.UserGetPayload<{
+  select: typeof accountSelect
+}>
+
+/**
  * A collection as a listing shows it — M1.9.
  *
  * `ownerId` is present for the same reason it is on `circuitDetailSelect` and

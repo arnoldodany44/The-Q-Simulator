@@ -1,0 +1,54 @@
+{
+  "loading": "Loading the circuit…",
+  "untitled": "Quantum circuit",
+  "byline": "by {{author}}",
+  "metrics": {
+    "qubits": "Qubits",
+    "gates": "Gates",
+    "depth": "Depth"
+  },
+  "diagram": {
+    "title": "Circuit diagram",
+    "description": "A quantum circuit on {{qubits}} qubits, {{columns}} columns wide. Time runs left to right; each horizontal line is one qubit.",
+    "classical": "bits",
+    "truncated": "Showing the first {{drawn}} of {{total}} columns."
+  },
+  "analysis": {
+    "heading": "Probability of each outcome",
+    "summary": "How likely each result is if the register were measured now. The small arrow on each bar points along the phase of that amplitude.",
+    "running": "Simulating…",
+    "seeded": "The same shots every time: this tally is drawn from a fixed seed, so the figure does not change between page loads.",
+    "failed": {
+      "unknown": "This circuit could not be simulated here.",
+      "too-many-qubits": "{{qubits}} qubits is past the {{limit}} this frame can simulate. The diagram above is the whole circuit; open it in the editor to run it.",
+      "sampling-too-large": "This circuit costs too much to sample inside a frame. Open it in the editor to run it.",
+      "invalid-circuit": "This circuit could not be read.",
+      "measurement-in-analytic-mode": "This circuit measures partway through, so it has no single final state.",
+      "no-classical-bits": "This circuit measures but has no classical register to measure into.",
+      "unsupported-operation": "This circuit uses an operation the simulator cannot run yet.",
+      "worker-unavailable": "The simulation could not start in this frame, so only the diagram is shown. Everything on it — the wires, the gates, the counters — is still this circuit.",
+      "worker-failed": "The simulation stopped unexpectedly.",
+      "server-unavailable": "The simulation could not start in this frame, so only the diagram is shown.",
+      "server-too-large": "This circuit is too large to simulate inside a frame.",
+      "server-refused": "The simulation could not start in this frame, so only the diagram is shown."
+    }
+  },
+  "failure": {
+    "no-address": "This frame was not given a circuit to show.",
+    "bad-link": "The circuit in this link could not be read.",
+    "unavailable": "This circuit is not available to embed.",
+    "no-api": "This deployment cannot look up saved circuits.",
+    "failed": "The circuit could not be loaded."
+  },
+  "snippet": {
+    "heading": "Embed",
+    "hint": "Paste this into a blog post, a slide or course notes. It shows the circuit and its analysis, read only, with no sign-in.",
+    "field": "Embed markup",
+    "copy": "Copy the markup",
+    "copied": "Markup copied.",
+    "failed": "Copying failed. The markup is selected — press Ctrl+C.",
+    "credit": "built with The Q Simulator",
+    "sandbox": "If your site sandboxes frames, allow both allow-scripts and allow-same-origin. With scripts alone the frame stays completely blank: the browser gives the document an opaque origin and then refuses every script it tries to load.",
+    "private": "Only public circuits and circuits shared by link can be embedded. Change the visibility above to get the markup."
+  }
+}

@@ -64,6 +64,14 @@ const userPayload = {
   createdAt: CREATED_AT,
 }
 
+/**
+ * `GET /me` and `PATCH /me`, whose body is the public user shape *plus* the
+ * settings only its owner reads. `/users/:username` answers with `userPayload`
+ * alone, and the difference between the two fixtures is the whole reason the
+ * preference is a sibling rather than a field.
+ */
+const accountPayload = { user: userPayload, leaderboardOptOut: false }
+
 const collectionPayload = {
   id: 'col_1',
   title: 'Oracle algorithms',
@@ -85,7 +93,7 @@ const collectionPage = {
 
 describe('the account routes', () => {
   it('GET /me', async () => {
-    const { client, transport } = harness([jsonResponse({ user: userPayload })])
+    const { client, transport } = harness([jsonResponse(accountPayload)])
 
     const result = await getAccount(client)
 
@@ -95,7 +103,7 @@ describe('the account routes', () => {
   })
 
   it('PATCH /me, and cannot carry an avatar URL', async () => {
-    const { client, transport } = harness([jsonResponse({ user: userPayload })])
+    const { client, transport } = harness([jsonResponse(accountPayload)])
 
     await updateProfile(client, {
       displayName: 'Ada Lovelace',

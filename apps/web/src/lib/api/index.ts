@@ -84,6 +84,22 @@ export {
   updateProfile,
 } from './account.js'
 
+export { listLessonProgress, saveLessonProgress } from './lessons.js'
+
+export {
+  getChallenge,
+  getLeaderboard,
+  listChallenges,
+  submitChallenge,
+} from './challenges.js'
+
+export {
+  useChallenge,
+  useChallenges,
+  useLeaderboard,
+  useSubmitChallenge,
+} from './useChallenges.js'
+
 export {
   addCollectionItem,
   createCollection,
@@ -97,9 +113,11 @@ export {
 
 export {
   accountKeys,
+  challengeKeys,
   circuitKeys,
   collectionKeys,
   galleryKeys,
+  lessonKeys,
 } from './queryKeys.js'
 export {
   DEFAULT_STALE_TIME_MS,

@@ -2,6 +2,14 @@ import i18n from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
+import {
+  FALLBACK_LANGUAGE,
+  LANGUAGE_STORAGE_KEY,
+  SUPPORTED_LANGUAGES,
+  resolveLanguage,
+  type SupportedLanguage,
+} from './languages'
+
 /**
  * Internationalisation — decision D2.
  *
@@ -37,10 +45,21 @@ import { initReactI18next } from 'react-i18next'
  * `main.tsx` renders whatever i18next has.
  */
 
-export const SUPPORTED_LANGUAGES = ['en', 'es', 'fr'] as const
-export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
-
-export const FALLBACK_LANGUAGE: SupportedLanguage = 'en'
+/*
+ * The language vocabulary itself lives in `languages.ts`, a module that
+ * imports nothing, and is re-exported here so that every existing importer is
+ * unaffected. The split exists because `embed.html` is a second document with
+ * its own entry point (§3.4): it needs the three language tags and the
+ * narrowing rule, and must not acquire the detector, the catalog glob or the
+ * metadata synchronisation below to get them.
+ */
+export {
+  FALLBACK_LANGUAGE,
+  LANGUAGE_STORAGE_KEY,
+  SUPPORTED_LANGUAGES,
+  resolveLanguage,
+} from './languages'
+export type { SupportedLanguage } from './languages'
 
 /**
  * Namespaces are added alongside the feature that needs them — `editor`
@@ -63,36 +82,26 @@ export const FALLBACK_LANGUAGE: SupportedLanguage = 'en'
 export const NAMESPACES = [
   'analysis',
   'auth',
+  'challenges',
   'circuits',
   'collections',
   'common',
   'editor',
+  'embed',
   'errors',
   'export',
   'gallery',
   'gates',
   'import',
   'landing',
+  'lessons',
   'settings',
   'simulation',
 ] as const
 
-export const LANGUAGE_STORAGE_KEY = 'qsim.language'
-
 const catalogs = import.meta.glob<{ default: Record<string, unknown> }>(
   './locales/*/*.json'
 )
-
-function isSupported(value: string): value is SupportedLanguage {
-  return (SUPPORTED_LANGUAGES as readonly string[]).includes(value)
-}
-
-/** Narrows a detected tag such as `es-MX` to a supported base language. */
-export function resolveLanguage(tag: string | undefined): SupportedLanguage {
-  if (!tag) return FALLBACK_LANGUAGE
-  const base = tag.split('-')[0] ?? ''
-  return isSupported(base) ? base : FALLBACK_LANGUAGE
-}
 
 /**
  * The meta tags whose content is the page description, by the attribute that
@@ -263,6 +272,18 @@ export const EDITOR_NAMESPACES = [
    * translate.
    */
   'import',
+  /*
+   * `embed` from §3.4, and only its `snippet` block is rendered here: the
+   * copy-this-frame control lives on the circuit page while the rest of the
+   * catalog belongs to `embed.html`, a document with its own entry point and
+   * its own i18next instance (`src/embed/i18n.ts`).
+   *
+   * One catalog rather than two, because they are one vocabulary about one
+   * thing — a circuit inside somebody else's page — and splitting it would
+   * mean deciding twice per string which half it belongs to, with the sandbox
+   * advice and the frame it advises about ending up in different files.
+   */
+  'embed',
 ] as const
 
 /**
@@ -325,6 +346,54 @@ export const COLLECTIONS_NAMESPACES = ['collections', 'circuits'] as const
  * carries, so nothing waits on this chunk but the page's own copy.
  */
 export const SETTINGS_NAMESPACES = ['settings'] as const
+
+/**
+ * What a lesson needs, fetched alongside its own chunk (Phase 3).
+ *
+ * `lessons` is the prose — nine lessons of it, eventually, which is the
+ * largest body of translated text in the product and by some way the largest
+ * catalog. Deferring it is not an optimisation but the whole reason
+ * namespaces are split per feature: a reader who never opens a lesson must
+ * not download one.
+ *
+ * The editor's namespaces travel with it, and that is the interesting half:
+ * the player mounts the **real** `CircuitEditor` and the **real**
+ * `SimulationPanel`, so every word of the palette, the gate names, the
+ * histogram and the Bloch table is on this page. A lesson route that loaded
+ * only `lessons` would render its prose beautifully beside an editor labelled
+ * in raw keys — which is exactly the defect `e2e/no-raw-keys.spec.ts` exists
+ * for, and why both lesson routes are in its list.
+ *
+ * `circuits`, `gallery`, `export` and `import` come along inside
+ * `EDITOR_NAMESPACES` and are not all needed here; splitting that constant
+ * into "the canvas" and "the document commands" would let a lesson skip them,
+ * and is not worth doing until a second consumer of the editor exists to
+ * disagree about the split.
+ */
+export const LESSON_NAMESPACES = ['lessons', ...EDITOR_NAMESPACES] as const
+
+/**
+ * What a challenge needs, fetched alongside its own chunk (Phase 3).
+ *
+ * `challenges` carries the ladder's own prose — nine titles and nine prompts —
+ * plus the sentence for every diagnosis the validator can return. That last
+ * block is a catalog of the same kind as `errors`: its keys are not invented
+ * here but published by `@qsim/contract` as `CHALLENGE_FEEDBACK_CODES`, because
+ * the API sends a code and this app owns every word (§11, D2).
+ *
+ * The editor's namespaces travel with it for exactly the reason a lesson's do:
+ * the player mounts the **real** `CircuitEditor` and the **real**
+ * `SimulationPanel`, so the palette, the gate names, the histogram and the
+ * Bloch table are all on this page. A route that loaded only `challenges` would
+ * render a prompt beautifully beside an editor labelled in raw keys.
+ *
+ * The index needs `challenges` alone: it lists titles and prompts and mounts no
+ * editor, which is why `App.tsx` asks for the two sets separately.
+ */
+export const CHALLENGE_NAMESPACES = [
+  'challenges',
+  ...EDITOR_NAMESPACES,
+] as const
 
 /**
  * Adds catalogs for one language, reporting rather than rejecting.

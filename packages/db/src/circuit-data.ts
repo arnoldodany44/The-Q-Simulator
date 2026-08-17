@@ -65,6 +65,26 @@ export function parseCircuitVersion(
  */
 export const MAX_CIRCUIT_JSON_BYTES = 256 * 1024
 
+/**
+ * Ceiling on a stored *challenge submission*, which is a much smaller thing.
+ *
+ * A saved circuit is somebody's document and gets the generous bound above. A
+ * submission is an answer to a puzzle: the validator refuses one past 256
+ * expanded operations before it will run it, and no seeded challenge allows
+ * more than eighteen gates. Sixteen kibibytes is two orders above the largest
+ * legitimate answer and two below the document ceiling.
+ *
+ * The gap between the two was a storage amplifier rather than a theoretical
+ * one. Submissions are permanent, immutable, unbounded per person, written on
+ * every attempt, and nothing in this repository ever deletes one — so the row
+ * ceiling times the rate limit is the rate at which one free account can fill
+ * the single shared database that the editor and the gallery also live in. At
+ * 256 KiB that was about 2 MB a minute; at 16 KiB, with unreferenced
+ * definitions pruned before the measurement, a real answer is a few hundred
+ * bytes.
+ */
+export const MAX_SUBMISSION_JSON_BYTES = 16 * 1024
+
 /** Raised by `toCircuitJson` for a circuit too large to store. */
 export class CircuitTooLargeError extends Error {
   /** Machine-readable, for the API to map to a code the client translates. */
@@ -106,9 +126,12 @@ export function circuitJsonByteLength(circuit: Circuit): number {
  * a fork, an import, a challenge submission — can reach the column without
  * passing it.
  */
-export function toCircuitJson(circuit: Circuit): Prisma.InputJsonValue {
+export function toCircuitJson(
+  circuit: Circuit,
+  limit: number = MAX_CIRCUIT_JSON_BYTES
+): Prisma.InputJsonValue {
   const bytes = circuitJsonByteLength(circuit)
-  if (bytes > MAX_CIRCUIT_JSON_BYTES) throw new CircuitTooLargeError(bytes)
+  if (bytes > limit) throw new CircuitTooLargeError(bytes, limit)
   return circuit
 }
 

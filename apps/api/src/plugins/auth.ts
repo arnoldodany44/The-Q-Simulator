@@ -45,7 +45,16 @@
  *                 exactly what distinguishes this from `optional`: a liveness
  *                 probe that answered 401 because some caller attached a
  *                 stale token would be a healthy instance reporting itself
- *                 dead. Health checks, and nothing that serves data.
+ *                 dead.
+ *
+ * `public` was written for health checks and said "nothing that serves data".
+ * `GET /embed/:handle` (§3.4) is the one route that serves data under it, and
+ * it is here for the same reason rather than in spite of it: an embed is
+ * rendered inside a third party's page, so a response that varied with the
+ * reader's token would publish an author's PRIVATE circuit to a whole blog
+ * post the moment the author previewed their own embed. The route needs the
+ * header to be *unreadable*, not merely unread, and `optional` cannot promise
+ * that. See `routes/embed.ts`.
  */
 
 import fp from 'fastify-plugin'

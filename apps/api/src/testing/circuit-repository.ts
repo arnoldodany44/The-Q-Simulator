@@ -62,6 +62,7 @@ import {
 } from '@qsim/db'
 import type {
   AccountDeletionReport,
+  AccountUser,
   CircuitCard,
   CircuitDetail,
   CircuitRepository,
@@ -72,6 +73,7 @@ import type {
   Page,
   Prisma,
   PublicUser,
+  SubmissionRecord,
   Visibility,
   StoredVersion,
   User,
@@ -109,6 +111,58 @@ interface CircuitRow {
 interface StarRow {
   userId: string
   circuitId: string
+}
+
+/**
+ * `LessonProgress`, whose primary key is the pair rather than an id — which is
+ * why the fake looks a row up by both columns instead of by a surrogate.
+ */
+interface LessonProgressRow {
+  userId: string
+  slug: string
+  stepIndex: number
+  completed: boolean
+  updatedAt: Date
+}
+
+/**
+ * `Challenge` and `ChallengeSubmission`.
+ *
+ * The submission row keeps `circuitData` even though no route ever reads it
+ * back, and that is deliberate: the property under test is that what was
+ * *stored* is what the server computed rather than what the caller claimed, so
+ * a test has to be able to look at the row rather than only at the response.
+ */
+interface ChallengeRow {
+  id: string
+  slug: string
+  title: string
+  prompt: string
+  difficulty: number
+  qubitCount: number
+  targetType: string
+  targetData: unknown
+  allowedGates: string[]
+  maxGates: number | null
+  fidelityThreshold: number
+  orderIndex: number
+}
+
+interface ChallengeSubmissionRow {
+  /**
+   * Present because it is the last key of the ranking, not because any route
+   * returns it: two attempts can share a millisecond, and `id` is what decides
+   * between them in production (see `rankingOrder` in @qsim/db).
+   */
+  id: string
+  challengeId: string
+  userId: string
+  circuitData: unknown
+  passed: boolean
+  fidelity: number
+  gateCount: number
+  depth: number
+  createdAt: Date
 }
 
 interface CollectionRow {
@@ -175,17 +229,148 @@ export interface MemoryCircuitRepository extends CircuitRepository {
    * called on every attempt, the 409 the retries eventually give up with.
    */
   stealNextVersion(circuitId: string): number
+  /**
+   * Every submission row, in the order they were written.
+   *
+   * This is what the "a client that lies gains nothing" test asserts against.
+   * The response body would do for most of it, but not for all: only the row
+   * shows what the leaderboard will later rank, and the whole claim is about
+   * what was *stored*.
+   */
+  allChallengeSubmissions(
+    challengeId?: string
+  ): readonly ChallengeSubmissionRow[]
   /** Registers a user row without a circuit, for profile-page tests. */
   addUser(user: {
     id: string
     username: string
     displayName?: string | null
     avatarUrl?: string | null
+    /** Defaults to `false`, which is the column's default and "never asked". */
+    leaderboardOptOut?: boolean
   }): void
 }
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * The `challengeRuleSelect` projection, modelled rather than approximated.
+ *
+ * Production leaves `targetData`, `title` and `prompt` in Postgres on every
+ * read a browser can cause. A fake that returned them would make the leak
+ * assertions vacuous — they would be asserting that a route does not return a
+ * field it happened not to be given, rather than that the projection is what
+ * keeps it away.
+ */
+function withoutTarget(row: {
+  id: string
+  slug: string
+  difficulty: number
+  qubitCount: number
+  targetType: string
+  allowedGates: string[]
+  maxGates: number | null
+  fidelityThreshold: number
+  orderIndex: number
+}) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    difficulty: row.difficulty,
+    qubitCount: row.qubitCount,
+    targetType: row.targetType,
+    allowedGates: [...row.allowedGates],
+    maxGates: row.maxGates,
+    fidelityThreshold: row.fidelityThreshold,
+    orderIndex: row.orderIndex,
+  }
+}
+
+/**
+ * `accountSelect`, modelled: `publicUserSelect`'s columns plus the settings
+ * that only their owner reads.
+ *
+ * Projected rather than handed over whole, and for the reason `withoutTarget`
+ * above is: `email` is set on every fixture row precisely so a test can assert
+ * it never comes back, and a double that returned the row would make that
+ * assertion vacuous.
+ */
+function asAccount(user: User): AccountUser {
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    createdAt: user.createdAt,
+    leaderboardOptOut: user.leaderboardOptOut,
+  }
+}
+
+/**
+ * §3.6's ranking: fewest gates, then least depth, then whoever got there first,
+ * then the row's own id.
+ *
+ * The same four keys `@qsim/db` gives Prisma and spells in SQL. `id` is the one
+ * that makes the order *total*: without it two attempts written in the same
+ * millisecond compare equal, `Array.prototype.sort` is free to leave them in
+ * whichever order it found them, and the double would then be modelling a
+ * ranking that shuffles — which is the very defect production spells `"id"
+ * ASC` to prevent.
+ */
+function byRanking(
+  a: { gateCount: number; depth: number; createdAt: Date; id: string },
+  b: { gateCount: number; depth: number; createdAt: Date; id: string }
+): number {
+  return (
+    a.gateCount - b.gateCount ||
+    a.depth - b.depth ||
+    a.createdAt.getTime() - b.createdAt.getTime() ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  )
+}
+
+/**
+ * `submissionSelect`: the five columns the repository reads back after a write.
+ *
+ * The circuit, the owner and the row's id stay behind, which is what makes the
+ * response of a submission unable to carry the document that produced it.
+ */
+function toSubmissionRecord(row: ChallengeSubmissionRow): SubmissionRecord {
+  return {
+    passed: row.passed,
+    fidelity: row.fidelity,
+    gateCount: row.gateCount,
+    depth: row.depth,
+    createdAt: row.createdAt,
+  }
+}
+
+/**
+ * Each solver's best passing attempt at one challenge, in rank order.
+ *
+ * Modelled rather than approximated, for the reason the LIKE compiler above is:
+ * production runs a `DISTINCT ON ("userId")` and a double that returned every
+ * attempt would let a route test pass while one reader with forty submissions
+ * filled the whole real table. The rank is assigned here — over everybody,
+ * before anybody is withheld — exactly as `row_number()` does inside the CTE
+ * and before the opt-out filter runs outside it.
+ */
+function rankedBests(
+  submissions: readonly ChallengeSubmissionRow[],
+  challengeId: string
+): { row: ChallengeSubmissionRow; rank: number }[] {
+  const best = new Map<string, ChallengeSubmissionRow>()
+  for (const row of submissions) {
+    if (row.challengeId !== challengeId || !row.passed) continue
+    const held = best.get(row.userId)
+    if (held === undefined || byRanking(row, held) < 0)
+      best.set(row.userId, row)
+  }
+  return [...best.values()]
+    .sort(byRanking)
+    .map((row, index) => ({ row, rank: index + 1 }))
 }
 
 /**
@@ -420,6 +605,9 @@ export function createMemoryCircuitRepository(
   const stars: StarRow[] = []
   const collections: CollectionRow[] = []
   const collectionItems: CollectionItemRow[] = []
+  const lessonProgress: LessonProgressRow[] = []
+  const challenges: ChallengeRow[] = []
+  const challengeSubmissions: ChallengeSubmissionRow[] = []
   let sequence = 0
 
   /** Ids long enough to satisfy the route's handle pattern, as a cuid is. */
@@ -446,7 +634,14 @@ export function createMemoryCircuitRepository(
             })
           }
         }
-        const row: User = { ...data, createdAt: new Date() }
+        // `leaderboardOptOut` is not in `NewUserData` and is not meant to be:
+        // `ensureUser` writes the columns an identity supplies, and a setting
+        // nobody has expressed takes the column default.
+        const row: User = {
+          ...data,
+          leaderboardOptOut: false,
+          createdAt: new Date(),
+        }
         users.set(row.id, row)
         return Promise.resolve(row)
       },
@@ -628,9 +823,14 @@ export function createMemoryCircuitRepository(
     findUserByUsername(username) {
       for (const user of users.values()) {
         if (user.username !== username) continue
-        // `publicUserSelect`'s columns and no others — in particular no
-        // `email`, which is the one column on User that must never reach
-        // another user's browser.
+        /*
+         * `publicUserSelect`'s columns and no others — in particular no
+         * `email`, which is the one column on User that must never reach
+         * another user's browser, and no `leaderboardOptOut`, which is a
+         * setting and not a public fact. A profile is read by strangers, so
+         * this is the *narrow* projection; `asAccount` above is the wider one,
+         * and only the caller's own row goes through it.
+         */
         const projected: PublicUser = {
           id: user.id,
           username: user.username,
@@ -1019,16 +1219,7 @@ export function createMemoryCircuitRepository(
     findUserById(id) {
       const user = users.get(id)
       if (user === undefined) return Promise.resolve(null)
-      // `publicUserSelect`'s columns and no others — no `email`, which the
-      // fixture deliberately sets so a test can assert it never comes back.
-      const projected: PublicUser = {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-        createdAt: user.createdAt,
-      }
-      return Promise.resolve(projected)
+      return Promise.resolve(asAccount(user))
     },
 
     updateProfile({ userId, ...changes }) {
@@ -1053,15 +1244,11 @@ export function createMemoryCircuitRepository(
         user.displayName = changes.displayName
       }
       if (changes.avatarUrl !== undefined) user.avatarUrl = changes.avatarUrl
-
-      const projected: PublicUser = {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-        createdAt: user.createdAt,
+      if (changes.leaderboardOptOut !== undefined) {
+        user.leaderboardOptOut = changes.leaderboardOptOut
       }
-      return Promise.resolve(projected)
+
+      return Promise.resolve(asAccount(user))
     },
 
     /**
@@ -1138,10 +1325,200 @@ export function createMemoryCircuitRepository(
       return Promise.resolve(report)
     },
 
+    /* ── Lesson bookmarks (Phase 3) ───────────────────────────────────── */
+
+    listLessonProgress(userId) {
+      return Promise.resolve(
+        lessonProgress
+          .filter((row) => row.userId === userId)
+          .map(({ userId: _userId, ...row }) => row)
+          // The Prisma implementation orders by `updatedAt desc`, and a fake
+          // that returned insertion order would let a route test pass while
+          // the real listing came back backwards.
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      )
+    },
+
+    saveLessonProgress({ userId, slug, stepIndex, completed }) {
+      const existing = lessonProgress.find(
+        (row) => row.userId === userId && row.slug === slug
+      )
+      const row = {
+        userId,
+        slug,
+        stepIndex,
+        /*
+         * OR-ed, exactly as the repository documents: re-reading page one of a
+         * finished lesson must not un-finish it. A fake that assigned instead
+         * would make the route test agree with a bug production does not have.
+         */
+        completed: completed || (existing?.completed ?? false),
+        updatedAt: new Date(),
+      }
+      if (existing === undefined) lessonProgress.push(row)
+      else Object.assign(existing, row)
+      const { userId: _userId, ...record } = row
+      return Promise.resolve(record)
+    },
+
+    /* ── Challenges (Phase 3) ─────────────────────────────────────────── */
+
+    listChallenges() {
+      return Promise.resolve(
+        [...challenges]
+          .sort(
+            (a, b) =>
+              a.orderIndex - b.orderIndex || a.slug.localeCompare(b.slug)
+          )
+          .map(withoutTarget)
+      )
+    },
+
+    findChallenge(slug) {
+      const row = challenges.find((challenge) => challenge.slug === slug)
+      /*
+       * Deliberately projected, exactly as production projects. A fake that
+       * handed the whole row back would let a route return a target and every
+       * leak assertion in the suite would pass — the one thing a double must
+       * never do is disagree with production about the rule under test, and the
+       * rule here is that the answer does not leave the server.
+       */
+      return Promise.resolve(row === undefined ? null : withoutTarget(row))
+    },
+
+    findChallengeWithTarget(slug) {
+      const row = challenges.find((challenge) => challenge.slug === slug)
+      return Promise.resolve(
+        row === undefined
+          ? null
+          : { ...withoutTarget(row), targetData: row.targetData }
+      )
+    },
+
+    recordSubmission(input) {
+      const row: ChallengeSubmissionRow = {
+        id: nextId('sub_'),
+        challengeId: input.challengeId,
+        userId: input.userId,
+        circuitData: input.circuitData,
+        passed: input.passed,
+        fidelity: input.fidelity,
+        gateCount: input.gateCount,
+        depth: input.depth,
+        createdAt: new Date(),
+      }
+      challengeSubmissions.push(row)
+      return Promise.resolve(toSubmissionRecord(row))
+    },
+
+    bestSubmission({ challengeId, userId }) {
+      const mine = challengeSubmissions
+        .filter(
+          (row) =>
+            row.challengeId === challengeId &&
+            row.userId === userId &&
+            row.passed
+        )
+        .sort(byRanking)
+      const best = mine[0]
+      if (best === undefined) return Promise.resolve(null)
+      return Promise.resolve(toSubmissionRecord(best))
+    },
+
+    solvedAmong({ userId, challengeIds }) {
+      const wanted = new Set(challengeIds)
+      const solved = new Set(
+        challengeSubmissions
+          .filter(
+            (row) =>
+              row.userId === userId && row.passed && wanted.has(row.challengeId)
+          )
+          .map((row) => row.challengeId)
+      )
+      return Promise.resolve([...solved])
+    },
+
+    leaderboard({ challengeId, take }) {
+      return Promise.resolve(
+        rankedBests(challengeSubmissions, challengeId)
+          /*
+           * Withheld *after* the rank was assigned, exactly as the SQL filters
+           * outside the window. A double that dropped the rows before ranking
+           * would renumber everybody below an opted-out reader, and the route
+           * test would then agree with a leaderboard you could climb by asking
+           * other people to hide.
+           *
+           * `take` applies after the filter, so a page is `take` rows a reader
+           * can actually see rather than `take` rows minus the hidden ones.
+           */
+          .filter(
+            ({ row }) => users.get(row.userId)?.leaderboardOptOut !== true
+          )
+          .slice(0, take)
+          .map(({ row, rank }) => {
+            const user = users.get(row.userId)
+            return {
+              rank,
+              username: user?.username ?? row.userId,
+              displayName: user?.displayName ?? null,
+              avatarUrl: user?.avatarUrl ?? null,
+              gateCount: row.gateCount,
+              depth: row.depth,
+              createdAt: row.createdAt,
+            }
+          })
+      )
+    },
+
+    leaderboardStanding({ challengeId, userId }) {
+      const mine = rankedBests(challengeSubmissions, challengeId).find(
+        ({ row }) => row.userId === userId
+      )
+      if (mine === undefined) return Promise.resolve(null)
+      return Promise.resolve({
+        rank: mine.rank,
+        gateCount: mine.row.gateCount,
+        depth: mine.row.depth,
+        createdAt: mine.row.createdAt,
+        // Not filtered by the opt-out, deliberately: this is the answer to
+        // "where do I stand", asked by the only person entitled to ask it.
+        listed: users.get(userId)?.leaderboardOptOut !== true,
+      })
+    },
+
+    upsertChallenge(seed) {
+      const existing = challenges.find(
+        (challenge) => challenge.slug === seed.slug
+      )
+      const row: ChallengeRow = {
+        id: existing?.id ?? nextId('chl'),
+        slug: seed.slug,
+        title: seed.title,
+        prompt: seed.prompt,
+        difficulty: seed.difficulty,
+        qubitCount: seed.qubitCount,
+        targetType: seed.targetType,
+        targetData: seed.targetData,
+        allowedGates: [...seed.allowedGates],
+        maxGates: seed.maxGates,
+        fidelityThreshold: seed.fidelityThreshold,
+        orderIndex: seed.orderIndex,
+      }
+      if (existing === undefined) challenges.push(row)
+      else Object.assign(existing, row)
+      return Promise.resolve({ created: existing === undefined })
+    },
+
     allVersions(circuitId) {
       return circuitId === undefined
         ? [...versions]
         : versions.filter((row) => row.circuitId === circuitId)
+    },
+
+    allChallengeSubmissions(challengeId) {
+      return challengeId === undefined
+        ? [...challengeSubmissions]
+        : challengeSubmissions.filter((row) => row.challengeId === challengeId)
     },
 
     allCollections: () => [...collections],
@@ -1160,7 +1537,13 @@ export function createMemoryCircuitRepository(
         : stars.filter((row) => row.circuitId === circuitId)
     },
 
-    addUser({ id, username, displayName = null, avatarUrl = null }) {
+    addUser({
+      id,
+      username,
+      displayName = null,
+      avatarUrl = null,
+      leaderboardOptOut = false,
+    }) {
       users.set(id, {
         id,
         // Never returned by any projection, and present here precisely so a
@@ -1169,6 +1552,7 @@ export function createMemoryCircuitRepository(
         username,
         displayName,
         avatarUrl,
+        leaderboardOptOut,
         createdAt: new Date(),
       })
     },

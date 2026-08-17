@@ -128,13 +128,15 @@ describe('Supabase Auth owns identity', () => {
 
 describe('the datamodel of §7', () => {
   /*
-   * Fifteen from §7, plus `CustomGate` from M2.3 — §3.1 asks for blocks that
-   * are "saved per user and publishable" and §7 gives them no model, so this
-   * is the one place the datamodel deliberately exceeds the specification.
-   * Kept as an exhaustive list rather than a count so that adding a model is a
+   * Fifteen from §7, plus two the specification gives no model for and that
+   * were each added with an argument written down beside them: `CustomGate`
+   * (M2.3 — §3.1 asks for blocks that are "saved per user and publishable")
+   * and `LessonProgress` (Phase 3 — §3.6 asks for guided lessons, and a reader
+   * with an account expects the account to remember where they stopped). Kept
+   * as an exhaustive list rather than a count so that adding a model is a
    * decision somebody wrote down.
    */
-  it('declares exactly the sixteen models', () => {
+  it('declares exactly the seventeen models', () => {
     expect(blockNames('model').sort()).toEqual([
       'ApiKey',
       'Challenge',
@@ -148,6 +150,7 @@ describe('the datamodel of §7', () => {
       'CustomGate',
       'HardwareCredential',
       'HardwareJob',
+      'LessonProgress',
       'SimulationRun',
       'Star',
       'Tag',
@@ -240,6 +243,14 @@ describe('the datamodel of §7', () => {
       '@@index([userId, createdAt])'
     )
     expect(block('model', 'HardwareJob')).toContain('@@index([userId, status])')
+    // Phase 3 adds the two the leaderboard and the challenge page need, and
+    // keeps this one because §7 asks for it.
+    expect(block('model', 'ChallengeSubmission')).toContain(
+      'map: "ChallengeSubmission_leaderboard_idx"'
+    )
+    expect(block('model', 'ChallengeSubmission')).toContain(
+      'map: "ChallengeSubmission_userId_challengeId_idx"'
+    )
     expect(block('model', 'ChallengeSubmission')).toContain(
       '@@index([challengeId, passed, gateCount])'
     )

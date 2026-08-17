@@ -6,8 +6,10 @@ import {
   depth,
   emptyCircuit,
   gateCount,
+  gatesUsed,
   normalizeColumns,
   normalizeControl,
+  pruneUnusedDefinitions,
   qubitsOf,
   resolveParams,
 } from './helpers.js'
@@ -76,6 +78,48 @@ describe('controls', () => {
 
   it('reports no controls when the field is absent', () => {
     expect(controlsOf(op('op_1', 'h', [0], 0))).toEqual([])
+  })
+})
+
+describe('gatesUsed', () => {
+  it('lists each gate once, sorted, and leaves barriers out', () => {
+    const circuit = circuitOf([
+      op('op_1', 'h', [0], 0),
+      op('op_2', 'h', [1], 0),
+      op('op_3', 'cx', [1], 1, { controls: [0] }),
+      op('op_4', 'barrier', [0, 1, 2], 2),
+    ])
+    expect(gatesUsed(circuit)).toEqual(['cx', 'h'])
+  })
+
+  it('keeps measure and reset, which change the state', () => {
+    const circuit = circuitOf([
+      op('op_1', 'reset', [2], 0),
+      op('op_2', 'measure', [0], 1, { clbitTargets: [0] }),
+    ])
+    expect(gatesUsed(circuit)).toEqual(['measure', 'reset'])
+  })
+
+  /*
+   * The reason this reads the expanded circuit. A challenge that forbids `cx`
+   * must not be satisfiable by wrapping a `cx` in a block: the engine runs the
+   * body either way, so the check has to see the body too.
+   */
+  it('sees through a custom gate to the primitives inside it', () => {
+    const circuit: Circuit = {
+      ...circuitOf([op('op_1', 'bellPair', [0, 1], 0)], 2),
+      customGates: {
+        bellPair: {
+          qubits: 2,
+          operations: [
+            op('cg_1', 'h', [0], 0),
+            op('cg_2', 'cx', [1], 1, { controls: [0] }),
+          ],
+        },
+      },
+    }
+    expect(gatesUsed(circuit)).toEqual(['cx', 'h'])
+    expect(gatesUsed(circuit)).not.toContain('bellPair')
   })
 })
 
@@ -271,5 +315,65 @@ describe('resolveParams', () => {
   it('throws on a name no validated circuit could contain', () => {
     const operation = op('op_1', 'rz', [0], 0, { params: ['missing'] })
     expect(() => resolveParams(operation, parameters)).toThrow('"missing"')
+  })
+})
+
+describe('pruneUnusedDefinitions', () => {
+  const leaf = { qubits: 1, operations: [op('l0', 'h', [0], 0)] }
+
+  it('drops a definition nothing invokes', () => {
+    const pruned = pruneUnusedDefinitions({
+      ...circuitOf([op('a', 'used', [0], 0)], 1),
+      customGates: { used: leaf, decoy: leaf },
+    })
+    expect(Object.keys(pruned.customGates ?? {})).toEqual(['used'])
+  })
+
+  it('keeps a definition only another definition invokes', () => {
+    const pruned = pruneUnusedDefinitions({
+      ...circuitOf([op('a', 'outer', [0], 0)], 1),
+      customGates: {
+        outer: { qubits: 1, operations: [op('o0', 'inner', [0], 0)] },
+        inner: leaf,
+        decoy: leaf,
+      },
+    })
+    expect(Object.keys(pruned.customGates ?? {}).sort()).toEqual([
+      'inner',
+      'outer',
+    ])
+  })
+
+  it('drops the key entirely when nothing is reachable', () => {
+    const pruned = pruneUnusedDefinitions({
+      ...circuitOf([op('a', 'h', [0], 0)], 1),
+      customGates: { decoy: leaf },
+    })
+    expect(pruned.customGates).toBeUndefined()
+  })
+
+  it('returns the same object when there is nothing to drop', () => {
+    const document: Circuit = {
+      ...circuitOf([op('a', 'used', [0], 0)], 1),
+      customGates: { used: leaf },
+    }
+    expect(pruneUnusedDefinitions(document)).toBe(document)
+    expect(
+      pruneUnusedDefinitions(circuitOf([op('a', 'h', [0], 0)], 1))
+    ).toHaveProperty('operations')
+  })
+
+  it('survives a definition that invokes itself', () => {
+    // A cycle is refused by `validate.ts` long before this runs, but a
+    // reachability walk that trusted that would be a stack overflow the day
+    // somebody called it earlier.
+    const pruned = pruneUnusedDefinitions({
+      ...circuitOf([op('a', 'loop', [0], 0)], 1),
+      customGates: {
+        loop: { qubits: 1, operations: [op('c0', 'loop', [0], 0)] },
+        decoy: leaf,
+      },
+    })
+    expect(Object.keys(pruned.customGates ?? {})).toEqual(['loop'])
   })
 })

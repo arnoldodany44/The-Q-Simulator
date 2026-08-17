@@ -1,0 +1,609 @@
+{
+  "index": {
+    "heading": "Leçons guidées",
+    "intro": "Chaque leçon est un circuit que vous pouvez manipuler, à côté du panneau d’analyse qui l’explique. Lisez une étape, regardez le graphique changer, puis construisez la suivante vous-même.",
+    "steps": "{{total}} étapes",
+    "atStep": "Étape {{step}} sur {{total}}",
+    "completed": "Terminée",
+    "start": "Commencer",
+    "resume": "Reprendre",
+    "order": "Elles forment une suite et non un menu : chacune suppose acquise l’image laissée par la précédente, et chaque leçon annonce dès le début ce qu’elle tient pour acquis."
+  },
+  "player": {
+    "stepOf": "Étape {{step}} sur {{total}}",
+    "previous": "Retour",
+    "next": "Suivant",
+    "showMe": "Montrez-moi",
+    "yourTurn": "À vous",
+    "hint": "Indice",
+    "reveal": "Montrer la réponse",
+    "navLabel": "Étapes de la leçon",
+    "readingLabel": "La leçon",
+    "labLabel": "Le circuit et son analyse",
+    "backToIndex": "Toutes les leçons",
+    "notFound": "Il n’y a aucune leçon à cette adresse.",
+    "notFoundAction": "Revenir aux leçons",
+    "loading": "Recherche de votre page…",
+    "objective": {
+      "met": "C’est fait : voilà l’état demandé.",
+      "unmet": "Pas encore.",
+      "unavailable": "Ce circuit n’a pas d’état final unique à vérifier : une mesure au milieu lui en donne plusieurs."
+    },
+    "reading": {
+      "state": "Recouvrement avec l’état visé : {{value}}",
+      "probabilities": "Plus grand écart avec les probabilités visées : {{value}}",
+      "outcomes": "Plus grand écart avec un partage égal : {{value}}",
+      "entangled": "Entropie de ce qubit : {{value}} bits"
+    }
+  },
+  "superposition": {
+    "title": "Superposition",
+    "summary": "Ce que fait un qubit lorsqu’il n’est ni 0 ni 1, et pourquoi ce n’est pas la même chose qu’une pièce que personne n’a regardée.",
+    "goal": "À la fin de cette leçon, vous aurez vu à l’écran, sur un seul graphique, la différence entre une superposition et l’ignorance.",
+    "steps": {
+      "still": {
+        "title": "La certitude a une image",
+        "body": [
+          "Un fil, aucune porte. Le qubit est dans `|0⟩`, et le graphique à côté ne comporte qu’une seule barre : un seul résultat, qui porte toute la probabilité.",
+          "Voilà à quoi ressemble le fait de savoir, ici. Gardez cette image en tête : tout ce qui suit s’en écarte."
+        ],
+        "notice": "L’histogramme des probabilités : une seule barre, sur `|0⟩`."
+      },
+      "hadamard": {
+        "title": "Une porte, deux barres",
+        "body": [
+          "La leçon a posé une porte de Hadamard, `H`, sur le fil. La barre unique est devenue deux barres, chacune portant la moitié de la probabilité.",
+          "Mesurez ce qubit et vous obtenez `0` une fois sur deux et `1` une fois sur deux. Une pièce lancée en l’air fait la même chose, et c’est précisément pour cela que les deux étapes suivantes existent."
+        ],
+        "notice": "Deux barres à présent, `|0⟩` et `|1⟩`, à cinquante pour cent chacune."
+      },
+      "notACoin": {
+        "title": "Ce n’est pas une pièce",
+        "body": [
+          "Regardez la sphère de Bloch. La flèche n’a pas raccourci : elle garde toute sa longueur, posée sur l’équateur au lieu d’un pôle.",
+          "Cette longueur est la lecture qui compte. Une pièce sous un gobelet — un qubit qui vaut vraiment `0` ou `1` sans que nous sachions lequel — donne une flèche de longueur nulle, au centre de la sphère. Celle-ci est à la surface.",
+          "Le qubit n’est donc pas dans un état inconnu. Il est dans un état parfaitement connu, qui se trouve n’être ni `|0⟩` ni `|1⟩`."
+        ],
+        "notice": "La sphère de Bloch, et la longueur de la flèche, pas seulement sa direction."
+      },
+      "phasors": {
+        "title": "Chaque barre a une direction",
+        "body": [
+          "Regardez les deux barres de près. Chacune porte une petite flèche : la phase de cette amplitude, c’est-à-dire exactement ce qu’une probabilité laisse tomber.",
+          "Pour l’instant les deux pointent dans le même sens. Rien dans les hauteurs ne l’indique, et c’est pour cela que l’étape suivante peut le changer sans les changer."
+        ],
+        "notice": "Les petites flèches sur les barres : les phaseurs."
+      },
+      "turn": {
+        "title": "Il s’est passé quelque chose que les probabilités ne voient pas",
+        "body": [
+          "La leçon a ajouté un `Z`. Regardez les hauteurs : rien n’a bougé. Toujours cinquante et cinquante.",
+          "Regardez maintenant les phaseurs : l’un des deux a fait un demi-tour. `Z` laisse `|0⟩` tel quel et multiplie `|1⟩` par −1.",
+          "Si une superposition était de l’ignorance, cette porte n’aurait absolument rien fait. Retenez-le : l’étape suivante mesure la différence."
+        ],
+        "notice": "Les deux faits en même temps : les hauteurs inchangées, et le second phaseur retourné."
+      },
+      "cancel": {
+        "title": "Deux chemins qui s’annulent",
+        "body": [
+          "Un second `H`, et les deux barres sont redevenues une seule, sur `|1⟩` et non sur `|0⟩`.",
+          "Chaque `H` envoie chaque état de base par les deux chemins. En arrivant sur `|0⟩`, les deux chemins pointaient en sens opposés et se sont annulés ; en arrivant sur `|1⟩`, ils se sont alignés et se sont ajoutés. Voilà l’interférence, et voilà à quoi servait le `Z`.",
+          "Aucun mélange de pièces cachées ne peut faire cela. Mélanger de l’incertitude avec de l’incertitude ne donne jamais une certitude."
+        ],
+        "notice": "De nouveau une seule barre, et c’est `|1⟩` : `H` puis `Z` puis `H` est exactement un `X`."
+      },
+      "equal": {
+        "title": "À vous",
+        "body": [
+          "Le circuit laisse maintenant le qubit sur `|1⟩`, avec de nouveau toute la probabilité sur un seul résultat."
+        ],
+        "notice": "L’histogramme, revenu à deux barres de même hauteur.",
+        "task": "Ajoutez une porte sur le fil pour que les deux résultats redeviennent aussi probables l’un que l’autre.",
+        "hint": "`H` est la réponse évidente et ce n’est pas la seule : `Ry` sur un quart de tour convient, et `√X` aussi. La vérification porte sur le résultat, pas sur la porte que vous avez choisie."
+      }
+    }
+  },
+  "entanglement": {
+    "title": "Intrication",
+    "summary": "Deux qubits sans état propre, et une corrélation qui survit à un changement de question, ce qu’aucun mécanisme classique ne sait faire.",
+    "goal": "Cette leçon suppose acquise celle sur la superposition : vous avez vu qu’une flèche de Bloch de pleine longueur signifie un état connu, et qu’une flèche courte signifie l’ignorance. À la fin, vous aurez vu les deux flèches se réduire à rien alors que la paire, elle, restait parfaitement connue.",
+    "steps": {
+      "twoWires": {
+        "title": "Deux fils, une certitude",
+        "body": [
+          "Deux qubits à présent, tous deux dans `|0⟩`. L’histogramme énumère toutes les combinaisons dans lesquelles la paire peut être trouvée et donne toute la probabilité à l’une d’elles.",
+          "Le ket se lit de droite à gauche, convention retenue dans tout ce produit : le caractère le plus à droite est le premier fil. Ainsi `|01⟩` signifie que le premier qubit vaut 1 et le second 0."
+        ],
+        "notice": "Une seule barre, sur `|00⟩`, et trois états de base sans la moindre hauteur."
+      },
+      "separate": {
+        "title": "Deux flèches, deux états",
+        "body": [
+          "Un `H` sur le premier fil. La barre se scinde en deux, `|00⟩` et `|01⟩`, ce qui n’est que la leçon précédente jouée sur l’un des deux fils.",
+          "Regardez plutôt les sphères de Bloch. Il y en a deux, et les deux flèches sont de pleine longueur : l’une sur l’équateur, l’autre au pôle. Chaque qubit possède un état à lui, et pour décrire la paire il suffit d’écrire ces deux états. C’est ce qu’on appelle un état produit, et c’est le cas ordinaire."
+        ],
+        "notice": "Deux sphères de Bloch, chacune avec une flèche de pleine longueur."
+      },
+      "link": {
+        "title": "Une porte, et les deux du milieu disparaissent",
+        "body": [
+          "Un `CNOT` du premier fil vers le second : il retourne le second qubit exactement lorsque le premier vaut 1. L’histogramme montre maintenant des barres sur `|00⟩` et `|11⟩`, et plus rien ailleurs.",
+          "Les deux qubits seront toujours d’accord. Aucun des deux n’est fixé avant que vous ne regardiez, et ils se fixent de la même façon : c’est ce que veulent dire les deux barres manquantes."
+        ],
+        "notice": "`|01⟩` et `|10⟩` ont disparu : quoi qu’il arrive, les deux réponses coïncident."
+      },
+      "noArrows": {
+        "title": "Aucun des deux qubits n’a d’état",
+        "body": [
+          "Revenez aux sphères de Bloch. Les deux flèches se sont rétractées jusqu’au centre : longueur nulle, la lecture que la leçon précédente attribuait à une pièce sous un gobelet.",
+          "Chaque qubit pris séparément est donc dans l’état d’ignorance maximale. Et pourtant la paire est dans un état qui tient sur une ligne et que nous simulons exactement. L’information ne s’est pas perdue. Elle a cessé d’appartenir à l’un ou l’autre des fils."
+        ],
+        "notice": "Deux sphères, deux flèches de longueur nulle, et une paire dont l’état est connu exactement."
+      },
+      "oneBit": {
+        "title": "Un bit, partagé",
+        "body": [
+          "Le panneau d’intrication met un nombre là-dessus. L’entropie de l’un ou l’autre qubit vaut 1 bit, soit le maximum qu’un qubit seul puisse cacher ; la concurrence, qui mesure la paire plutôt qu’une de ses parties, est elle aussi à son maximum.",
+          "Cet état est une paire de Bell. Deux qubits, un bit d’entropie chacun, et rien du tout pour la paire entière : toute l’incertitude tient dans la relation."
+        ],
+        "notice": "Une entropie de 1 bit sur chaque qubit, et une paire qui est pourtant dans un état pur."
+      },
+      "turnBoth": {
+        "title": "Le même accord, posé autrement",
+        "body": [
+          "Voici l’objection qui mérite d’être prise au sérieux. Une machine qui tirerait une pièce à pile ou face et imprimerait le résultat sur les deux fils produirait exactement l’histogramme que vous regardez : deux barres, d’accord entre elles, à moitié chacune. Rien de ce qui précède ne l’écarte.",
+          "Posez donc aux deux qubits une autre question. Un `H` sur chaque fil avant la lecture demande si le qubit est `|+⟩` ou `|−⟩` plutôt que s’il est `|0⟩` ou `|1⟩`. Les barres n’ont pas bougé. Les deux réponses coïncident toujours.",
+          "Une pièce imprimée échoue aussitôt : tournez les deux copies et l’accord se dilue en quatre résultats à un quart chacun, parce que la corrélation n’existait que dans une seule base. Une paire de Bell est d’accord dans toutes les bases où vous pouvez l’interroger. C’est la différence entre partager un fait et partager un état, et c’est le fait sur lequel Bell a bâti son théorème."
+        ],
+        "notice": "Toujours deux barres, toujours `|00⟩` et `|11⟩`, après avoir tourné les deux qubits."
+      },
+      "disagree": {
+        "title": "À vous",
+        "body": [
+          "Cette paire est toujours d’accord. Il en existe une autre, tout aussi intriquée et tout aussi pure, dont les deux qubits sont toujours en désaccord."
+        ],
+        "notice": "De nouveau deux barres, cette fois sur `|01⟩` et `|10⟩`.",
+        "task": "Ajoutez une porte pour que les deux qubits ne sortent jamais identiques.",
+        "hint": "Un `X` sur l’un ou l’autre fil suffit : il réétiquette un côté de la corrélation et laisse l’intrication intacte. `Y` fonctionne aussi, pour la même raison et avec une phase que cet histogramme ne peut pas montrer. La vérification porte sur le résultat, pas sur la porte."
+      }
+    }
+  },
+  "interference": {
+    "title": "Interférence",
+    "summary": "Pourquoi une phase que vous ne pouvez pas mesurer décide de ce que vous mesurez, et pourquoi noter quel chemin a été pris détruit tout l’effet.",
+    "goal": "Cette leçon suppose acquises la superposition et l’intrication. À la fin, vous aurez fait tourner une porte sur trois réglages et vu les probabilités passer de 15 % à 50 % puis à 100 %, avant de voir tout cela disparaître parce qu’un second fil écoutait.",
+    "steps": {
+      "split": {
+        "title": "Deux chemins",
+        "body": [
+          "Un `H` sur le premier fil, et le qubit est à la fois sur `|0⟩` et sur `|1⟩` : deux amplitudes, côte à côte. Appelez-les deux chemins, car c’est ainsi qu’elles se comportent.",
+          "Le second fil est inoccupé pour l’instant. Il entre dans l’argument à l’étape 6, et jusque-là vous pouvez l’ignorer."
+        ],
+        "notice": "Deux barres, `|00⟩` et `|01⟩` : le premier fil est scindé, le second non."
+      },
+      "rejoin": {
+        "title": "Des chemins qui se rejoignent",
+        "body": [
+          "Un second `H`, et les deux chemins se recombinent en une seule barre sur `|00⟩`. Le qubit vaut 0 à coup sûr.",
+          "Cette certitude est une soustraction. Les deux chemins atteignent `|1⟩`, ils y arrivent en pointant en sens opposés, et ils s’annulent exactement. Rien ne s’est perdu en route : cela a été soustrait à l’arrivée.",
+          "Remarquez la colonne vide entre les deux portes. Tout le reste de cette leçon se joue dans cet espace."
+        ],
+        "notice": "Une barre sur `|00⟩`, et une colonne vide entre les deux portes `H`."
+      },
+      "eighth": {
+        "title": "Un huitième de tour",
+        "body": [
+          "Un `T` dans l’espace libre. Il fait tourner la phase de `|1⟩` d’un huitième de tour complet et ne fait rien d’autre : pendant son application, aucune probabilité ne bouge.",
+          "Mais les deux chemins arrivent désormais légèrement décalés, si bien qu’ils ne s’annulent plus tout à fait. Environ 15 % de la probabilité est apparue sur `|01⟩`, et tout cela est sorti d’une quantité invisible jusqu’à ce que les chemins se rejoignent."
+        ],
+        "notice": "Une petite seconde barre : environ 15 % sur `|01⟩`."
+      },
+      "quarter": {
+        "title": "Un quart de tour",
+        "body": [
+          "Remplacez le `T` par un `S` — un quart de tour au lieu d’un huitième — et les deux résultats se retrouvent à égalité. Cinquante-cinquante, à partir d’une porte qui n’a touché aucune probabilité.",
+          "C’est dans la table des amplitudes que l’on voit pourquoi. Les deux amplitudes ont la même longueur et des directions différentes. Une probabilité est une longueur au carré, donc des longueurs égales donnent des chances égales ; la direction, elle, a décidé de la façon dont les chemins se sont additionnés à l’arrivée."
+        ],
+        "notice": "Deux amplitudes de même longueur, pointant dans des directions différentes."
+      },
+      "half": {
+        "title": "Un demi-tour",
+        "body": [
+          "Un `Z` maintenant — un demi-tour — et la certitude revient, à l’autre bout. Toute la probabilité est sur `|01⟩`.",
+          "Voilà l’étendue du réglage : un huitième, un quart et un demi-tour donnent 15 %, 50 % et 100 %. La phase est un bouton continu et le résultat le suit. Ce n’est pas une astuce particulière à trois positions ; c’est ce que font les amplitudes."
+        ],
+        "notice": "Une barre, sur `|01⟩` : les chemins s’ajoutent désormais là où ils s’annulaient."
+      },
+      "whichPath": {
+        "title": "Quelqu’un écoute",
+        "body": [
+          "Retirez la porte de phase et mettez à sa place un `CNOT` du premier fil vers le second. Il recopie sur un fil qui ne faisait rien l’information de savoir sur quel chemin se trouve le premier qubit.",
+          "Rien n’a été mesuré. Personne n’a regardé. Le second fil est un fil. Et l’interférence a disparu : quatre résultats à un quart chacun, le premier qubit aussi indécis que si le second `H` n’était pas là."
+        ],
+        "notice": "Quatre barres à un quart chacune. L’annulation s’est arrêtée."
+      },
+      "noSecret": {
+        "title": "Pourquoi elle s’est arrêtée",
+        "body": [
+          "Le panneau d’intrication dit ce qui s’est passé : un bit d’entropie sur le premier qubit, là où il n’y en avait aucun il y a un instant. Il est intriqué avec la trace de son propre chemin.",
+          "Deux chemins ne peuvent s’annuler que s’ils arrivent au même endroit. Ces deux-là arrivent attachés à des états différents du second fil, il n’y a donc nulle part où ils se rencontrent et rien à soustraire. Il suffit que la trace existe : personne n’a besoin de la lire, et il n’y a aucun instant où quoi que ce soit se décide.",
+          "C’est pour cela qu’un algorithme quantique doit nettoyer derrière lui. Toute trace résiduelle d’un résultat intermédiaire est un second fil qui écoute, et l’interférence dont l’algorithme dépend n’aura tout simplement pas lieu."
+        ],
+        "notice": "Un bit d’entropie sur le premier qubit, là où il n’y en avait aucun il y a un instant."
+      },
+      "erase": {
+        "title": "À vous",
+        "body": [
+          "La trace est sur le second fil et ne peut pas être effacée d’ici. En revanche, on peut lui poser une autre question, dont la réponse ne dit pas quel chemin a été pris.",
+          "Quand les deux barres reviendront, lisez-les attentivement. Ce sont `|00⟩` et `|11⟩`. Le premier qubit reste à cinquante-cinquante pour lui-même, et aucune porte sur le second fil ne pourrait jamais changer cela. Ce qui est revenu, c’est l’accord entre les deux : triez les répétitions selon ce que dit le second fil et chaque moitié devient certaine. Rien n’a été envoyé nulle part et rien n’a voyagé à rebours. Le motif a toujours été réparti sur la paire, et cette porte est ce qui vous permet de trier selon la bonne chose."
+        ],
+        "notice": "De nouveau deux barres, `|00⟩` et `|11⟩`, à moitié chacune.",
+        "task": "Ajoutez une porte sur le second fil pour que l’histogramme comporte deux barres au lieu de quatre.",
+        "hint": "`H` sur le second fil. Il lit ce fil dans la base `|+⟩` et `|−⟩`, dans laquelle la trace du chemin emprunté n’est tout simplement pas enregistrée. `Ry` sur un quart de tour fait le même travail — dans un sens comme dans l’autre, et le signe ne décide que des deux barres obtenues : `|00⟩` et `|11⟩`, ou `|01⟩` et `|10⟩`. Les deux sont l’effacement. Ce qui ne marche pas, c’est `√X`, qui est diagonale dans cette base au lieu d’en être une lecture, et qui laisse les quatre barres où elles étaient."
+      }
+    }
+  },
+  "deutsch-jozsa": {
+    "summary": "Une fonction dont on vous promet qu’elle est constante ou équilibrée, et une seule question qui tranche. Le premier circuit d’ici qui calcule une réponse.",
+    "goal": "Cette leçon suppose acquise celle sur l’interférence. À la fin, vous aurez vu un oracle transformer un bit en une phase, et quatre valeurs d’entrée interférer jusqu’à ne laisser que la seule réponse qui survit. Le problème est un jouet ; la forme du circuit ne l’est pas.",
+    "steps": {
+      "answerSheet": {
+        "title": "Une feuille de réponse dans un état curieux",
+        "body": [
+          "Trois fils. Les deux premiers portent l’entrée — deux bits, donc quatre valeurs possibles — et le troisième est la feuille de réponse sur laquelle la fonction écrit.",
+          "Un `X` puis un `H` placent ce troisième fil dans `(|0⟩−|1⟩)/√2`, si bien que sa flèche de Bloch se couche sur l’équateur en pleine longueur pendant que les deux autres pointent vers le pôle. Rien n’y a encore été écrit. Son état est choisi pour qu’y écrire ne fasse pas ce à quoi vous vous attendez."
+        ],
+        "notice": "La troisième sphère de Bloch : une flèche de pleine longueur sur l’équateur, alors que les deux premières pointent vers le haut."
+      },
+      "everyInput": {
+        "title": "Toutes les entrées à la fois",
+        "body": [
+          "Un `H` sur chaque fil d’entrée, et les deux bits d’entrée contiennent simultanément leurs quatre combinaisons. Huit barres : quatre valeurs d’entrée, multipliées par les deux moitiés de la feuille de réponse.",
+          "C’est l’étape qui a des airs de magie et qui n’en est pas. Le registre contient une superposition des quatre entrées, si bien qu’interroger la fonction produit une superposition des quatre réponses — et rien jusqu’ici ne dit comment en extraire une qui serve. Une superposition, ce n’est pas quatre ordinateurs."
+        ],
+        "notice": "Huit barres de même hauteur : toutes les valeurs d’entrée, présentes en même temps."
+      },
+      "kickback": {
+        "title": "L’oracle écrit un bit et fait tourner une phase",
+        "body": [
+          "Voici la fonction, sous la forme d’une seule porte : un `CNOT` qui écrit le premier bit d’entrée sur la feuille de réponse.",
+          "Regardez la table des amplitudes. Pas une hauteur n’a changé : la feuille de réponse est exactement comme elle était, et la mesurer ne vous apprendrait rien. Ce qui a changé, ce sont les signes : les quatre lignes dont le premier bit d’entrée vaut 1 se sont inversées, et aucune autre. Écrire un 1 sur un fil qui contient `(|0⟩−|1⟩)/√2` échange ses deux moitiés, et échanger les moitiés de cet état-là revient à le multiplier par −1. Le signe moins n’a nulle part où se poser sinon sur l’entrée.",
+          "C’est ce qu’on appelle la rétroaction de phase. On a demandé un bit à l’oracle et il a rendu une phase, et tous les algorithmes de la suite de cette série sont bâtis là-dessus."
+        ],
+        "notice": "Les mêmes hauteurs qu’à l’étape précédente, et la moitié des signes inversés."
+      },
+      "readOff": {
+        "title": "Une question, une réponse",
+        "body": [
+          "De nouveau un `H` sur chaque fil d’entrée, et les quatre chemins d’entrée interfèrent : là où les phases s’accordaient elles s’ajoutent, là où elles divergeaient elles s’annulent. Les deux portes supplémentaires sur la feuille de réponse la remettent à `|0⟩`, de sorte que la seule barre restante est la réponse.",
+          "Une barre, sur `|001⟩`. Les fils d’entrée lisent `01`, ce qui n’est pas zéro : la fonction est donc équilibrée. Vous n’avez interrogé l’oracle qu’une fois."
+        ],
+        "notice": "Une unique barre sur `|001⟩` : les fils d’entrée ne sont pas tous les deux à zéro."
+      },
+      "constant": {
+        "title": "L’autre cas",
+        "body": [
+          "Retirez l’oracle. Il reste la fonction constante qui répond toujours 0, et dont l’oracle n’est véritablement aucune porte : il n’écrit jamais rien, donc il ne fait jamais tourner de phase.",
+          "Une barre sur `|000⟩`. Tous les fils d’entrée lisent zéro, et c’est la signature d’une fonction constante. Toute fonction équilibrée donne autre chose.",
+          "Classiquement, deux bits d’entrée font quatre questions possibles et un pire cas de trois d’entre elles avant d’être sûr. Ici c’est une seule, à chaque fois. Attention à ce que vous en retirez : la promesse — constante ou équilibrée, rien entre les deux — fait énormément de travail, et les problèmes réels arrivent rarement accompagnés d’une promesse pareille. Ce qui mérite d’être gardé, c’est la forme. Faire entrer toutes les entrées à la fois, s’arranger pour que les mauvaises réponses s’annulent, et lire ce qui survit."
+        ],
+        "notice": "Une barre sur `|000⟩` : une fonction constante laisse le registre d’entrée intact."
+      },
+      "yourOracle": {
+        "title": "À vous",
+        "body": [
+          "La colonne vide au milieu est l’emplacement de l’oracle, et elle est à vous. Celui qu’a utilisé la leçon interrogeait le premier bit d’entrée ; une autre fonction équilibrée interroge le second."
+        ],
+        "notice": "Une barre sur `|010⟩` : les fils d’entrée lisent maintenant `10`.",
+        "task": "Placez dans la colonne vide un oracle qui interroge le second bit d’entrée, de sorte que les fils d’entrée lisent `10` au lieu de `01`.",
+        "hint": "Un `CNOT` du second fil d’entrée vers la feuille de réponse est la réponse directe. Un `Z` seul sur ce fil fonctionne aussi et mérite d’être essayé : il applique exactement la même phase sans toucher du tout à la feuille de réponse, ce que l’oracle faisait de toute façon."
+      }
+    }
+  },
+  "grover": {
+    "summary": "Quatre boîtes, une marquée, et un circuit qui ouvre la bonne du premier coup. L’accélération est réelle et elle est plus modeste qu’on ne le raconte d’ordinaire.",
+    "goal": "Cette leçon suppose acquis Deutsch–Jozsa, et à travers lui l’interférence. À la fin, vous aurez vu une amplitude marquée passer de −½ à 1 par une arithmétique que vous pouvez faire vous-même, et vu qu’un second tour dégrade le résultat.",
+    "steps": {
+      "fourItems": {
+        "title": "Quatre boîtes, aucune information",
+        "body": [
+          "Deux fils, donc quatre éléments : `|00⟩`, `|01⟩`, `|10⟩` et `|11⟩`. Un `H` sur chacun met un quart de la probabilité sur chaque élément, ce qui est exactement l’état de celui qui ne sait rien.",
+          "L’un des quatre est marqué. Le travail consiste à découvrir lequel sans les ouvrir un par un."
+        ],
+        "notice": "Quatre barres de même hauteur, une par élément."
+      },
+      "oracle": {
+        "title": "L’oracle marque sans le dire",
+        "body": [
+          "Trois portes : un `CZ` entre les fils, avec un `X` de chaque côté sur le premier fil. Le `CZ` seul poserait un signe moins sur `|11⟩` ; les deux `X` réétiquettent le premier fil à l’entrée et le rétablissent à la sortie, de sorte que le signe moins atterrit sur `|10⟩`.",
+          "Vérifiez l’histogramme : rien n’a bougé. La marque est dans la table des amplitudes — une amplitude sur quatre vaut maintenant −½ là où elle valait ½. C’est la rétroaction de phase de la leçon précédente, avec la même propriété : aucune mesure ne peut la voir."
+        ],
+        "notice": "Une amplitude négative dans la table, et quatre barres qui n’ont pas changé."
+      },
+      "average": {
+        "title": "Réfléchir autour de la moyenne",
+        "body": [
+          "Faites l’arithmétique avant de lancer la porte suivante. Trois des quatre amplitudes valent ½ et une vaut −½, leur moyenne est donc ¼.",
+          "Réfléchissez maintenant chaque amplitude autour de cette moyenne : remplacez-la par le double de la moyenne moins elle-même. Les trois qui valaient ½ tombent à 0. Celle qui valait −½ monte à 1. L’élément marqué se retrouve avec toute la probabilité et les trois autres avec rien — et chacune de ces étapes n’était que de l’arithmétique ordinaire sur quatre nombres.",
+          "Les portes de l’étape suivante font exactement cette réflexion, au signe moins global près — la table des amplitudes affichera donc −1 là où l’arithmétique disait 1. Il n’y a rien d’autre dans l’algorithme, et rien de mesurable dans ce signe : un facteur global est précisément la seule chose qu’aucune expérience ne peut voir."
+        ],
+        "notice": "Trois amplitudes à ½ et une à −½, de moyenne ¼."
+      },
+      "diffuse": {
+        "title": "Une seule barre",
+        "body": [
+          "Voilà la réflexion, écrite en portes : `H` sur les deux fils, `X` sur les deux, un `CZ`, puis les `X` et les `H` défaits. Ce sont les mêmes neuf portes quel que soit l’élément marqué — elles ne savent rien de l’oracle — et c’est pourquoi il vaut la peine de les apprendre une bonne fois.",
+          "Une barre, sur `|10⟩`, avec toute la probabilité. Pas la plus grande partie : la totalité. Quatre éléments, un appel à l’oracle, et la réponse est certaine."
+        ],
+        "notice": "Une unique barre sur `|10⟩` : l’élément marqué par l’oracle."
+      },
+      "howMany": {
+        "title": "Combien de tours",
+        "body": [
+          "Quatre éléments, c’est la taille où un seul tour tombe juste. En général il faut environ π/4 × √N tours pour N éléments : 25 pour mille, 800 pour un million, contre N/2 ouvertures en moyenne si vous les vérifiez un par un. Voilà l’accélération — une racine carrée, pas un exposant, et rien ici ne devient exponentiellement plus rapide.",
+          "C’est une rotation, pas une accumulation. Dépassez et elle tourne au-delà de la réponse : un second tour à cette taille ramène la probabilité de 1 à un quart sur chaque élément, ce qu’on obtient en devinant au hasard. Essayez si vous voulez. Remarquez que l’algorithme ne donne aucun signal quand il est allé trop loin : il faut compter.",
+          "Un dernier point d’honnêteté. L’oracle de ce circuit a été écrit par quelqu’un qui connaissait déjà la réponse. Grover est rentable lorsque l’élément marqué est défini par une condition rapide à vérifier et lente à chercher ; il ne l’est pas sur une liste que quelqu’un doit d’abord construire, puisque construire la liste, c’est la recherche."
+        ],
+        "notice": "Le circuit lui-même : un oracle de trois portes, et un diffuseur qui est toujours les mêmes neuf."
+      },
+      "retarget": {
+        "title": "À vous",
+        "body": [
+          "L’oracle cherche `|10⟩`. Ce sont les deux `X` qui l’orientent là : le `CZ` marque toujours `|11⟩`, et elles changent ce que `|11⟩` veut dire au passage."
+        ],
+        "notice": "De nouveau une barre, cette fois sur `|01⟩`.",
+        "task": "Déplacez l’oracle vers l’autre élément, de sorte que la recherche trouve `|01⟩`.",
+        "hint": "Le `CZ` reste exactement où il est. Retirez les deux `X` du premier fil et posez-les sur le second, dans les deux colonnes d’où elles sortent."
+      }
+    }
+  },
+  "teleportation": {
+    "title": "Téléportation",
+    "summary": "Envoyer l’état d’un qubit par un canal qui ne le transporte jamais, et payer pour cela deux bits classiques ordinaires.",
+    "goal": "Cette leçon suppose acquise celle sur l’intrication. À la fin, vous aurez vu une flèche quitter la première sphère de Bloch et apparaître sur la troisième, et vu exactement pourquoi rien de tout cela ne bat un coup de téléphone.",
+    "steps": {
+      "payload": {
+        "title": "Ce que l’on va envoyer",
+        "body": [
+          "Deux rotations sur le premier fil le placent dans un état qui n’est ni `|0⟩` ni `|1⟩` et qui porte une phase en plus d’une inclinaison. Sa flèche sur la première sphère de Bloch est le sujet de cette leçon : à la fin, elle sera sur la troisième sphère.",
+          "Remarquez ce qu’on ne peut pas en faire. Une mesure donne un bit et détruit le reste, et vous aurez beau regarder, vous ne saurez pas où pointe cette flèche. Alice, qui détient ce qubit, n’en connaît pas non plus l’état — et elle va l’envoyer quand même. C’est là le fond de l’affaire : le protocole n’a jamais besoin de savoir ce qu’il déplace."
+        ],
+        "notice": "La première sphère de Bloch : une flèche inclinée par rapport au pôle, penchée dans une direction qui lui est propre autour de l’équateur."
+      },
+      "resource": {
+        "title": "Une paire, préparée à l’avance",
+        "body": [
+          "Un `H` et un `CNOT` sur les deuxième et troisième fils : la paire de Bell d’il y a deux leçons. Alice garde le deuxième qubit et Bob emporte le troisième.",
+          "Cela se passe avant qu’Alice sache ce qu’elle voudra envoyer, et c’est la seule chose qui voyage jamais physiquement entre eux. Tout ce qui suit est un coup de téléphone."
+        ],
+        "notice": "Un bit d’entropie sur le deuxième et sur le troisième qubit, et aucun sur le premier."
+      },
+      "mix": {
+        "title": "Mêler le message à la paire",
+        "body": [
+          "Un `CNOT` du premier fil vers le deuxième, puis un `H` sur le premier. Alice a emmêlé son qubit inconnu avec sa moitié de la paire.",
+          "Regardez maintenant la troisième sphère de Bloch, celle de Bob. Sa flèche est de longueur nulle. Rien n’est arrivé : à cet instant son qubit ne porte aucune information sur l’état, ce qui est précisément pourquoi rien n’a devancé un téléphone."
+        ],
+        "notice": "La troisième sphère : une flèche de longueur nulle, sur le fil qu’aucune correction n’a encore atteint."
+      },
+      "twoBits": {
+        "title": "La partie qui est un coup de téléphone",
+        "body": [
+          "Dans le protocole réel, Alice mesure maintenant ses deux qubits. Elle obtient deux bits classiques ordinaires, l’un des quatre résultats, tous également probables, et aucun des deux ne dit quoi que ce soit de l’état à lui seul. Elle les dicte à Bob par téléphone, et celui-ci applique un `X` si le bit venu de sa moitié de la paire vaut 1, et un `Z` si le bit venu du qubit-message vaut 1. Quel bit commande quelle correction s’échange facilement et vaut la peine d’être fixé tout de suite : le `X` suit la paire, le `Z` suit le message.",
+          "Ce circuit fait le même travail avec un `CNOT` et un `CZ` à la place de la mesure et de l’appel. L’effet sur le qubit de Bob est identique ; ce qui change, c’est le moment où le hasard est tranché. La substitution est standard, et ici elle gagne aussi sa place : une mesure au milieu priverait le circuit d’un état final unique, et les sphères de Bloch sur lesquelles se suit toute cette leçon resteraient vides.",
+          "Ne laissez pas tomber le coup de téléphone quand vous raconterez cela. Sans ces deux bits, le qubit de Bob reste exactement comme il est maintenant : de longueur nulle, ne portant rien. La téléportation déplace un état à la vitesse d’un message classique et pas d’un bit plus vite."
+        ],
+        "notice": "Le circuit tel qu’il est : deux portes du côté d’Alice, et encore aucune correction du côté de Bob — le `CNOT` déjà posé sur son fil, c’est la paire de Bell qu’on fabrique, pas le message qui arrive."
+      },
+      "firstFix": {
+        "title": "La moitié de la correction",
+        "body": [
+          "La première correction : un `CNOT` de la moitié de la paire que détient Alice vers le qubit de Bob, qui tient lieu de « si le premier bit vaut 1, applique un `X` ».",
+          "La flèche de Bob est revenue, et ce n’est pas la bonne. Sa hauteur sur l’axe vertical est déjà correcte ; tout ce qui concerne l’équateur manque, autrement dit la phase n’est pas arrivée. L’un des deux bits a atterri."
+        ],
+        "notice": "La troisième sphère : une flèche courte, droite le long de l’axe, sans pencher dans aucune direction."
+      },
+      "arrival": {
+        "title": "À vous",
+        "body": [
+          "Il reste une correction, celle qui tient lieu de « si le second bit vaut 1, applique un `Z` ».",
+          "Quand elle aura atterri, comparez la troisième sphère de Bloch avec la première telle qu’elle était à l’étape 1 : même inclinaison, même direction, pleine longueur. Regardez ensuite la première sphère telle qu’elle est maintenant. Elle pointe vers `|+⟩`, et elle pointera vers `|+⟩` quel que soit l’état de départ. L’état n’a pas été copié : il s’est déplacé, et l’original a disparu. Ce n’est pas une politesse du circuit. Aucun circuit ne peut faire autrement, c’est le théorème de non-clonage, et voilà à quoi il ressemble."
+        ],
+        "notice": "La troisième sphère portant la flèche par laquelle la première a commencé, et la première sphère pointant vers `|+⟩`.",
+        "task": "Ajoutez la dernière correction pour que le troisième fil porte l’état par lequel le premier a commencé.",
+        "hint": "Un `CZ` entre le premier fil et le troisième, dans la dernière colonne. Le `CZ` se moque de savoir quelle extrémité vous appelez contrôle : dans les deux sens c’est la même porte."
+      }
+    }
+  },
+  "superdense-coding": {
+    "title": "Codage superdense",
+    "summary": "Deux bits de message dans un qubit de courrier, à condition d’avoir posté l’autre qubit d’abord. La comptabilité est plus intéressante que l’astuce.",
+    "goal": "Cette leçon suppose acquise celle sur la téléportation, ou du moins la paire de Bell qu’elle employait. À la fin, vous aurez envoyé les quatre messages de deux bits avec une porte chacun, et compté honnêtement ce que chacun a coûté.",
+    "steps": {
+      "shared": {
+        "title": "Une paire, de nouveau",
+        "body": [
+          "Les deux mêmes portes que la leçon précédente et la même paire de Bell. Alice garde le premier qubit, celui qui voyagera ; Bob garde le second et l’emporte.",
+          "Rien n’a été envoyé. Le panneau d’intrication affiche un bit d’entropie sur chaque qubit, ce qui est une ressource partagée et non un message : à ce stade, Alice n’a même pas décidé ce qu’elle voulait dire."
+        ],
+        "notice": "Un bit d’entropie sur chaque qubit, avant que quiconque ait choisi un message."
+      },
+      "decoder": {
+        "title": "Le décodeur de Bob",
+        "body": [
+          "À l’autre bout, Bob défait l’intrication : un `CNOT` et un `H`, les deux mêmes portes à l’envers. L’histogramme lit `|00⟩` avec certitude.",
+          "Entre la paire et le décodeur se trouvent deux colonnes vides. Cet espace est celui d’Alice, et c’est tout le protocole : ce qu’elle fait à son propre qubit à cet endroit est le message. Elle n’a rien fait, et `00` est ce que Bob reçoit."
+        ],
+        "notice": "Une barre sur `|00⟩`, et deux colonnes vides au milieu du circuit."
+      },
+      "flip": {
+        "title": "Un bit",
+        "body": [
+          "Un `X` dans l’espace d’Alice, et Bob lit `|10⟩`.",
+          "Elle a touché un qubit — le sien — avec une porte, et un message différent est sorti à l’autre bout. La porte est locale. L’effet porte sur la paire."
+        ],
+        "notice": "Une barre, à présent sur `|10⟩`."
+      },
+      "phase": {
+        "title": "L’autre bit",
+        "body": [
+          "Remplacez le `X` par un `Z`, et Bob lit `|01⟩`.",
+          "C’est celle-ci qui est intéressante. Le qubit d’Alice, pris seul, est dans l’état le moins informatif qui soit — sa flèche de Bloch est de longueur nulle — et un `Z` le laisse exactement tel qu’il était : aucune mesure de son seul qubit, dans quelque base que ce soit, ne pourrait donc dire si elle l’a appliqué. Ce n’est pas une propriété du `Z` : sur un qubit isolé dans `|+⟩`, un `Z` se voit parfaitement, et c’est ce qu’a mesuré la leçon sur la superposition avec son second `H`. C’est une propriété de la moitié d’une paire intriquée, et c’est ce qui fait de l’intrication une ressource. Appliquée ici et défaite à l’autre bout, la porte déplace l’histogramme tout entier."
+        ],
+        "notice": "Une barre sur `|01⟩`, produite par une porte qui ne change à elle seule aucune probabilité."
+      },
+      "both": {
+        "title": "À vous",
+        "body": [
+          "Deux portes, quatre messages : rien, `X`, `Z`, et les deux ensemble. Trois des quatre sont déjà à l’écran."
+        ],
+        "notice": "Une barre sur `|11⟩`.",
+        "task": "Envoyez le quatrième message, de sorte que Bob lise `11`.",
+        "hint": "Ajoutez un `X` dans la seconde des deux colonnes d’Alice, pour que son qubit reçoive un `Z` puis un `X`. Un seul `Y` à la place du `Z` fait le même travail, car `Y` est `X` et `Z` réunis à une phase près que personne ne peut mesurer."
+      },
+      "accounting": {
+        "title": "Ce que cela a réellement coûté",
+        "body": [
+          "Comptez les qubits qui ont traversé la pièce. Deux : la moitié de la paire revenant à Bob, envoyée avant qu’Alice connaisse son message, et le qubit d’Alice ensuite. Deux qubits ont porté deux bits, ce qui n’est pas une affaire.",
+          "Ce qui est véritablement utile, c’est le calendrier. La moitié du coût peut être réglée à l’avance, à un moment calme, avant qu’il y ait quoi que ce soit à dire — et lorsque le message existe enfin, un seul qubit termine le travail.",
+          "Il y a une limite dure sous tout cela : un qubit à lui seul porte au plus un bit classique, quoi que vous lui fassiez. C’est la borne de Holevo, et le codage superdense ne l’enfreint pas — il emprunte le second bit à une paire envoyée plus tôt. Le nom promet trop. Le protocole reste à connaître, car il est la démonstration la plus claire que l’intrication est une ressource que l’on peut stocker et dépenser."
+        ],
+        "notice": "Le circuit entier : deux portes pour partager une paire, deux colonnes de message, deux portes pour le lire."
+      }
+    }
+  },
+  "bb84": {
+    "summary": "Une clé qu’on ne peut pas copier sans laisser de trace, et la version honnête, dans laquelle l’espionne est invisible une fois sur deux.",
+    "goal": "Cette leçon suppose acquises la superposition, l’interférence et l’intrication, et c’est la première qui porte sur un protocole plutôt que sur un circuit. À la fin, vous aurez joué un tour d’échange de clé de quatre façons et vu le panneau d’intrication dénoncer une espionne qui n’a rien mesuré.",
+    "steps": {
+      "sendBit": {
+        "title": "Un bit, une base",
+        "body": [
+          "Un fil et un tour. Alice a un bit — 1 — et une base dans laquelle l’envoyer. Elle choisit la base rectilinéaire, où `|0⟩` vaut 0 et `|1⟩` vaut 1 ; un `X` est donc tout son message.",
+          "Bob choisit lui aussi une base, en privé, sans connaître la sienne. Cette fois il a choisi la droite lui aussi, ce qui s’écrit « aucune porte », et il lit 1. Quand les deux choix coïncident, le bit passe."
+        ],
+        "notice": "Une barre sur `|1⟩` : le bit envoyé par Alice est le bit que lit Bob."
+      },
+      "wrongBasis": {
+        "title": "L’autre base",
+        "body": [
+          "Bob choisit maintenant la base diagonale : un `H` avant de lire, qui demande si le qubit est `|+⟩` ou `|−⟩` plutôt que s’il est `|0⟩` ou `|1⟩`.",
+          "Cinquante-cinquante. Sa réponse est une pièce équilibrée et ne porte rien du bit d’Alice. Ce n’est pas un échec : ensuite ils annoncent quelles bases ils ont utilisées, à voix haute, en public, les bases et jamais les bits, et ils écartent tous les tours où les deux différaient. Environ la moitié."
+        ],
+        "notice": "Deux barres à moitié chacune : un bit qui ne veut rien dire."
+      },
+      "sameBasis": {
+        "title": "Accord",
+        "body": [
+          "Alice passe elle aussi à la base diagonale — un `H` de son côté également, si bien qu’elle envoie `|−⟩` au lieu de `|1⟩` — et le `H` de Bob défait le sien.",
+          "De nouveau une barre, sur `|1⟩`. Même base, même bit, et cela marche dans l’une comme dans l’autre base, ce qui rend le choix libre de se faire au hasard. Les tours qui survivent à la comparaison forment la clé."
+        ],
+        "notice": "Une barre sur `|1⟩` : bases concordantes, bits concordants."
+      },
+      "sifting": {
+        "title": "Ce que vaut un tour",
+        "body": [
+          "Ce qui est à l’écran est un tour. Le protocole en joue des milliers : Alice tire à chaque fois un bit au hasard et une base au hasard, Bob tire une base au hasard, puis ils comparent les bases au grand jour et gardent la moitié concordante. Ensuite ils en sacrifient une partie, comparent les bits eux-mêmes et comptent combien divergent.",
+          "Les trois colonnes vides du milieu sont le trajet. Sur une liaison réelle, c’est une longueur de fibre, et c’est la seule partie de tout ceci qu’une oreille indiscrète puisse atteindre."
+        ],
+        "notice": "L’espace au milieu du circuit : la partie du protocole que personne ne contrôle, à aucun des deux bouts."
+      },
+      "eve": {
+        "title": "Quelqu’un dans la fibre",
+        "body": [
+          "Un second fil apparaît, celui d’Eve. Son `CNOT` y recopie la valeur du qubit qui voyage, dans la base rectilinéaire : c’est exactement ce que produit une mesure dans la base rectilinéaire, une fois l’appareil dessiné comme partie du circuit.",
+          "Alice et Bob ont choisi la même base ce tour-ci, ce bit aurait donc dû être certain. À la place, quatre barres à un quart chacune : la réponse de Bob est un tirage à pile ou face. Eve s’est trompée de base, et en regardant elle a changé ce qu’il reçoit."
+        ],
+        "notice": "Quatre barres là où il aurait dû n’y en avoir qu’une."
+      },
+      "mark": {
+        "title": "La trace qu’elle laisse",
+        "body": [
+          "Le panneau d’intrication le dit précisément : un bit d’entropie sur le qubit qui voyage, qui n’en avait aucun une étape plus tôt. Il est intriqué avec la copie d’Eve, et un qubit intriqué avec autre chose n’a pas d’état propre à livrer.",
+          "Voilà l’argument de sécurité, et c’est un théorème et non une difficulté d’ingénierie. Apprendre la valeur d’un qubit dans une base coûte une perturbation dans l’autre, et aucun appareil plus astucieux n’y échappe.",
+          "Les chiffres : sur les tours où Alice et Bob ont employé la même base, une Eve qui tire sa base au hasard se trompe une fois sur deux, et quand elle se trompe Bob se trompe une fois sur deux également. Un quart des bits retenus divergent. Alice et Bob en comparent un échantillon au grand jour, voient 25 % là où ils n’en attendaient aucun, et jettent la clé."
+        ],
+        "notice": "Un bit d’entropie sur un fil qui n’aurait dû en porter aucun."
+      },
+      "lucky": {
+        "title": "À vous : la moitié dont personne ne parle",
+        "body": [
+          "La prise d’Eve lit la base rectilinéaire et ce tour-ci est diagonal, et c’est pour cela qu’elle l’a saccagé. Donnez-lui plutôt la base diagonale : le même motif avant-après qu’emploient Alice et Bob, dans les colonnes vides de part et d’autre de son `CNOT`.",
+          "Quand cela aura atterri : une barre, `|11⟩`. Bob obtient le bit d’Alice, correctement et avec certitude. Le fil d’Eve en porte une copie. Le panneau d’intrication affiche zéro, et il n’y a nulle part quoi que ce soit que quiconque puisse remarquer. Voilà la moitié honnête du protocole : une espionne chanceuse ne laisse aucune trace, et BB84 est sûr non pas parce qu’Eve ne peut pas réussir, mais parce qu’elle ne peut pas réussir à chaque fois, et les tours où elle échoue suffisent à la dénoncer."
+        ],
+        "notice": "Une barre sur `|11⟩`, et aucune entropie nulle part : Bob a raison et Eve connaît le bit.",
+        "task": "Donnez à Eve la bonne base : ajoutez deux portes pour que les deux fils lisent le même bit avec certitude.",
+        "hint": "Un `H` dans la colonne qui précède son `CNOT` et un autre dans celle qui le suit. C’est la même paire de portes qu’Alice et Bob emploient pour changer de base, appliquée autour de la copie plutôt qu’autour du trajet."
+      }
+    }
+  },
+  "qpe": {
+    "title": "Estimation de phase",
+    "summary": "La plus difficile des neuf. Une porte renferme un nombre qu’aucune mesure d’elle-même n’atteint, et ce circuit écrit ce nombre dans un registre, en binaire. `QPE` est le nom sous lequel vous la rencontrerez, et l’algorithme de Shor est bâti dessus.",
+    "goal": "Cette leçon suppose acquis Deutsch–Jozsa pour la rétroaction de phase et Grover pour la lecture d’une réponse dans un registre uniforme. À la fin, vous aurez lu trois chiffres binaires d’une phase dans un histogramme, et vu ce qui arrive quand la phase ne tient pas en trois chiffres. Un bloc, la transformée de Fourier inverse, est employé ici sans être expliqué ; l’étape qui l’emploie le dit.",
+    "steps": {
+      "eigenstate": {
+        "title": "Un nombre que vous ne pouvez pas mesurer",
+        "body": [
+          "Quatre fils : trois fils de comptage, et un quatrième qui porte l’état sur lequel nous interrogeons. Un `X` place ce dernier fil dans `|1⟩`.",
+          "La porte examinée est `P`, qui multiplie `|1⟩` par une phase et laisse `|0⟩` tranquille. `|1⟩` en est donc un état propre : appliquer la porte multiplie l’état par un nombre de module un et ne change rien d’autre. Il y en a une sur le fil en ce moment, et l’histogramme est exactement là où il était sans elle.",
+          "Ce nombre est ce que nous cherchons, et il est invisible par construction : une phase sur l’état entier ne change aucune mesure de cet état. Tout ce qui suit consiste à le rendre visible ailleurs."
+        ],
+        "notice": "Une barre, parfaitement immobile devant la porte censée faire quelque chose."
+      },
+      "ruler": {
+        "title": "Une règle en superposition",
+        "body": [
+          "La porte de démonstration sort et un `H` s’installe sur chacun des trois fils de comptage, qui contiennent désormais toutes les valeurs de 0 à 7 à la fois.",
+          "Lisez-les comme un nombre binaire : le premier fil vaut 1, le deuxième 2, le troisième 4. C’est la règle contre laquelle la phase va être mesurée, et trois fils signifie que la lecture ne peut jamais être qu’un nombre entier de huitièmes de tour."
+        ],
+        "notice": "Huit barres de même hauteur : le registre de comptage tenant 0 à 7 à la fois."
+      },
+      "kickback": {
+        "title": "Une application contrôlée",
+        "body": [
+          "Un `P` contrôlé : appliquer la porte au dernier fil, mais seulement lorsque le premier fil de comptage vaut 1. Comme le dernier fil est un état propre, la porte ne peut pas le changer, si bien que la phase ressort sur le contrôle — la même rétroaction que celle de l’oracle de Deutsch–Jozsa.",
+          "La table des amplitudes : huit amplitudes, toutes de la même hauteur qu’avant, et les quatre dont le premier bit de comptage vaut 1 ont tourné. L’histogramme n’a pas bougé et ne bougera plus jusqu’au bloc final."
+        ],
+        "notice": "La moitié des amplitudes tournées, et pas une hauteur modifiée."
+      },
+      "doubling": {
+        "title": "Le double, et encore le double",
+        "body": [
+          "Deux applications contrôlées de plus : le double de la phase depuis le deuxième fil, le quadruple depuis le troisième. Chaque fil reçoit la phase multipliée par ce que ce fil vaut en tant que chiffre binaire.",
+          "Le registre porte désormais une phase qui avance du même pas chaque fois que le nombre compté augmente d’une unité. Tout ce qu’il y a à savoir de la porte que nous mesurons tient dans ce pas, et rien n’en est dans les hauteurs.",
+          "C’est aussi là que réside le coût. Un chiffre binaire de plus, c’est un fil de plus et deux fois plus d’applications de la porte ; la précision s’achète donc à un prix exponentiel en appels — ce qui explique pourquoi l’estimation de phase est coûteuse en pratique, et pourquoi l’algorithme de Shor a besoin d’une porte que l’on puisse appliquer à bas prix un grand nombre de fois."
+        ],
+        "notice": "Les phases avancent maintenant par pas réguliers à mesure que le nombre compté augmente."
+      },
+      "readOut": {
+        "title": "Transformer un pas en un nombre",
+        "body": [
+          "Le dernier bloc est la transformée de Fourier quantique inverse, et une phrase suffit à dire ce qu’elle fait ici : étant donné un registre dont la phase avance d’un pas fixe, elle écrit la taille de ce pas, en binaire. C’est la transformée qui aurait produit ces phases, exécutée à l’envers.",
+          "Cette leçon ne la démonte pas — c’est une leçon en soi, et prétendre avoir expliqué neuf portes est pire que dire quelle phrase est admise sans preuve. Le `SWAP` du début mérite tout de même d’être signalé : la transformée rend ses fils dans l’ordre inverse de celui où ils sont entrés, et le bloc commence donc par les remettre en place.",
+          "Une barre, sur `|1011⟩`. Le dernier fil est le `|1⟩` du départ ; le registre de comptage lit `011`, c’est-à-dire trois. La phase valait trois huitièmes de tour, et c’est ce qu’il annonce."
+        ],
+        "notice": "Une unique barre : les fils de comptage lisent `011`, soit 3 sur 8."
+      },
+      "awkward": {
+        "title": "Quand cela ne tombe pas juste",
+        "body": [
+          "Trois dixièmes de tour à présent, au lieu de trois huitièmes. Trois fils ne savent pas écrire cela : trois dixièmes font 2,4 huitièmes, et il n’y a pas de barre en 2,4.",
+          "L’histogramme s’étale donc. La barre la plus haute est sur `010` — deux huitièmes, la valeur la plus proche en dessous — avec environ 58 % de la probabilité, et `011` en prend environ 26 %. Les deux valeurs les plus proches se partagent à peu près 84 % et le reste s’éteint progressivement.",
+          "C’est le cas normal et non une panne, et c’est pour cela que le mot estimation figure dans le nom. Une exécution unique tombe sur la valeur la plus proche environ 58 % du temps, et sur l’une des deux plus proches environ 84 % du temps. Ce second chiffre est une garantie de l’algorithme plutôt qu’un heureux hasard propre à cette phase : il ne descend jamais en dessous de `8/π²`, quelle que soit la phase et quel que soit le nombre de fils. Faire mieux, c’est relancer et retenir la réponse la plus fréquente, et ajouter un fil pour chaque chiffre binaire supplémentaire."
+        ],
+        "notice": "Un groupe de barres au lieu d’une seule, la plus haute étant sur `010`."
+      },
+      "yourTurn": {
+        "title": "À vous",
+        "body": [
+          "Revenons à une phase qui tombe juste. Cinq huitièmes de tour devraient faire lire `101` au registre de comptage, c’est-à-dire cinq.",
+          "Trois angles à régler, et le motif est celui de l’étape 4 : le premier fil de comptage prend la phase elle-même, le deuxième le double, le troisième le quadruple. Une phase se répète à chaque tour complet, vous pouvez donc retrancher un tour entier à n’importe lequel d’entre eux quand le nombre devient encombrant. La porte n’y voit aucune différence."
+        ],
+        "notice": "Une barre sur `|1101⟩` : les fils de comptage lisent `101`, soit 5 sur 8.",
+        "task": "Réglez les trois phases contrôlées pour que le registre lise cinq huitièmes de tour.",
+        "hint": "Cinq huitièmes de tour font `5π/4`. Le double vaut `5π/2`, qui est le même angle que `π/2` ; le quadruple vaut `5π`, qui est le même angle que `π`. Le curseur s’arrête sur les seizièmes de `π`, si bien que les trois tombent exactement sur un cran : les flèches du clavier avancent d’un cran à la fois, et le champ voisin accepte le nombre tapé."
+      }
+    }
+  }
+}

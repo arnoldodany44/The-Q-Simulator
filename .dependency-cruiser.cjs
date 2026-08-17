@@ -114,6 +114,60 @@ module.exports = {
       },
     },
     {
+      name: 'embed-is-a-document-of-its-own',
+      severity: 'error',
+      comment:
+        'The embed (spec 3.4 and 11) is a SECOND entry point, embed.html, ' +
+        'served into a page this project does not control, and served with ' +
+        'the opposite framing headers from the rest of the app. Two ' +
+        'properties depend on nothing in its module graph reaching what is ' +
+        'listed below, and both are invisible to every test that does not ' +
+        'weigh a bundle. FIRST, IT HAS NO SESSION: an embed runs on the same ' +
+        'origin as the app, so a module able to read the Supabase session ' +
+        'would send a signed-in reader token out from inside a third party ' +
+        'page. That is why fetchEmbed.ts carries its own eleven-line ' +
+        'transport rather than lib/api/client.ts. SECOND, IT IS LIGHT: a ' +
+        'teacher framing six circuits must not ship six copies of the ' +
+        'editor, so the router, the document store with its undo history, ' +
+        'dnd-kit, React Query and three.js are all out of reach. The one ' +
+        'module of lib/api it may touch is config.ts, which resolves the API ' +
+        'origin and imports nothing. EmbedSnippet.tsx runs the other way ' +
+        'round, rendered by the circuit page rather than by the frame, and it ' +
+        'is held to this rule too because all it imports is path builders. ' +
+        'Type-only imports are exempt: they are erased before a byte is ' +
+        'bundled.',
+      from: {
+        path: '^apps/web/src/embed/',
+        pathNot: '\.test\.tsx?$',
+      },
+      to: {
+        path: [
+          '^apps/web/src/App\.tsx$',
+          '^apps/web/src/main\.tsx$',
+          '^apps/web/src/routes/',
+          '^apps/web/src/features/auth/',
+          '^apps/web/src/features/gallery/(?!paths\.ts$)',
+          '^apps/web/src/features/collections/',
+          '^apps/web/src/features/profile/',
+          '^apps/web/src/features/lessons/',
+          '^apps/web/src/features/challenges/',
+          '^apps/web/src/features/circuit-storage/(?!paths\.ts$)',
+          '^apps/web/src/features/export/',
+          '^apps/web/src/features/import/',
+          '^apps/web/src/features/circuit-editor/useCircuitStore\.ts$',
+          '^apps/web/src/features/circuit-editor/CircuitCanvas\.tsx$',
+          '^apps/web/src/features/circuit-editor/CircuitEditor\.tsx$',
+          '^apps/web/src/features/analysis/(BlochScene|BlochSpheres|QSphereScene|QSpherePanel|DensityHeatmap)\.tsx$',
+          '^apps/web/src/lib/api/(?!config\.ts$)',
+          '^apps/web/src/lib/supabase/',
+          '^apps/web/src/i18n/index\.ts$',
+          'node_modules/(@supabase|@tanstack|@dnd-kit|three|react-router|zustand|zundo)(/|$)',
+          '^(@supabase|@tanstack|@dnd-kit|three|react-router|zustand|zundo)(/|$)',
+        ],
+        dependencyTypesNot: ['type-only'],
+      },
+    },
+    {
       name: 'db-depends-only-on-schema',
       severity: 'error',
       comment:

@@ -5284,3 +5284,883 @@ td.histogram__delta--loss {
 .page__cta--danger:hover:not([aria-disabled='true']) {
   background: hsl(0 85% 66% / 0.12);
 }
+
+/* ------------------------------------------------------------------ *
+ * Guided lessons (Phase 3)
+ *
+ * Two columns: prose on the left, the real editor and the real analysis
+ * panel on the right. The proportion is deliberate — the reading column is
+ * held near the 42rem measure the rest of the app reads at, and everything
+ * left over goes to the circuit, which is the wide thing.
+ *
+ * Below the §10 read-only breakpoint they stack, prose first. That order is
+ * the whole accommodation: on a phone the editor is in reading mode anyway,
+ * so a lesson becomes text with a diagram under it, which is a legible
+ * fallback rather than a broken layout.
+ * ------------------------------------------------------------------ */
+
+.lesson-player {
+  display: grid;
+  grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+@media (max-width: 899px) {
+  .lesson-player {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.lesson-player__reading {
+  position: sticky;
+  /*
+   * Sticky so the step stays beside the chart it is talking about while the
+   * reader scrolls the analysis panel — the two halves are one argument, and
+   * a prose column that scrolls away is a lesson that stops explaining
+   * halfway down. Released below the breakpoint, where the columns are
+   * stacked and sticking would pin the text over the circuit.
+   */
+  top: 1rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  min-width: 0;
+}
+
+@media (max-width: 899px) {
+  .lesson-player__reading {
+    position: static;
+  }
+}
+
+.lesson-player__lab {
+  min-width: 0;
+}
+
+.lesson-player__goal {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  margin: 0 0 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--wire);
+}
+
+/*
+ * The live region that carries "where am I" — see `LessonStepPane.tsx`. It is
+ * a wrapper with no box of its own on purpose: it exists so that the position
+ * and the heading can change *inside* something that was already there, and it
+ * must not add a rhythm the layout did not have before.
+ */
+.lesson-step__where {
+  margin: 0;
+  padding: 0;
+}
+
+.lesson-step__position {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.lesson-step__heading {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.lesson-prose {
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+}
+
+/*
+ * Notation inside a sentence: the mono face, so `H` and `|0⟩` read as the
+ * same things the canvas and the amplitude table print, without a box that
+ * would break the line rhythm of a paragraph.
+ */
+.lesson-prose__notation {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.lesson-step__notice {
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.lesson-step__notice .lesson-prose:last-of-type {
+  margin-bottom: 0.5rem;
+}
+
+.lesson-step__task {
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.lesson-step__task-heading {
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+/*
+ * The verdict, and the number behind it. Neither carries its meaning in
+ * colour: the sentence says what happened, and the reading is a figure with
+ * its own label (§10 — colour is never the only channel).
+ */
+.lesson-step__verdict {
+  font-family: var(--font-display);
+  margin: 0.5rem 0 0;
+  min-height: 1.5rem;
+}
+
+.lesson-step__reading {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.lesson-step__hint {
+  margin: 0.5rem 0;
+  font-size: var(--text-caption);
+}
+
+.lesson-step__hint summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-family: var(--font-display);
+}
+
+.lesson-step__nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Sized like the preset chips: 2.25rem clears WCAG 2.2 SC 2.5.8 with room. */
+.lesson-button {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.9rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.lesson-button:hover:not([aria-disabled='true']) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.lesson-button--primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/*
+ * Unavailable at the two ends of the sequence. `[aria-disabled]` and not
+ * `:disabled`, for the reason the auth form gives above: a disabled element
+ * cannot hold focus, so disabling the control somebody has just pressed hands
+ * the caret to the document body — and that happened at the end of every one
+ * of the nine lessons, to the reader least able to recover from it. The press
+ * is a no-op instead (`goTo` clamps), and the reduced contrast and the cursor
+ * are what a sighted reader sees.
+ */
+.lesson-button[aria-disabled='true'] {
+  color: var(--text-muted);
+  border-color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ---- the index ---- */
+
+.lesson-index {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.lesson-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.lesson-card__title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  margin: 0 0 0.4rem;
+}
+
+.lesson-card__title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.lesson-card__title a:hover {
+  color: var(--accent);
+}
+
+.lesson-card__summary {
+  margin: 0 0 0.5rem;
+  line-height: 1.55;
+}
+
+.lesson-card__progress {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.lesson-index__note {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  margin-top: 1.5rem;
+}
+
+.lesson-page__back {
+  margin: 1rem 0 0;
+  font-size: var(--text-caption);
+}
+
+/*
+ * What "show me" leaves on the panel it pointed at.
+ *
+ * A dashed outline rather than a colour wash, because §10 forbids colour as
+ * the only carrier of meaning and "this is the thing I am talking about" is
+ * meaning — a dashed edge is a shape, legible without colour vision. The
+ * outline is drawn outside the box so nothing inside the chart moves: a
+ * border would reflow a histogram by two pixels and make every bar appear to
+ * jump at the moment the reader was asked to look at them.
+ */
+.lesson-focus {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Challenge mode (Phase 3)
+ *
+ * The same two-column shape the lessons use — the brief where the prose
+ * goes, the real editor and the real analysis panel beside it — because a
+ * challenge is the same activity with the verdict moved to the server.
+ * Deliberately its own block rather than shared classes: the two screens
+ * have different furniture (a submit control, a leaderboard) and sharing
+ * would mean every change to one had to be checked against the other.
+ * ------------------------------------------------------------------ */
+
+.challenge-player {
+  display: grid;
+  grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+@media (max-width: 899px) {
+  .challenge-player {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.challenge-player__brief {
+  /*
+   * Sticky for the reason the lesson's reading column is: the rules and the
+   * verdict are what the reader is checking their circuit against, and a
+   * panel that scrolls away stops being a check. Released below the §10
+   * read-only breakpoint, where the columns stack.
+   */
+  position: sticky;
+  top: 1rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  min-width: 0;
+}
+
+@media (max-width: 899px) {
+  .challenge-player__brief {
+    position: static;
+  }
+}
+
+.challenge-player__lab {
+  min-width: 0;
+}
+
+.challenge-prose {
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+}
+
+/* The same treatment the lesson prose gives notation, for the same reason. */
+.challenge-prose__notation {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.challenge-brief__kind {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  margin: 0 0 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--wire);
+}
+
+.challenge-brief__rules {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.challenge-brief__rules > div {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.challenge-brief__rules dt {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  margin: 0;
+}
+
+.challenge-brief__rules dd {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.challenge-brief__gates {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+}
+
+.challenge-brief__gates li {
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.challenge-player__status {
+  border-top: 1px solid var(--wire);
+  padding-top: 0.9rem;
+}
+
+.challenge-player__counts {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+/*
+ * A local warning is advice, not a verdict — it is computed in the tab from
+ * the reader's own circuit and the server checks all of it again. The left
+ * rule is what marks it as a note rather than a result, and it carries the
+ * distinction without relying on colour (§10).
+ */
+.challenge-player__warning {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elevated);
+  padding: 0.5rem 0.7rem;
+  margin: 0 0 0.5rem;
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+
+.challenge-player__submit {
+  font-family: var(--font-display);
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 0.35rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.challenge-player__submit:hover:not(:disabled) {
+  background: var(--bg-deep);
+}
+
+.challenge-player__submit:disabled {
+  color: var(--text-muted);
+  border-color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.challenge-player__signin,
+.challenge-player__error {
+  font-size: var(--text-caption);
+  margin: 0.5rem 0 0;
+}
+
+/*
+ * The permanent live region the verdict arrives inside — see
+ * `ChallengePlayer.tsx`. Empty until the server has answered, and with no box
+ * of its own so an empty one occupies nothing.
+ */
+.challenge-player__verdict {
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * The verdict.
+ *
+ * `data-passed` drives the edge and nothing else: the words "Solved" and
+ * "Not yet" are what say which it is, and a reader with no colour vision
+ * loses nothing (§10). The border is a reinforcement, in the two hues the
+ * phase palette already uses at either end of the circle.
+ */
+.challenge-verdict {
+  margin-top: 1rem;
+  border: 1px solid var(--wire);
+  border-left-width: 4px;
+  border-radius: 0.5rem;
+  background: var(--bg-elevated);
+  padding: 0.8rem 0.9rem;
+}
+
+.challenge-verdict[data-passed='true'] {
+  border-left-color: hsl(100 71% 58%);
+}
+
+.challenge-verdict[data-passed='false'] {
+  border-left-color: hsl(351 90% 61%);
+}
+
+.challenge-verdict__heading {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.challenge-verdict__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin: 0 0 0.6rem;
+}
+
+.challenge-verdict__figures > div {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+
+.challenge-verdict__figures dt {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  margin: 0;
+}
+
+.challenge-verdict__figures dd {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.challenge-verdict__feedback {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.45rem;
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+
+.challenge-verdict__gate {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+/* ---- the leaderboard ---- */
+
+.challenge-board {
+  margin-top: 1.5rem;
+}
+
+.challenge-board__heading {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  margin: 0 0 0.5rem;
+}
+
+.challenge-board__empty {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  margin: 0;
+}
+
+.challenge-board__table {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.challenge-board__table th,
+.challenge-board__table td {
+  border-bottom: 1px solid var(--wire);
+  padding: 0.35rem 0.9rem 0.35rem 0;
+  text-align: left;
+}
+
+.challenge-board__table th {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.challenge-board__caption {
+  caption-side: bottom;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  text-align: left;
+  padding-top: 0.5rem;
+  max-width: 46ch;
+}
+
+/*
+ * The reader's own row.
+ *
+ * The left edge and the weight are reinforcement; what actually says "this is
+ * you" is `board.you` printed beside the name and `aria-current` on the row
+ * (§10: colour is never the only carrier). `--accent` on the rule measures
+ * against `--bg-panel`, which is the surface it is drawn on.
+ */
+.challenge-board__row--mine > td {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.challenge-board__row--mine > td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent);
+  padding-left: 0.5rem;
+}
+
+.challenge-board__you {
+  color: var(--accent);
+  font-weight: 400;
+}
+
+.challenge-board__standing {
+  margin: 0.7rem 0 0;
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  max-width: 60ch;
+}
+
+.challenge-board__withheld {
+  color: var(--text-muted);
+}
+
+/* ---- the index ---- */
+
+.challenge-index {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.challenge-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.challenge-card__title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  margin: 0 0 0.4rem;
+}
+
+.challenge-card__title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.challenge-card__title a:hover {
+  color: var(--accent);
+}
+
+.challenge-card__prompt {
+  margin: 0 0 0.5rem;
+  line-height: 1.55;
+}
+
+.challenge-card__meta,
+.challenge-card__state {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  margin: 0 0 0.4rem;
+}
+
+.challenge-index__note {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  margin-top: 1.5rem;
+}
+
+.challenge-page__best {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * The embed (§3.4, §11)
+ *
+ * One stylesheet, not two, and that is the decision worth writing down.
+ * `embed.html` is a separate document with a separate module graph — it
+ * ships none of the editor's JavaScript — but it draws the *same* circuit
+ * with the same renderer, so it must not carry a second definition of
+ * `.qsim-box` or of the phase utilities. Two stylesheets would mean a gate
+ * that looks slightly different in a blog post from how it looks in the
+ * editor, and the difference would be invisible until somebody put the two
+ * side by side.
+ *
+ * The cost is that the frame downloads rules it does not use. It is one
+ * fingerprinted file, cached across every frame on the page and shared with
+ * the app itself, so a reader who arrives at a blog post with six circuits
+ * fetches it once.
+ *
+ * The layout is a single column with no maximum width: an embed is sized by
+ * whoever framed it, and a reading column inside a 320-pixel frame would be
+ * a reading column with nothing in it.
+ * ------------------------------------------------------------------ */
+
+.embed {
+  padding: 0.75rem 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.embed__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.embed__title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+/*
+ * The one link in the document. Underlined rather than distinguished by
+ * colour alone: the frame lands inside a page whose own link styling this
+ * project cannot see, and §10's rule that colour is never the only carrier
+ * of meaning applies to affordances as much as to phase.
+ */
+.embed__link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.embed__byline,
+.embed__note,
+.embed__notice {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/*
+ * The drawing scrolls sideways rather than shrinking. A circuit's column
+ * width is what makes two gates read as two moments, and a frame narrower
+ * than the circuit is the ordinary case in a sidebar — so the horizontal
+ * scroll is on the diagram alone and never on the document, which is the
+ * rule the editor's own viewport follows.
+ */
+.embed__diagram {
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.embed__plot {
+  display: block;
+  /* Its own intrinsic width, so the scroll above has something to scroll. */
+  max-width: none;
+}
+
+.embed__wire-label {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.embed__wire-label--classical {
+  font-size: 0.6875rem;
+}
+
+.embed__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin: 0;
+}
+
+.embed__metric {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.embed__metric-label {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.embed__metric-value {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+  color: var(--text);
+}
+
+/*
+ * A failure is the accent rather than a red, exactly as `.share-link__
+ * rejected` is: it is news about what this frame can show, not a mistake the
+ * reader made, and §10's palette has no error hue that is not also a phase.
+ */
+.embed__failure {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--accent);
+}
+
+.embed__pending {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.embed--pending,
+.embed--failed {
+  min-height: 4rem;
+  justify-content: center;
+}
+
+/* ---- the copy-this-frame control on the circuit page ---- */
+
+.embed-snippet {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.embed-snippet__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-data);
+  color: var(--text-muted);
+}
+
+.embed-snippet__hint,
+.embed-snippet__note,
+.embed-snippet__refusal {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/*
+ * A textarea rather than an input, unlike `ShareLink`'s field, because what
+ * it holds is six lines of markup rather than one address — and it is still
+ * a real control for the same reason: focusing it selects the whole snippet,
+ * so Tab-then-Ctrl+C is a complete keyboard path that never touches the
+ * clipboard API.
+ */
+.embed-snippet__field {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-deep);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.embed-snippet__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+/* Sized like the preset chips: 2.25rem clears WCAG 2.2 SC 2.5.8 with room. */
+.embed-snippet__copy {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.embed-snippet__copy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.embed-snippet__status {
+  margin: 0;
+  min-height: 1.25rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}

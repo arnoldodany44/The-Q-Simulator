@@ -10,6 +10,11 @@ import {
 } from './circuit-data.js'
 import { prismaAccountRepository, type AccountRepository } from './accounts.js'
 import {
+  prismaChallengeRepository,
+  type ChallengeRepository,
+} from './challenges.js'
+import { prismaLessonRepository, type LessonRepository } from './lessons.js'
+import {
   prismaCollectionRepository,
   type CollectionRepository,
 } from './collections.js'
@@ -195,7 +200,11 @@ export interface AppendVersionInput {
  * `accounts.ts` — and composed here.
  */
 export interface CircuitRepository
-  extends CollectionRepository, AccountRepository {
+  extends
+    CollectionRepository,
+    AccountRepository,
+    LessonRepository,
+    ChallengeRepository {
   /**
    * The `public.User` row for a verified identity, created on first use.
    * Circuits carry a foreign key to it, so this has to happen before the
@@ -664,6 +673,8 @@ export function prismaCircuitRepository(
      */
     ...prismaCollectionRepository(prisma),
     ...prismaAccountRepository(prisma),
+    ...prismaLessonRepository(prisma),
+    ...prismaChallengeRepository(prisma),
 
     ensureOwner: (identity) => ensureUser(prisma, identity),
 

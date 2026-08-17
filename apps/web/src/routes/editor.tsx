@@ -94,6 +94,15 @@ import {
  * same action.
  */
 import { ForkButton, ForkedFromNotice, StarButton } from '../features/gallery'
+/*
+ * From `src/embed/`, which is otherwise a document of its own with its own
+ * entry point. This one component is the exception and it is a deliberate
+ * one: it imports only `embed/paths.ts` (which imports nothing) and
+ * `circuit-storage/paths.ts`, so nothing of the frame's graph comes with it,
+ * and putting the snippet builder anywhere else would mean the address of an
+ * embed was spelled in two places.
+ */
+import { EmbedSnippet } from '../embed/EmbedSnippet'
 import { useSession } from '../features/auth'
 import { useApiErrorMessage } from '../lib/api'
 
@@ -188,6 +197,28 @@ export function EditorRoute() {
          * rather than sit next to the canvas with a paste box open.
          */}
         <ImportPanel store={useCircuitStore} />
+        {/*
+         * Beside the share control and the export, because it is the third
+         * answer to "how do I get this circuit out of here" — a link, a file,
+         * and a frame in somebody else's page (§3.4).
+         *
+         * Only for a circuit that has a home. Unlike the export, an embed is
+         * a pointer rather than a copy: it names a slug the server resolves on
+         * every load, so there is nothing for it to point at until the
+         * document is saved. It reads `doc.detail` rather than the store for
+         * the same reason — what a reader of the blog post will see is the
+         * *saved* version, not the unsaved edit on this screen, and offering a
+         * snippet built from the latter would promise something else.
+         */}
+        {doc.detail === null ? null : (
+          <EmbedSnippet
+            slug={doc.detail.slug}
+            title={doc.detail.title}
+            qubitCount={doc.detail.qubitCount}
+            visibility={doc.detail.visibility}
+            origin={window.location.origin}
+          />
+        )}
         <SaveCircuitPanel document={doc} carried={!url.tooLarge} />
         {/*
          * Only for a document that has a home. An unsaved circuit has no

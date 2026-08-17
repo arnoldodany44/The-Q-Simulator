@@ -1,6 +1,6 @@
 {
   "title": "Paramètres",
-  "lead": "Votre nom, votre identifiant, votre image et la langue affichée par ce navigateur.",
+  "lead": "Votre nom, votre identifiant, votre image, votre présence ou non dans un classement, et la langue affichée par ce navigateur.",
   "loading": "Chargement de votre compte…",
   "profile": {
     "heading": "Profil",
@@ -19,6 +19,11 @@
     "saving": "Enregistrement…",
     "saved": "Votre profil est enregistré.",
     "collections": "Vos collections"
+  },
+  "privacy": {
+    "heading": "Classements",
+    "listMe": "Afficher mon nom dans les classements des défis",
+    "note": "En décochant cette case, votre nom disparaît du tableau que lisent les autres. Vos résultats, eux, restent : votre place est toujours comptée, personne ne remonte parce que vous vous cachez, et votre propre page continue de vous dire où vous en êtes. Vos circuits, dans tous les cas, ne sont jamais publiés par un classement : une solution est une réponse toute faite."
   },
   "language": {
     "heading": "Langue",

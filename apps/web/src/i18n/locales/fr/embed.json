@@ -1,0 +1,54 @@
+{
+  "loading": "Chargement du circuit…",
+  "untitled": "Circuit quantique",
+  "byline": "par {{author}}",
+  "metrics": {
+    "qubits": "Qubits",
+    "gates": "Portes",
+    "depth": "Profondeur"
+  },
+  "diagram": {
+    "title": "Schéma du circuit",
+    "description": "Un circuit quantique sur {{qubits}} qubits, large de {{columns}} colonnes. Le temps s’écoule de gauche à droite ; chaque ligne horizontale est un qubit.",
+    "classical": "bits",
+    "truncated": "Seules les {{drawn}} premières colonnes sur {{total}} sont affichées."
+  },
+  "analysis": {
+    "heading": "Probabilité de chaque résultat",
+    "summary": "La probabilité de chaque résultat si le registre était mesuré maintenant. La petite flèche portée par chaque barre indique la phase de l’amplitude correspondante.",
+    "running": "Simulation en cours…",
+    "seeded": "Toujours les mêmes tirages : ce décompte est produit à partir d’une graine fixe, donc la figure ne change pas d’un chargement à l’autre.",
+    "failed": {
+      "unknown": "Ce circuit n’a pas pu être simulé ici.",
+      "too-many-qubits": "{{qubits}} qubits dépassent les {{limit}} que ce cadre peut simuler. Le schéma ci-dessus est le circuit complet ; ouvrez-le dans l’éditeur pour l’exécuter.",
+      "sampling-too-large": "Échantillonner ce circuit coûte trop cher dans un cadre. Ouvrez-le dans l’éditeur pour l’exécuter.",
+      "invalid-circuit": "Ce circuit n’a pas pu être lu.",
+      "measurement-in-analytic-mode": "Ce circuit mesure en cours de route ; il n’a donc pas d’état final unique.",
+      "no-classical-bits": "Ce circuit mesure mais ne possède aucun registre classique où écrire la mesure.",
+      "unsupported-operation": "Ce circuit utilise une opération que le simulateur ne sait pas encore exécuter.",
+      "worker-unavailable": "La simulation n’a pas pu démarrer dans ce cadre ; seul le schéma est affiché. Tout ce qu’il porte — les fils, les portes, les compteurs — reste ce circuit.",
+      "worker-failed": "La simulation s’est interrompue de façon inattendue.",
+      "server-unavailable": "La simulation n’a pas pu démarrer dans ce cadre ; seul le schéma est affiché.",
+      "server-too-large": "Ce circuit est trop grand pour être simulé dans un cadre.",
+      "server-refused": "La simulation n’a pas pu démarrer dans ce cadre ; seul le schéma est affiché."
+    }
+  },
+  "failure": {
+    "no-address": "Aucun circuit n’a été indiqué à ce cadre.",
+    "bad-link": "Le circuit contenu dans ce lien n’a pas pu être lu.",
+    "unavailable": "Ce circuit n’est pas disponible à l’intégration.",
+    "no-api": "Ce déploiement ne peut pas consulter les circuits enregistrés.",
+    "failed": "Le circuit n’a pas pu être chargé."
+  },
+  "snippet": {
+    "heading": "Intégrer",
+    "hint": "Collez ceci dans un billet de blog, une diapositive ou des notes de cours. Le circuit et son analyse s’affichent en lecture seule, sans connexion.",
+    "field": "Code d’intégration",
+    "copy": "Copier le code",
+    "copied": "Code copié.",
+    "failed": "La copie a échoué. Le code est sélectionné : appuyez sur Ctrl+C.",
+    "credit": "réalisé avec The Q Simulator",
+    "sandbox": "Si votre site place les cadres dans un bac à sable, autorisez à la fois allow-scripts et allow-same-origin. Avec les scripts seuls, le cadre reste complètement vide : le navigateur donne au document une origine opaque, puis refuse tous les scripts qu’il tente de charger.",
+    "private": "Seuls les circuits publics et ceux partagés par lien peuvent être intégrés. Changez la visibilité ci-dessus pour obtenir le code."
+  }
+}

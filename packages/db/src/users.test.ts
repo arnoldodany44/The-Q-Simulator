@@ -53,7 +53,14 @@ class FakeUserTable {
       const conflict = this.conflictingField(data)
       if (conflict !== null) return Promise.reject(this.makeError(conflict))
 
-      const row: User = { ...data, createdAt: new Date() }
+      // `leaderboardOptOut` is not among the columns an identity supplies, so
+      // a fresh row takes the column default: nobody has expressed a
+      // preference about being listed yet.
+      const row: User = {
+        ...data,
+        leaderboardOptOut: false,
+        createdAt: new Date(),
+      }
       this.rows.set(row.id, row)
       return Promise.resolve(row)
     },
@@ -77,6 +84,7 @@ class FakeUserTable {
     const full: User = {
       displayName: null,
       avatarUrl: null,
+      leaderboardOptOut: false,
       createdAt: new Date(),
       ...row,
     }

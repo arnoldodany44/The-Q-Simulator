@@ -82,8 +82,10 @@ export {
   depth,
   emptyCircuit,
   gateCount,
+  gatesUsed,
   normalizeColumns,
   normalizeControl,
+  pruneUnusedDefinitions,
   qubitsOf,
   resolveParams,
 } from './helpers.js'

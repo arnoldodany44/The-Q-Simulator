@@ -82,6 +82,10 @@ import { build, context } from 'esbuild'
  * Reads the emitted file rather than the module graph so it checks what Node
  * will actually be asked for. Subpath imports (`@prisma/client/runtime/client`)
  * are reduced to their package name; `node:` builtins are ignored.
+ *
+ * Run over every artifact this script emits, not only the server: the seed
+ * (Phase 3) inlines `@qsim/db` too, and it runs on the release path where a
+ * missing dependency would stop a deploy rather than merely fail a request.
  */
 function verifyExternals(outfile, declared) {
   const source = readFileSync(outfile, 'utf8')
@@ -206,6 +210,22 @@ const options = {
   logLevel: 'warning',
 }
 
+/**
+ * The second artifact: the challenge seed (Phase 3), which `release.sh` runs
+ * between `prisma migrate deploy` and the server.
+ *
+ * Built with the same options and as its own `build()` call rather than as a
+ * second entry point of the first, because the watch loop above is wired to a
+ * single `outfile` and restarts the server on every rebuild — and a dev loop
+ * has no reason to re-run a seed. So the seed is emitted by `pnpm build` and
+ * not by `pnpm dev`, which is exactly where each one is needed.
+ */
+const seedOptions = {
+  ...options,
+  entryPoints: ['src/seed-challenges.ts'],
+  outfile: 'dist/seed-challenges.js',
+}
+
 if (process.argv.includes('--watch')) {
   const ctx = await context({
     ...options,
@@ -213,7 +233,9 @@ if (process.argv.includes('--watch')) {
   })
   await ctx.watch()
 } else {
-  const result = await build(options)
-  if (result.errors.length > 0) process.exit(1)
-  verifyExternals(options.outfile, declaredDependencies)
+  for (const target of [options, seedOptions]) {
+    const result = await build(target)
+    if (result.errors.length > 0) process.exit(1)
+    verifyExternals(target.outfile, declaredDependencies)
+  }
 }

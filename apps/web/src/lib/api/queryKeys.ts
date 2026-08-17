@@ -144,6 +144,56 @@ export const collectionKeys = {
     [...collectionKeys.all, 'holding', handle] as const,
 } as const
 
+/**
+ * The signed-in reader's lesson bookmarks (Phase 3), under a root of their
+ * own.
+ *
+ * One key and no sub-keys, because there is one request: `GET
+ * /lessons/progress` returns every lesson the caller has touched in one
+ * response — §3.6 plans nine, so a page of bookmarks would be a page of a
+ * page. The player writes one lesson at a time and updates this entry in
+ * place rather than invalidating it, which is what keeps a step change from
+ * costing a round trip on every press of "next".
+ *
+ *     ['lessons','progress']    every bookmark this caller has
+ */
+export const lessonKeys = {
+  all: ['lessons'] as const,
+  progress: () => [...lessonKeys.all, 'progress'] as const,
+} as const
+
+/**
+ * Challenges (Phase 3), under a root of their own.
+ *
+ *     ['challenges','list']                    the ladder, with solved marks
+ *     ['challenges','detail',slug]             the rules and this reader's best
+ *     ['challenges','detail',slug,'board',n]   one page of the leaderboard
+ *
+ * The leaderboard is nested *under* the challenge rather than beside it, which
+ * is the opposite of what `galleryKeys` does with the gallery, and the
+ * difference is what invalidation costs. A pass changes exactly one challenge's
+ * board, so `invalidateQueries({ queryKey: challengeKeys.leaderboards(slug) })`
+ * refetches that one and leaves the other eight alone — while a gallery star
+ * genuinely can move any page of any listing, which is why that key is flat.
+ *
+ * `limit` is part of the key because a board of ten and a board of fifty are
+ * different answers to different questions, and serving one under the other's
+ * address would silently truncate a page the reader asked to expand.
+ */
+export const challengeKeys = {
+  all: ['challenges'] as const,
+
+  list: () => [...challengeKeys.all, 'list'] as const,
+
+  details: () => [...challengeKeys.all, 'detail'] as const,
+  detail: (slug: string) => [...challengeKeys.details(), slug] as const,
+
+  leaderboards: (slug: string) =>
+    [...challengeKeys.detail(slug), 'board'] as const,
+  leaderboard: (slug: string, limit?: number) =>
+    [...challengeKeys.leaderboards(slug), { limit }] as const,
+} as const
+
 function selectionOf(params: GalleryQueryParams) {
   return {
     sort: params.sort,

@@ -81,12 +81,29 @@ import {
   PROFILE_ALIAS_ROUTE_PATH,
   SETTINGS_PATH,
 } from './features/profile/paths'
+/*
+ * Same reason again (M0.9b): this module imports nothing, so the entry chunk
+ * takes two path templates without acquiring the lesson catalog, the player or
+ * the editor the player mounts.
+ */
+import { LESSONS_PATH, LESSON_ROUTE_PATH } from './features/lessons/paths'
+/*
+ * Same reason again (M0.9b): this module imports nothing, so the entry chunk
+ * takes two path templates without acquiring the challenge player and, with it,
+ * the whole editor it mounts.
+ */
+import {
+  CHALLENGES_PATH,
+  CHALLENGE_ROUTE_PATH,
+} from './features/challenges/paths'
 import {
   AUTH_NAMESPACES,
+  CHALLENGE_NAMESPACES,
   CIRCUITS_NAMESPACES,
   COLLECTIONS_NAMESPACES,
   EDITOR_NAMESPACES,
   GALLERY_NAMESPACES,
+  LESSON_NAMESPACES,
   SETTINGS_NAMESPACES,
   loadNamespaces,
 } from './i18n'
@@ -221,6 +238,65 @@ const CollectionsRoute = lazy(async () => {
   return { default: module.CollectionsRoute }
 })
 
+/*
+ * The two lesson routes (Phase 3), lazy like every route but the landing, and
+ * anonymous like the gallery — §2 makes the lessons the product's reason to
+ * exist, so putting them behind a session would put the explanation behind the
+ * sign-up.
+ *
+ * `/lessons/:slug` is the heaviest route in the product: it carries the lesson
+ * catalog *and* the whole editor, because the player mounts the real
+ * `CircuitEditor` and the real analysis panel rather than a copy. That is the
+ * point of the feature and the reason it is code-split here.
+ */
+const LessonsRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/lessons'),
+    // The index shows titles, summaries and a progress line; it does not mount
+    // an editor, so it takes the prose catalog alone.
+    loadNamespaces(['lessons']),
+  ])
+  return { default: module.LessonsRoute }
+})
+
+const LessonRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/lesson'),
+    loadNamespaces(LESSON_NAMESPACES),
+  ])
+  return { default: module.LessonRoute }
+})
+
+/*
+ * The two challenge routes (Phase 3), lazy like every route but the landing,
+ * and anonymous like the lessons: §2 makes the learning surfaces the product's
+ * reason to exist, so a puzzle behind a sign-up is a puzzle nobody sees.
+ * Submitting needs a session and the player says so, which is a smaller door
+ * than a guard on the route.
+ *
+ * `/challenges/:slug` is as heavy as a lesson and for the same reason: the
+ * player mounts the real `CircuitEditor` and the real analysis panel, because
+ * the panel is what shows a learner *why* their state is wrong before the
+ * server tells them *that* it is.
+ */
+const ChallengesRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/challenges'),
+    // The index lists titles and prompts and mounts no editor, so it takes the
+    // prose catalog alone.
+    loadNamespaces(['challenges']),
+  ])
+  return { default: module.ChallengesRoute }
+})
+
+const ChallengeRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/challenge'),
+    loadNamespaces(CHALLENGE_NAMESPACES),
+  ])
+  return { default: module.ChallengeRoute }
+})
+
 const CollectionRoute = lazy(async () => {
   const [module] = await Promise.all([
     import('./routes/collection'),
@@ -314,6 +390,26 @@ export function AppRoutes() {
            */}
           <Route path={PROFILE_ALIAS_ROUTE_PATH} element={<ProfileRoute />} />
           <Route path={COLLECTION_ROUTE_PATH} element={<CollectionRoute />} />
+
+          {/*
+           * Deliberately not guarded, like the gallery: the lessons are what
+           * §2 says this product is for, and a reader who has to make an
+           * account before being told what superposition is has already left.
+           * An anonymous reader's place in a lesson is kept in `localStorage`;
+           * a signed-in one's is kept in the account as well.
+           */}
+          <Route path={LESSONS_PATH} element={<LessonsRoute />} />
+          <Route path={LESSON_ROUTE_PATH} element={<LessonRoute />} />
+
+          {/*
+           * Not guarded either, and for the same reason as the lessons. What a
+           * session adds here is the ability to *submit* — a submission has an
+           * owner, because §7 makes `ChallengeSubmission.userId` a foreign key
+           * and a leaderboard cannot rank an attempt belonging to nobody — and
+           * the player offers the sign-in link where it is needed.
+           */}
+          <Route path={CHALLENGES_PATH} element={<ChallengesRoute />} />
+          <Route path={CHALLENGE_ROUTE_PATH} element={<ChallengeRoute />} />
 
           {/*
            * Three of the four account screens are behind the mirror guard: a

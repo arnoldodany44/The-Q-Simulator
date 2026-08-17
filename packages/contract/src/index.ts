@@ -154,6 +154,64 @@ export type {
 } from './collections.js'
 
 export {
+  LESSON_SLUG_PATTERN,
+  LessonSlugParams,
+  LessonSlugSchema,
+  MAX_LESSON_SLUG_LENGTH,
+  MAX_LESSON_STEP_INDEX,
+  UpdateLessonProgressBody,
+  serverLessonResponses,
+  wireLessonResponses,
+} from './lessons.js'
+export type {
+  LessonProgress,
+  LessonProgressList,
+  UpdateLessonProgressRequest,
+} from './lessons.js'
+
+export { EmbedAuthor, EmbedCircuit, EmbedCircuitResponse } from './embed.js'
+export type {
+  EmbedAuthorRef,
+  EmbedCircuitResponseBody,
+  EmbedCircuitView,
+} from './embed.js'
+
+export {
+  CHALLENGE_FEEDBACK_CODES,
+  CHALLENGE_SLUGS,
+  CHALLENGE_SLUG_PATTERN,
+  CHALLENGE_TARGET_TYPES,
+  ChallengeFeedbackSchema,
+  ChallengeSlugParams,
+  ChallengeSlugSchema,
+  ChallengeTargetTypeSchema,
+  DEFAULT_LEADERBOARD_LIMIT,
+  LeaderboardQuerySchema,
+  MAX_CHALLENGE_SLUG_LENGTH,
+  MAX_LEADERBOARD_LIMIT,
+  SubmitChallengeBody,
+  isChallengeSlug,
+  serverChallengeResponses,
+  wireChallengeResponses,
+} from './challenges.js'
+export type {
+  Challenge,
+  ChallengeFeedback,
+  ChallengeFeedbackCode,
+  ChallengeList,
+  ChallengeSlug,
+  ChallengeSubmission,
+  ChallengeSubmissionResult,
+  ChallengeTargetType,
+  ChallengeView,
+  Leaderboard,
+  LeaderboardEntry,
+  LeaderboardQueryParams,
+  LeaderboardStanding,
+  SubmitChallengeRequest,
+} from './challenges.js'
+
+export {
   MAX_SEED,
   NOISE_PROFILE_IDS,
   NoiseProfileIdSchema,
@@ -201,22 +259,31 @@ export type {
 
 export {
   API_PREFIX,
+  CHALLENGE_ROUTES,
   CIRCUIT_ROUTES,
   COLLECTION_ROUTES,
+  EMBED_ROUTES,
   GALLERY_ROUTES,
+  LESSON_ROUTES,
   SIMULATE_ROUTES,
   USER_ROUTES,
+  challengePath,
   circuitPath,
   collectionPath,
+  embedPath,
   fillRoute,
   galleryPath,
+  lessonPath,
   simulatePath,
   userPath,
 } from './paths.js'
 export type {
+  ChallengeRoute,
   CircuitRoute,
   CollectionRoute,
+  EmbedRoute,
   GalleryRoute,
+  LessonRoute,
   SimulateRoute,
   UserRoute,
 } from './paths.js'

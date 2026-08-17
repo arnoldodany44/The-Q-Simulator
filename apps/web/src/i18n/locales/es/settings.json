@@ -1,6 +1,6 @@
 {
   "title": "Ajustes",
-  "lead": "Tu nombre, tu identificador, tu imagen y el idioma que muestra este navegador.",
+  "lead": "Tu nombre, tu identificador, tu imagen, si apareces en una tabla de posiciones y el idioma que muestra este navegador.",
   "loading": "Cargando tu cuenta…",
   "profile": {
     "heading": "Perfil",
@@ -19,6 +19,11 @@
     "saving": "Guardando…",
     "saved": "Tu perfil está guardado.",
     "collections": "Tus colecciones"
+  },
+  "privacy": {
+    "heading": "Tablas de posiciones",
+    "listMe": "Mostrar mi nombre en las tablas de posiciones de los retos",
+    "note": "Si lo desactivas, tu nombre desaparece de la tabla que leen los demás. No desaparecen tus resultados: tu puesto se sigue contando, nadie sube por el hecho de que te ocultes y tu propia página te sigue diciendo dónde estás. Tus circuitos no los publica ninguna tabla en ningún caso: una solución es un spoiler."
   },
   "language": {
     "heading": "Idioma",

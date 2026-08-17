@@ -48,7 +48,13 @@ describe.skipIf(!enabled)('the deployed schema', () => {
     return rows.map((row) => row.name).sort()
   }
 
-  it('holds the fifteen tables of §7', async () => {
+  /*
+   * Seventeen, not the fifteen §7 lists: `CustomGate` arrived with M2.3 and
+   * `LessonProgress` with Phase 3's lessons, each in its own migration. The
+   * count is spelled out rather than left as "at least the fifteen" so that a
+   * table created outside a reviewed migration still fails this.
+   */
+  it('holds the fifteen tables of §7 and the two added since', async () => {
     const tables = await names(
       `select table_name as name from information_schema.tables
        where table_schema = 'public' and table_type = 'BASE TABLE'
@@ -64,8 +70,10 @@ describe.skipIf(!enabled)('the deployed schema', () => {
       'Collection',
       'CollectionItem',
       'Comment',
+      'CustomGate',
       'HardwareCredential',
       'HardwareJob',
+      'LessonProgress',
       'SimulationRun',
       'Star',
       'Tag',
@@ -112,6 +120,10 @@ describe.skipIf(!enabled)('the deployed schema', () => {
     )
     expect(indexes).toEqual([
       'ChallengeSubmission_challengeId_passed_gateCount_idx',
+      // Phase 3: the whole of §3.6's ranking tuple, and the caller's own
+      // attempts — see 20260816170000_challenge_leaderboard_indexes.
+      'ChallengeSubmission_leaderboard_idx',
+      'ChallengeSubmission_userId_challengeId_idx',
       // The gallery's keyset orderings (M1.5): the whole tie-break tuple,
       // because a cursor compares the whole tuple.
       'CircuitTag_tagId_idx',

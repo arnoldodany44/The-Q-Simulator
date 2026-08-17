@@ -1,6 +1,6 @@
 {
   "title": "Settings",
-  "lead": "Your name, your handle, your picture, and the language this browser shows.",
+  "lead": "Your name, your handle, your picture, whether you appear on a leaderboard, and the language this browser shows.",
   "loading": "Loading your account…",
   "profile": {
     "heading": "Profile",
@@ -19,6 +19,11 @@
     "saving": "Saving…",
     "saved": "Your profile is saved.",
     "collections": "Your collections"
+  },
+  "privacy": {
+    "heading": "Leaderboards",
+    "listMe": "Show my name on challenge leaderboards",
+    "note": "Turning this off removes your name from the table other people read. It does not remove your results: your position is still counted, nobody moves up because you are hidden, and your own page still tells you where you stand. Your circuits are never published by a leaderboard either way — a solution is a spoiler."
   },
   "language": {
     "heading": "Language",

@@ -1,0 +1,67 @@
+-- The leaderboard, as §3.6 actually describes it — Phase 3.
+--
+-- One column added with a default, and one index created. No table is created,
+-- no column is dropped or retyped, no row is read, moved, rewritten or deleted,
+-- and no constraint is changed. That matters here because this project has one
+-- Postgres and development and production are the same rows.
+--
+-- ── Why this migration is hand-written ────────────────────────────────────
+--
+-- The same reason every migration since the second is: `prisma migrate dev
+-- --create-only` replays the whole folder into a shadow database, and
+-- `20260815181340_lock_public_schema_to_the_api` ends with
+-- `ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY` — a table the
+-- shadow database does not yet have when the replay reaches it (P3006/P3018,
+-- 42P01). The SQL below is what `prisma migrate diff` emits for the two
+-- schema changes, and it is applied with `prisma migrate deploy`, which uses
+-- no shadow database.
+--
+-- ── Why RLS is not enabled here ───────────────────────────────────────────
+--
+-- `migrations.test.ts` requires every `CREATE TABLE` to be paired with an
+-- `ENABLE ROW LEVEL SECURITY` in the same migration. This one creates no
+-- table: `User` and `ChallengeSubmission` were created by the initial
+-- migration and locked down by `20260815181340_lock_public_schema_to_the_api`.
+-- A column inherits its table's posture and an index has none of its own.
+--
+-- ── 1. `User.leaderboardOptOut` ───────────────────────────────────────────
+--
+-- A leaderboard is a public listing of *people*, which is the one thing this
+-- product publishes that is not somebody's work: a circuit has a visibility
+-- and a solved puzzle does not, so nothing that already exists could express
+-- "rank me, but do not print my name". The column is that sentence.
+--
+-- `NOT NULL DEFAULT false` is what makes the write cheap: since Postgres 11 a
+-- column added with a non-volatile default is a catalog change and does not
+-- rewrite the table, so this is O(1) on a table with rows in it. The default
+-- is also the pre-migration behaviour, so every existing row keeps exactly the
+-- treatment it had — an added column that changed what anybody's page shows
+-- would be a data migration wearing a DDL costume.
+--
+-- The name states the *choice* rather than the listing, deliberately; the
+-- model comment in schema.prisma has the argument.
+--
+-- ── 2. `ChallengeSubmission_best_per_user_idx` ────────────────────────────
+--
+-- §3.6 ranks people, not attempts, so the board is one row per user — their
+-- best — which is a `DISTINCT ON ("userId")` ordered by
+-- (userId, gateCount, depth, createdAt, id) under a filter on
+-- (challengeId, passed). None of the three indexes this table already has
+-- leads with `userId` beneath a `challengeId` filter, so without this index
+-- every leaderboard request sorts the whole passing set of the challenge.
+--
+-- `id` is part of the key because the ranking is a *total* order: two attempts
+-- can land in the same millisecond, and a scan that stopped at `createdAt`
+-- would leave the planner free to separate them either way — a ranking that
+-- shuffles between two identical requests.
+--
+-- The three existing indexes are deliberately kept rather than replaced.
+-- Dropping one is exactly the destructive statement the migration tripwire
+-- refuses, `ChallengeSubmission_challengeId_passed_gateCount_idx` is what §7
+-- asks for by name, and each remains the narrower index for its own query.
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "leaderboardOptOut" BOOLEAN NOT NULL DEFAULT false;
+
+-- CreateIndex
+CREATE INDEX "ChallengeSubmission_best_per_user_idx" ON "ChallengeSubmission"("challengeId", "passed", "userId", "gateCount", "depth", "createdAt", "id");

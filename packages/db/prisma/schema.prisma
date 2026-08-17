@@ -59,6 +59,27 @@ model User {
   avatarUrl   String?
   createdAt   DateTime @default(now())
 
+  /// "Do not print my name on a challenge leaderboard" (§3.6, Phase 3).
+  ///
+  /// A leaderboard is the one surface in this product that publishes a list of
+  /// *people* rather than of their work, and a circuit's own visibility has
+  /// nothing to say about it: solving a puzzle is not publishing anything.
+  /// So the listing is refusable, and this column is the refusal.
+  ///
+  /// Named for the choice and not for the listing, which is why the default is
+  /// `false` rather than a `showOnLeaderboard` defaulting to `true`. The two
+  /// store the same bit today and answer differently later: with a column
+  /// named for the listing, "never expressed a preference" and "asked to be
+  /// listed" are the same value, so changing the default would silently
+  /// rewrite the stated preference of everybody who had one. Here the default
+  /// is the absence of a choice, and a row that says `true` says a person
+  /// asked.
+  ///
+  /// It hides the *row*, never the rank: `challenges.ts` ranks every passing
+  /// submission and filters the listing afterwards, so opting out cannot
+  /// promote anybody else. See the header there.
+  leaderboardOptOut Boolean @default(false)
+
   circuits    Circuit[]
   customGates CustomGate[]
   stars       Star[]
@@ -67,6 +88,7 @@ model User {
   submissions ChallengeSubmission[]
   credentials HardwareCredential[]
   apiKeys     ApiKey[]
+  lessons     LessonProgress[]
 }
 
 // ─── Circuits ──────────────────────────────────────────────────────────────
@@ -337,6 +359,82 @@ model ChallengeSubmission {
   // The leaderboard is "passing submissions for this challenge, fewest gates
   // first", which this index answers end to end.
   @@index([challengeId, passed, gateCount])
+  // ── What §7's index stops short of (Phase 3) ────────────────────────────
+  //
+  // §3.6 ranks by "fewest gates, THEN least depth", and this table breaks the
+  // remaining tie by who got there first — so the ORDER BY is the whole triple
+  // and an index that stops at `gateCount` leaves Postgres sorting every row
+  // that shares one. On a challenge whose answer is three gates, that is most
+  // of them: gate counts on a leaderboard cluster hard, which is exactly why
+  // the second and third keys exist. Same argument as the gallery's keyset
+  // indexes, and the §7 index above is kept for the same reason the gallery
+  // kept its two: §7 asks for it.
+  @@index([challengeId, passed, gateCount, depth, createdAt], map: "ChallengeSubmission_leaderboard_idx")
+  // "My attempts at this challenge" — the read behind the best-attempt line on
+  // the challenge page, and behind the solved marks on the ladder. §7 gives it
+  // no index at all, so without this every one of those is a sequential scan
+  // of a table that grows by a row per attempt rather than per user.
+  @@index([userId, challengeId, createdAt(sort: Desc)], map: "ChallengeSubmission_userId_challengeId_idx")
+  // ── One row per user, which is what a leaderboard actually shows ────────
+  //
+  // The board ranks each person's *best* passing attempt, so the query is a
+  // `DISTINCT ON ("userId")` whose inner order is
+  // (userId, gateCount, depth, createdAt, id) — none of the indexes above can
+  // produce it, because none of them leads with `userId` under a `challengeId`
+  // filter. Without this, every leaderboard request sorts the whole passing
+  // set of the challenge.
+  //
+  // `id` is in the key rather than left to the heap: it is the last tiebreak
+  // of a *total* order (see `rankingOrder` in src/challenges.ts), and a scan
+  // that stopped at `createdAt` would leave two attempts written in the same
+  // millisecond to be separated by a sort the planner is free to do either way
+  // — which is a ranking that shuffles between two identical requests.
+  @@index([challengeId, passed, userId, gateCount, depth, createdAt, id], map: "ChallengeSubmission_best_per_user_idx")
+}
+
+/// Where a signed-in reader stopped in a guided lesson (§3.6, Phase 3).
+///
+/// Three things this table deliberately is not.
+///
+/// It is not a lesson table. There is no `Lesson` model and there must not be:
+/// a lesson is a file in `apps/web` — prose in the i18n catalogs, circuits and
+/// objectives in TypeScript — so the set of them changes with a deploy of the
+/// client. A row here names a slug that the API never resolves, which is what
+/// keeps "add a lesson" from meaning "migrate the database". The cost is that a
+/// stale client can leave a bookmark for a lesson nobody can open; that is one
+/// unused row, and the reader's own catalog is what decides what is listed.
+///
+/// It is not a document store. `stepIndex` is a bookmark and the reader's
+/// circuit is not here. Keeping the half-built circuit would be a second,
+/// unversioned, unlimited copy of `CircuitVersion.data` with §11's visibility
+/// question reopened for it; somebody who wants to keep a circuit has
+/// `POST /circuits`.
+///
+/// And it is not a score. Nothing here is ranked, nothing is shown to another
+/// reader, and the client — not the server — decides whether a lesson's
+/// objective was met. That is the deliberate opposite of `ChallengeSubmission`
+/// above, whose whole reason for existing on the server is risk 5, and the
+/// difference is that a challenge has a leaderboard and a lesson has nothing
+/// to win.
+model LessonProgress {
+  userId    String   @db.Uuid
+  /// The lesson's URL segment in `apps/web`. Not a foreign key — see above.
+  slug      String
+  /// Zero-based, and bounded by the contract rather than by the lesson, which
+  /// this side cannot see.
+  stepIndex Int      @default(0)
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The address of the resource is (this caller, this lesson), which is also
+  /// exactly what `PUT /lessons/:slug/progress` upserts on — so the primary key
+  /// is the uniqueness constraint rather than a second index beside a surrogate
+  /// id, and the only listing that exists (`GET /lessons/progress`) is a prefix
+  /// scan of it.
+  @@id([userId, slug])
 }
 
 // ─── Curation ──────────────────────────────────────────────────────────────
