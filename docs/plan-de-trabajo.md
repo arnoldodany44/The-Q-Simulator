@@ -655,23 +655,34 @@ honesta para una suite que no puede aislarse baratamente es rechazar la segunda
 corrida: un candado con el pid del proceso de Playwright, y un mensaje que dice por
 qué.
 
-**Un fallo intermitente abierto, con dos hipótesis ya refutadas.** `pnpm verify`
-falla de vez en cuando bajo turbo; la suite señalada siempre pasa aislada y en el
-reintento inmediato. Antes de acotar los pools de `apps/api` y `apps/worker` y de
-darle a `api` el timeout de 20 s que `worker` ya tenía, la tasa era de una corrida
-en frío de cada cinco. Después: **1 fallo en 17 corridas en frío (~6 %)** en tres
-tandas medidas. Más bajo, y es plausible que sea por ese cambio, pero no es cero
-—así que «oversubscripción más un timeout impaciente» es a lo más una parte y no
-está establecido como la causa. La segunda hipótesis, que los presupuestos de
-ventana fija del relevo se reinicien a mitad del test, también se comprobó y se
-descartó: la ventana es de 10 s contra un techo de 60 tramas, y el test empuja
-unas 65 con un puñado de cesiones al event loop, que no alcanzan a cruzarla.
+**CI estuvo en rojo cuatro corridas seguidas y nadie lo miró.** Desde `e652ffe`
+(16 de agosto) hasta `734f7a0`, atravesando los merges de la Fase 3 y la Fase 4.
+Cada fase se declaró publicada leyendo un `pnpm verify` verde en local, que no
+puede ver dos cosas que CI sí ve: que corre **sin `.env`**, y que compila el crate
+de Rust con `cargo fmt`/`clippy`, cosa que `pnpm verify` no hace en ninguna parte.
+La consecuencia real no fue cosmética: Railway está configurado para esperar a CI,
+así que **dejó de desplegar en ese punto** y la API viva se quedó tres fases
+atrás mientras se informaba de ella como actualizada. Comprobar el badge del
+repositorio después de publicar es ahora parte de cerrar una fase.
 
-Se documenta en vez de arreglarse porque ya se mandó **un** arreglo contra una
-hipótesis y no funcionó; mandar un segundo sin haber visto el fallo repetiría el
-error. Y no hace falta un bucle de captura: turbo escribe la salida de cada tarea
-en `<paquete>/.turbo/turbo-<tarea>.log` y una tarea que falla nunca se cachea, así
-que tras una corrida roja ese archivo tiene el fallo de verdad. Hay que leerlo
-antes de correr cualquier otra cosa, que lo sobreescribe.
+**El fallo intermitente, resuelto: era `packages/qsim`.** Un caso Monte Carlo de
+200 000 shots en `trajectories-converge.test.ts` pasándose del default de 5 s de
+vitest. Los shots son estructurales —la tolerancia se calcula a partir de ellos,
+así que bajarlos afloja la aserción— de modo que lo equivocado era el plazo, no el
+trabajo. Corregido a 60 s en el `vitest.config.ts` de ese paquete, que no afirma
+nada sobre velocidad: los presupuestos de reloj siguen viviendo en `*.perf.test.ts`.
+
+Cómo se persiguió importa más que el arreglo. El fallo se describió desde el
+principio como «`api` y `worker` se ponen en rojo», y **esa descripción nunca se
+verificó**: salió de ver qué suites estaban en pantalla, no de leer qué tarea
+reportaba turbo. Sobre esa base se cambiaron dos veces esos dos paquetes, se
+corrieron tres bucles de captura y diecisiete corridas en frío, y no se atrapó
+nada. Lo identificó CI: dos núcleos en vez de doce convirtieron un ~6 % local en
+un fallo determinista, y la anotación nombró archivo y línea. El job «Simulation
+engine (always)» pasaba en las mismas corridas porque ahí `@qsim/core` corre solo
+—verde aislado, rojo bajo contención, la firma exacta que se estuvo describiendo
+sin leerla. Y no hacía falta ningún bucle: turbo escribe la salida de cada tarea
+en `<paquete>/.turbo/turbo-<tarea>.log` y nunca cachea una tarea que falla, así
+que cada corrida roja ya tenía el fallo real en disco.
 
 **Regla de publicación acordada:** se publica al cerrar cada fase, sin preguntar de nuevo.

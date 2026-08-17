@@ -17,23 +17,27 @@ export default defineConfig({
      * `inject()`, so the work is CPU-bound and unbounded parallelism inside one
      * package makes every sibling package slower for no gain of its own.
      *
-     * WHAT THEY DID NOT DO IS FIX THE FLAKE, and an earlier version of this
-     * comment asserted a cause that measurement then refuted. For the record,
-     * so nobody re-derives the dead end: `pnpm verify` fails intermittently
-     * under turbo, always green in isolation and on the retry. Before these
-     * settings the rate was roughly one cold run in five. After them: 1 failure
-     * in 17 cold runs (~6%) across three measured batches. Lower, plausibly
-     * because of these settings, but not zero — so "oversubscription plus an
-     * impatient timeout" is at most part of it and is not established as the
-     * cause. A second hypothesis, that the relay's fixed-window frame budgets
-     * roll over mid-test, was also checked and refuted: the window is 10 s
-     * (SOCKET_FRAME_WINDOW_MS) against a 60-frame ceiling, and the tests push
-     * ~65 frames with a handful of event-loop yields, which cannot span it.
+     * WHAT THEY DID NOT DO IS FIX THE FLAKE. They were aimed at the wrong
+     * package, and this comment previously asserted a cause that measurement
+     * refuted. THE ACTUAL CULPRIT WAS packages/qsim: a 200k-shot Monte Carlo
+     * case in `trajectories-converge.test.ts` running past vitest's 5 s default
+     * whenever the machine was busy. It is fixed there, in that package's
+     * vitest.config.ts, which carries the full account.
      *
-     * The next occurrence is already instrumented and needs no capture loop:
+     * Kept as a record of how it was chased, because the shape of the mistake
+     * is worth more than the fix. The failure was described from the start as
+     * "api and worker go red intermittently", and that description was never
+     * verified — it came from noticing which suites were on screen, not from
+     * reading which task turbo reported. Two rounds of changes were then made
+     * to the two packages named in it. Three capture loops, seventeen cold
+     * runs, and nothing caught. What finally identified it was CI: two cores
+     * instead of twelve turned a ~6% local flake into a deterministic failure,
+     * and the annotation named the file and the line.
+     *
+     * The lesson, since it cost four red runs on main that nobody looked at:
      * turbo writes each task's output to <package>/.turbo/turbo-<task>.log and
-     * a failing task is never cached, so after a red run that file holds the
-     * real failure. Read it before running anything else, which overwrites it.
+     * never caches a failing task, so a red run already holds the real failure
+     * on disk. Read that before forming a theory about which suite it was.
      */
     testTimeout: 20_000,
     hookTimeout: 20_000,

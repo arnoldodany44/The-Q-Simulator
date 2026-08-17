@@ -36,10 +36,11 @@ export default defineConfig({
      * multiplies processes twice over. Turbo already runs up to ten packages at
      * once on 12 cores.
      *
-     * That is the whole justification. This suite is one of the two that fail
-     * intermittently under turbo, and bounding the pool did NOT fix that — see
-     * apps/api/vitest.config.ts for the measured rates, the two refuted
-     * hypotheses, and where the next failure will be recorded.
+     * That is the whole justification, and it is the only one available: this
+     * suite was named as one of the two that went red intermittently under
+     * turbo, but that was never verified and turned out to be wrong. The
+     * failure was in packages/qsim — see the account in its vitest.config.ts,
+     * and in apps/api's for how the wrong package came to be blamed twice.
      */
     maxWorkers: 3,
     env: liveQueue
