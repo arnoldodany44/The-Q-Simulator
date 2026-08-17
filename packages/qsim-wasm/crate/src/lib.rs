@@ -237,7 +237,11 @@ fn check(ptr: *const f64, qubits: u32) -> Option<usize> {
 /// only bits the mask examines. A `value` bit outside the mask would make the
 /// condition unsatisfiable and the gate would silently never fire.
 fn check_controls(qubits: u32, mask: u32, value: u32) -> Option<Controls> {
-    let all = if qubits >= 32 { u32::MAX } else { (1u32 << qubits) - 1 };
+    let all = if qubits >= 32 {
+        u32::MAX
+    } else {
+        (1u32 << qubits) - 1
+    };
     if mask & !all != 0 || value & !mask != 0 {
         return None;
     }
@@ -253,13 +257,7 @@ fn check_controls(qubits: u32, mask: u32, value: u32) -> Option<Controls> {
 /// `mask == 0` is the uncontrolled gate. Returns `false` without touching the
 /// state when any argument is out of range.
 #[wasm_bindgen]
-pub fn apply_controlled(
-    ptr: *mut f64,
-    qubits: u32,
-    target: u32,
-    mask: u32,
-    value: u32,
-) -> bool {
+pub fn apply_controlled(ptr: *mut f64, qubits: u32, target: u32, mask: u32, value: u32) -> bool {
     let Some(size) = check(ptr, qubits) else {
         return false;
     };
@@ -293,14 +291,7 @@ pub fn apply_controlled(
 /// Exchange `q0` and `q1` where the controls admit. `mask == 0` is a plain
 /// SWAP; one control bit is `cswap`.
 #[wasm_bindgen]
-pub fn apply_swap(
-    ptr: *mut f64,
-    qubits: u32,
-    q0: u32,
-    q1: u32,
-    mask: u32,
-    value: u32,
-) -> bool {
+pub fn apply_swap(ptr: *mut f64, qubits: u32, q0: u32, q1: u32, mask: u32, value: u32) -> bool {
     let Some(size) = check(ptr, qubits) else {
         return false;
     };
@@ -423,12 +414,7 @@ pub fn probabilities(ptr: *const f64, qubits: u32, out: *mut f64) -> bool {
 /// because wasm-bindgen would allocate a JS array for the latter, on a call
 /// the analysis panel makes once per qubit per edit.
 #[wasm_bindgen]
-pub fn reduced_density(
-    ptr: *const f64,
-    qubits: u32,
-    qubit: u32,
-    out: *mut f64,
-) -> bool {
+pub fn reduced_density(ptr: *const f64, qubits: u32, qubit: u32, out: *mut f64) -> bool {
     let Some(size) = check(ptr, qubits) else {
         return false;
     };

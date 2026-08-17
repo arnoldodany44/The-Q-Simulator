@@ -126,13 +126,7 @@ pub fn apply_controlled(
 ///
 /// `|00⟩` and `|11⟩` are already symmetric under the exchange, so three
 /// quarters of the state is not read at all.
-pub fn apply_swap(
-    re: &mut [f64],
-    im: &mut [f64],
-    q0: u32,
-    q1: u32,
-    controls: Controls,
-) {
+pub fn apply_swap(re: &mut [f64], im: &mut [f64], q0: u32, q1: u32, controls: Controls) {
     let size = re.len();
     let bit0 = 1usize << q0;
     let bit1 = 1usize << q1;
@@ -475,10 +469,7 @@ mod tests {
                 apply_controlled(&mut re, &mut im, &x(), target, Controls::none());
                 for (i, value) in re.iter().enumerate() {
                     let partner = i ^ (1usize << target);
-                    assert_eq!(
-                        *value, partner as f64,
-                        "qubits {qubits}, target {target}"
-                    );
+                    assert_eq!(*value, partner as f64, "qubits {qubits}, target {target}");
                 }
             }
         }
