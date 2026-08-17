@@ -3333,11 +3333,43 @@ td.histogram__delta--loss {
  * by side on a wide screen, stacked below 40rem.
  * ------------------------------------------------------------------ */
 
+/*
+ * Columns rather than a grid, because these panels have wildly uneven
+ * heights and a grid has no way to absorb that.
+ *
+ * The export card carries five formats with a sentence of explanation each,
+ * which makes it roughly three times the height of the share card. In a grid
+ * that costs twice: the row stretches every panel to the tallest, so the
+ * short ones became mostly empty boxes, and fixing that with `align-items:
+ * start` only moved the emptiness — the next row still cannot begin until the
+ * tallest panel in the previous one ends, leaving a gap the width of two
+ * columns under the short cards.
+ *
+ * Multi-column flows each panel into the shortest available column instead,
+ * so a tall card is simply a tall card and the ones beside it stack to fill
+ * the same vertical space. `columns: 20rem` keeps the responsive behaviour
+ * the grid had — the browser fits as many 20rem columns as there is room for,
+ * and drops to one on a narrow screen — without naming a count.
+ *
+ * The cost is that reading order becomes column-major, so "beside" and
+ * "under" in the comments around these panels in routes/editor.tsx are now
+ * approximate. Focus order is unaffected: it follows the DOM, which is
+ * unchanged.
+ */
 .document-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
-  gap: 0.75rem;
+  columns: 20rem;
+  column-gap: 0.75rem;
   margin: 0.75rem 0;
+}
+
+/*
+ * A panel split across a column break would be unreadable — a heading at the
+ * bottom of one column and its buttons at the top of the next. The margin is
+ * what the grid's `gap` used to provide vertically.
+ */
+.document-bar > * {
+  break-inside: avoid;
+  margin-bottom: 0.75rem;
 }
 
 .preset-picker,
