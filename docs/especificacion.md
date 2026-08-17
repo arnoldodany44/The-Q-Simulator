@@ -133,7 +133,7 @@ Límite: la matriz de densidad crece como 4ⁿ, así que este modo se topa alred
 - **Galería pública**: explorar, buscar, filtrar por tags, ordenar por estrellas o recientes.
 - **Estrellas y comentarios** en circuitos públicos.
 - **Enlaces compartibles** y **embeds** (`<iframe>`) para blogs y material de clase, con opción de solo lectura.
-- **Edición colaborativa en tiempo real** (fase avanzada): dos personas editando el mismo circuito, con CRDT y cursores visibles.
+- **Edición colaborativa en tiempo real** (entregada en la Fase 5): dos personas editando el mismo circuito, con CRDT y cursores visibles. Los seis bloques que siguen son las decisiones con las que se construyó — el relevo (M5.2), la presencia (M5.3), los comentarios anclados (M5.4), el transporte del navegador (M5.5) y dónde se monta (M5.6) — y describen lo que existe, no lo que se planea.
 
 **Qué es exactamente un embed (decidido en la Fase 3).** Cinco decisiones, y
 las cinco son de seguridad antes que de producto. La autoridad es
@@ -293,6 +293,21 @@ decisiones.
    parser de un segundo formato de cable en el camino caliente, que es el mismo
    argumento por el que M5.2 no adoptó `y-protocols`.
 
+   **`y-protocols` no es una dependencia de este proyecto, y es a propósito.**
+   No aparece en ningún `package.json`; lo único que se usa de Yjs es `yjs`
+   mismo, en `packages/collab`, `apps/web` y `apps/api`. Sus dos aportaciones
+   son el protocolo de sincronización (`y-protocols/sync`) y la _awareness_, y
+   ninguna de las dos encaja aquí. El de sincronización supone un canal binario
+   propio con su propio saludo; este proyecto ya tiene un socket tipado que
+   autentica, autoriza, mide frames y sabe cerrarse (§8), y meter un segundo
+   protocolo dentro de él habría significado dos vocabularios de cable en una
+   conexión y una autorización que no puede leer uno de ellos. La _awareness_ es
+   el blob opaco que el párrafo anterior rechaza: §11 exige que la identidad la
+   componga el servidor. Lo que sí se conserva de `y-protocols` son sus
+   **números** —el plazo de 30 s— y su forma de pensar el problema: un vector de
+   estado en `collab:join`, la diferencia de vuelta, y una concesión con latido
+   para la presencia. Tomamos el diseño y no el paquete.
+
 2. **Un cursor caduca; no espera a que lo recojan.** La desconexión no es un
    evento que nada garantice: una tapa que se cierra, una pestaña que muere, un
    teléfono que cambia de red — ninguno manda frame de cierre, y la capa de
@@ -361,6 +376,34 @@ decisiones.
    la accesibilidad: la capa se suscribe sola a su almacén, así que un cursor que
    se mueve ocho veces por segundo redibuja una capa posicionada y no las dos mil
    celdas de la rejilla, en la pestaña de quien está escribiendo.
+
+   Tres detalles de esa región se corrigieron después de medirla con un lector
+   real, y los tres son la diferencia entre «está implementada» y «sirve»:
+
+   - **Un gesto es una edición, y lo dice quien lo hace.** Arrastrar un
+     deslizador son decenas de commits, así que la cuenta crecía decenas de
+     veces y el receptor no podía distinguir eso de alguien colocando ocho
+     compuertas. Intentarlo por ritmo —un tope de dos segundos por par— falló en
+     las dos direcciones a la vez: un arrastre de nueve segundos repetía la misma
+     frase tres o cuatro veces y seis de ocho ediciones deliberadas no se
+     anunciaban nunca. Quien arrastra **sí** sabe que es un gesto, porque el
+     almacén ya lo agrupa para deshacer, así que la cuenta sube **una vez por
+     gesto** y el receptor anuncia cuando el crecimiento llega tras una pausa de
+     al menos `2 × PRESENCE_THROTTLE_MS`. Un arrastre de cualquier longitud es
+     una frase; dos ediciones separadas por un segundo son dos.
+   - **Dos personas que se van a la vez se anuncian las dos.** La salida
+     ordenada del relevo son dos frames `collab:presence` con `state: null`, uno
+     por par, en macrotareas distintas — medidos a 1 ms y 17 ms de distancia. Una
+     región `role="status"` es atómica, así que dos mutaciones dentro del mismo
+     turno del lector se leen **una vez**, con el contenido final: se perdía una
+     de las dos salidas. Las frases se **retienen** un segundo en lugar de
+     reemplazarse, de modo que lo que se produjo junto se lee junto.
+   - **Dos personas con el mismo nombre se distinguen sin color.** Un
+     `displayName` no es único, y una persona en dos pestañas produce dos pares
+     con el mismo. La fila era nombre + acceso + lugar, y lo único que separaba a
+     los dos era el matiz de una muestra que —correctamente— es `aria-hidden`.
+     Un nombre que comparten varios pares se numera, en la lista y en cada frase
+     de la región.
 
 **Un comentario anclado a una compuerta (decidido en la Fase 5, M5.4).** Un
 comentario dice algo sobre «la `H` de q0 en la columna 3», y un ancla **sobrevive
@@ -486,6 +529,117 @@ decisiones.
    medio de entrega que este proyecto no tiene, una preferencia para apagarla y un
    resumen para que un hilo activo no sean treinta mensajes—, y lo que sí sale
    gratis es la cuenta, que está en el filtro.
+
+**El navegador entra al canal, y donde se monta eso es la función (decidido en
+la Fase 5, M5.5 y M5.6).** Los tres bloques anteriores describen un relevo real,
+una presencia real y unos comentarios reales — y durante un commit entero **nada
+del producto abrió el canal**. `bridgeCircuitDocument` solo lo importaban los
+ayudantes de verificación, `createSharedUndo` nadie, y ninguna ruta mandaba ni
+recibía un frame `collab:*`: ninguna acción de ninguna persona podía escribir una
+fila `CircuitSession`. Todas las suites estaban verdes, porque cada una conducía
+su propia capa directamente. Es la misma forma del defecto de la Fase 1, donde
+`useSimulation` no tenía importador y el editor no simulaba nada. La autoridad de
+esta mitad es `apps/web/src/features/collab/collabSession.ts` para el transporte,
+`useCollabSession.ts` para su vida útil y `apps/web/src/routes/editor.tsx` para el
+montaje. Siete decisiones.
+
+1. **Quien edita sola no paga nada, y eso es una propiedad de este archivo.**
+   Casi todas las sesiones tienen una persona dentro y el editor que se publicó
+   en la Fase 0 es el caso común, así que la regla es una sola frase: **nada toca
+   el almacén hasta que se aplica un `collab:joined`**. El puente es lo que
+   escribe el almacén y lo que le quita el deshacer (`attachHistory`), y se
+   construye en un único lugar: la primera entrada exitosa. Un circuito sin
+   guardar (no hay id que unir), una compilación sin API (no hay socket que
+   abrir, y por lo tanto no hay objeto de sesión), una API caída, una entrada
+   rechazada con `NOT_FOUND`, un despliegue con la colaboración apagada — todos
+   terminan en una sesión que nunca existió y un editor que nadie molestó. Con
+   `status: 'off'` el panel dibuja exactamente un elemento: la región viva vacía.
+
+2. **Entrar no puede borrar trabajo que la sesión nunca vio.** La primera versión
+   adoptaba el documento del relevo y ahí terminaba, y eso perdía trabajo de tres
+   maneras que en realidad eran una: una compuerta colocada en el segundo que hay
+   entre pintar el lienzo y aterrizar la entrada (la lectura de autorización sola
+   mide 273–547 ms contra este mismo repositorio en localhost), una recarga de
+   `/c/:slug?c=…` —donde el borrador **es** la URL y §3.4 dice que ese pago
+   siempre gana—, y un par que editó con el socket caído, cerró la pestaña y
+   volvió a abrir la dirección que le quedó. En los tres casos el almacén tenía
+   operaciones que no estaban en ningún documento, así que al adoptar no las
+   sobrescribía: **no existían en ninguna parte**, ni en un par, ni en una fila,
+   ni en una pila de deshacer. Ahora entrar las **lleva consigo**, con una regla
+   deliberadamente asimétrica: el documento gana en todo lo que ya conoce, y el
+   almacén aporta solo lo que el documento nunca tuvo. Aditivo, así que nada de
+   lo que escribió otro par se borra — que es lo que descarta escribir el
+   circuito del almacén tal cual, porque `writeCircuit` es una diferencia y
+   borraría cada operación que este almacén no tenga. Y filtrado contra la
+   **versión guardada** de la que el lienzo partió, para no resucitar lo que un
+   par borró: ausente del documento y presente en la versión guardada es un
+   borrado ajeno; ausente de las dos es trabajo de esta pestaña. La escritura
+   ocurre después de crear el gestor de deshacer, así que aterriza como **un
+   paso** que se puede deshacer de una pulsación.
+
+3. **Un final se lleva el transporte, no el historial.** `attachHistory(null)`
+   vacía el historial, y el argumento del almacén para vaciarlo es sobre _otras
+   personas_. No aplica a lo que acumuló una sesión: `sharedUndo` registra las
+   transacciones **de este cliente y de nadie más** —eso es `trackedOrigins`— así
+   que cada paso de esa pila es trabajo de quien lo pulsaría. Desconectar el
+   puente al terminar hacía lo único que esta función prometió no hacer: un frame
+   del relevo que nadie pidió —`collab:left unauthorised`, un `NOT_FOUND`, un
+   documento que la proyección rechaza— vaciaba la pila de deshacer de quien
+   editaba sola mientras sus compuertas seguían en el lienzo. Así que un final
+   **conserva** el puente y el documento pasa a ser de esta pestaña: el almacén
+   sigue confirmando a través de él, deshacer sigue caminando los pasos de este
+   cliente, y lo único que se detuvo es el transporte. El puente se libera al
+   desmontar, que es el único momento en que el historial se va de todas formas.
+
+4. **`access` sobrevive a un socket caído.** La página dibuja el modo de solo
+   lectura desde `access === 'read'`, y borrarlo en cada cierre le entregaba a un
+   **espectador** un editor plenamente escribible durante toda la reconexión:
+   deshacer habilitado, paleta de vuelta, y la compuerta que colocaba entonces
+   entraba en su propio Y.Doc y en el de nadie más —`flush` y `reconcile` exigen
+   acceso de escritura— con la reentrada restaurando el aviso y dejando la
+   divergencia puesta para siempre. Una reconexión conserva el último acceso que
+   el relevo declaró: es la mejor respuesta disponible a «¿puedo escribir?»
+   mientras la sesión vuelve, y se equivoca hacia no invitar a una edición que se
+   va a descartar. Solo un **final** lo borra. Nada del transporte confía en él
+   para decidir: cada envío está además condicionado a `joined`, que un cierre
+   apaga. Esto no debilita §11 — el rechazo sigue siendo del servidor y en cada
+   frame.
+
+5. **La sesión se direcciona por _slug_, no por id.** El relevo resuelve
+   cualquiera de los dos manejadores al mismo documento, pero `findReadable` no
+   admite los dos para todo circuito: un id alcanza solo lo que un listado puede
+   mostrar (`idAddressableCircuitFilter`), y §11 deja UNLISTED deliberadamente
+   fuera de eso — **el slug es el control de acceso de un circuito no listado y
+   por lo tanto el único manejador que lo direcciona**. Unir por id funcionaba
+   para la dueña de cualquier cosa y para quien lee un PUBLIC, y contestaba
+   `NOT_FOUND` justo en el caso para el que §3.4 construyó los espectadores: a
+   quien le mandaron un enlace no listado. La suite de dos navegadores lo
+   encontró; es el primer test de este repositorio donde los dos pares son dos
+   personas distintas y no un documento abierto dos veces.
+
+6. **La credencial es parte de lo que una sesión _es_.** El relevo decide
+   `access` con la identidad que se le presenta al entrar y no existe ningún
+   frame que la revise después. Una página cuya sesión de Supabase todavía no se
+   había restaurado cuando el socket abrió entraba **anónima**: el relevo
+   concedía `read` sobre un circuito PUBLIC o UNLISTED en lugar de negarse, y a la
+   **dueña** del circuito se le decía «estás observando esta sesión» sin más
+   salida que recargar. Así que la identidad es una dependencia del efecto que
+   crea la sesión: cambia, y la sesión se vuelve a abrir presentando la
+   credencial.
+
+7. **Lo que impide que esto vuelva a pasar son dos gates, no un comentario.**
+   `apps/web/src/routes/editor.test.tsx` monta la **ruta** con un `fetch` que
+   resuelve un circuito real y un `WebSocket` que habla los frames reales de §8, y
+   afirma sobre los siete montajes que la ruta alimenta —incluido el contenido del
+   frame de presencia, porque `presence.length > 0` lo satisfacía el saludo de
+   `announce()` sin ningún cableado de cursor. Y
+   `apps/web/src/verification/reachability/` camina el grafo de importación real
+   desde los puntos de entrada que el navegador carga y **nombra** cualquier módulo
+   de `src/features` o `src/routes` que solo alcancen sus propios tests: la regla
+   que faltaba no era «¿alguien importa esto?» —los siete archivos de la Fase 5
+   tenían importadores— sino «¿se llega a esto desde algo que un navegador abre?».
+   `no-orphans` de dependency-cruiser no puede responder eso: es `severity: 'warn'`
+   y su predicado es «nadie lo importa».
 
 ### 3.5 Interoperabilidad
 
@@ -1587,3 +1741,56 @@ El orden en que los necesitas coincide con el orden de las fases, así que el pr
 4. **Costo de hardware real.** El plan abierto de IBM tiene minutos limitados por mes. Que cada usuario traiga su propio token evita que ese costo caiga sobre el proyecto.
 5. **Trampa en retos.** Por eso la validación es autoritativa en el servidor, con el mismo motor compartido.
 6. **Móvil.** Un editor de arrastrar y soltar en pantalla de 380px es difícil. Decisión propuesta: en móvil, modo lectura + interacción por toque (tocar celda → elegir compuerta), no arrastre.
+
+---
+
+## 17. Dónde la implementación eligió distinto de esta especificación
+
+Este documento se escribió antes del código y en tres lugares el código tenía
+razón. Se registran aquí, con el argumento, en vez de corregir el texto de arriba
+en silencio: alguien que lea la sección original merece encontrar el desacuerdo y
+no una versión limpia de la historia. En los tres casos la autoridad es el código
+citado.
+
+1. **La galería pagina por cursor, no por número de página.** §8 escribe
+   `GET /gallery?…&cursor=&limit=` en la tabla de rutas y `?page=` en la prosa que
+   la acompaña; el código implementa un _keyset_ y la autoridad es
+   `GalleryCursor` en `@qsim/db` con el argumento en la cabecera de
+   `apps/api/src/routes/gallery.ts`. El orden por omisión es una columna que otras
+   personas cambian mientras alguien lee —las estrellas— y un desplazamiento
+   dentro de un orden que se mueve repite o se salta filas sin decirlo: quien
+   pasa a la página 2 ve otra vez un circuito que subió, o nunca ve el que bajó.
+   Un cursor pregunta algo estable («lo siguiente después de _esta_ fila en _este_
+   orden»), y por eso también es lo que se le devuelve al cliente en lugar de un
+   número. Un cursor que no decodifica se contesta con 400 y no ignorando: servir
+   la página 1 a quien pidió la 4 es la misma clase de mentira silenciosa.
+
+2. **Los JWT de usuario se verifican contra un JWKS público, no contra un
+   secreto compartido.** §11 dice «verifica el JWT entrante contra
+   `SUPABASE_JWT_SECRET`» y §12 lo lista en el `.env`; eso es el esquema
+   simétrico HS256 heredado y este proyecto no lo usa. Supabase firma con una
+   clave asimétrica —ES256 sobre la curva P-256— y publica la mitad **pública**
+   en `SUPABASE_JWKS_URL`. La diferencia no es cosmética y es la razón por la que
+   el texto de §11 **no debe «arreglarse» de vuelta**: bajo HS256 la clave que
+   verifica un token es la clave que acuña uno, así que quien pueda leer el
+   entorno de la API —un log de `process.env`, un artefacto de build filtrado, una
+   sesión de dashboard comprometida— puede falsificar un token de cualquier
+   usuario. Bajo ES256 la API no sostiene nada capaz de firmar. La autoridad es
+   `apps/api/src/auth/jwks.ts`, que además acota el refetch para que un `kid`
+   desconocido no convierta a cualquiera en un amplificador de tráfico contra el
+   endpoint del que depende autenticar a todo el mundo.
+
+3. **El transpilador se niega en vez de enrutar.** §14 pide transpilación para la
+   Fase 4 y §15 la nombra como teoría requerida; lo que ninguno dice es qué hacer
+   cuando el grafo de interacción del circuito no cabe en el mapa de acoplamiento
+   del dispositivo. La respuesta de libro es insertar SWAPs. Este proyecto
+   **rechaza el circuito y dice qué necesitaría**, y la autoridad es
+   `packages/transpile/src/placement.ts`. Un SWAP son tres CNOT y un CNOT es la
+   instrucción más ruidosa que hace el dispositivo, así que un enrutador ingenuo
+   convierte una demostración en ruido y no se lo cuenta a nadie: el circuito
+   «corre», el resultado no significa nada, y la persona que lo mira no tiene
+   forma de saber en qué momento dejó de significar algo. Un Heron ofrece el
+   1.46 % de la conectividad que supone un circuito dibujado, así que esto no es
+   un caso raro. Una negativa que nombra lo que el circuito pide y lo que el
+   dispositivo tiene dice algo verdadero sobre la era NISQ; un resultado ruidoso
+   presentado como resultado, no.

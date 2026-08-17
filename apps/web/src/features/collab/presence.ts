@@ -60,18 +60,44 @@
  * last change produced, and the region renders one node per event: two nodes
  * added in one commit are two sentences read, which is what a live region is for.
  *
+ * That fixed the sweep and not the general case, because the general case is not
+ * one change. The relay's *graceful* departure path is two separate
+ * `collab:presence` frames with `state: null`, each arriving in its own
+ * macrotask — measured 1 ms and 17 ms apart with two contexts closed together —
+ * and a list rebuilt from scratch per change still held one sentence at a time. A
+ * `role="status"` region is `aria-atomic` by default, so two mutations inside one
+ * screen-reader turn are announced *once*, with the final content: one of the two
+ * departures was lost. So events are **retained** for
+ * `ANNOUNCE_RETENTION_MS` rather than replaced — long enough that anything
+ * arriving in the same turn is read together, short enough that the region does
+ * not accumulate a transcript.
+ *
  * **An edit burst.** A peer dragging one rotation slider commits dozens of times
  * a second, so `edits` grew on every throttled frame and the region re-read the
  * identical sentence about eight times a second for as long as the drag lasted —
  * eighty utterances of one sentence for a ten-second drag. A screen reader that
  * will not stop talking is a screen reader somebody switches off, and the 120 ms
- * send throttle bounds network traffic rather than speech. So an `edited`
- * announcement is capped at one per peer per `EDIT_ANNOUNCE_QUIET_MS`: a drag
- * becomes one sentence, and two deliberate edits a second apart stay two.
+ * send throttle bounds network traffic rather than speech.
+ *
+ * The first answer was a two-second cap per peer, and it was wrong in both
+ * directions at once: a nine-second drag still produced three or four
+ * repetitions, while eight *deliberate* edits over six seconds produced two
+ * announcements and six silences. A cap is a rate, and a rate cannot tell one
+ * gesture from eight decisions.
+ *
+ * What can is the *gap*. A gesture arrives as a continuous stream of increments —
+ * one per throttled frame, at most `PRESENCE_THROTTLE_MS` apart — and separate
+ * edits arrive with a person's pause between them. So an `edited` announcement is
+ * made when the count grows after a gap of at least `EDIT_BURST_MS`, and
+ * suppressed while the growth is a continuation of the stream: a drag of any
+ * length becomes exactly one sentence, and two deliberate edits a second apart
+ * stay two. The sender helps rather than being relied on — `collabSession.ts`
+ * counts one edit per store gesture — and this rule holds even for a peer whose
+ * client does not.
  * ═══════════════════════════════════════════════════════════════════════
  */
 
-import { PRESENCE_TIMEOUT_MS } from '@qsim/contract'
+import { PRESENCE_THROTTLE_MS, PRESENCE_TIMEOUT_MS } from '@qsim/contract'
 import type {
   CollabAccess,
   PresenceCursor,
@@ -107,17 +133,35 @@ export interface PresenceEvent {
   readonly name: string | null
   /** Where it happened, when the event was about a place. */
   readonly cursor: PresenceCursor | null
+  /** This tab's clock when it happened — see `ANNOUNCE_RETENTION_MS`. */
+  readonly at: number
 }
 
 /**
- * How long after announcing that a peer edited before saying it again.
+ * How long a gap in a peer's edit count separates two edits from one gesture.
  *
- * A drag is dozens of commits a second; two seconds turns one gesture into one
- * sentence and still reports two deliberate edits a second apart separately. It
- * is not the network throttle (`PRESENCE_THROTTLE_MS`, 120 ms), and conflating
- * the two is what made the region chatter: one bounds bytes, this bounds speech.
+ * A gesture reaches this store as a stream of increments at most
+ * `PRESENCE_THROTTLE_MS` (120 ms) apart, because that is the rate the channel
+ * sends at; a person deciding to place another gate takes longer than that. Twice
+ * the throttle leaves room for a dropped frame or a slow tab without letting a
+ * continuous drag look like a decision.
+ *
+ * It is not a cap on speech and that distinction is the whole point: a cap
+ * silences deliberate edits and still repeats a long drag, which is what a
+ * two-second cap was measured doing in both directions.
  */
-export const EDIT_ANNOUNCE_QUIET_MS = 2_000
+export const EDIT_BURST_MS = PRESENCE_THROTTLE_MS * 2
+
+/**
+ * How long an announcement stays in the region before a later one replaces it.
+ *
+ * A `role="status"` region is atomic: two mutations inside one screen-reader turn
+ * are read once, with whatever the region holds at the end. So sentences produced
+ * close together have to be in the region *together* — two peers whose tabs
+ * closed at the same moment arrive 1 to 17 ms apart, in separate macrotasks — and
+ * a second is comfortably longer than that and far shorter than a transcript.
+ */
+export const ANNOUNCE_RETENTION_MS = 1_000
 
 export interface PresenceSnapshot {
   /** In the order the peers first appeared, so the list does not reshuffle. */
@@ -175,8 +219,8 @@ export function createPresenceStore(): PresenceStore {
   /** What *this* change has produced so far; see `rebuild`. */
   let pending: PresenceEvent[] = []
   let seq = 0
-  /** When each peer's edit was last *spoken* — see `EDIT_ANNOUNCE_QUIET_MS`. */
-  const spokeEditAt = new Map<string, number>()
+  /** When each peer's edit count last *grew* — see `EDIT_BURST_MS`. */
+  const grewEditsAt = new Map<string, number>()
   /**
    * The last snapshot handed out.
    *
@@ -187,18 +231,30 @@ export function createPresenceStore(): PresenceStore {
   let cached: PresenceSnapshot = EMPTY
 
   /**
-   * Publishes a change, replacing the announcements only when there are new ones.
+   * Publishes a change, keeping recent announcements alongside any new ones.
    *
-   * A change that produced no event leaves the previous sentences where they are:
-   * a live region's content is not re-read because it stayed the same, and
-   * removing it would announce nothing either. What must never happen is one
-   * event overwriting another *of the same change* — two peers timing out in one
-   * sweep — which is why this is a list.
+   * A change that produced no event leaves the previous sentences where they are
+   * until they age out: a live region's content is not re-read because it stayed
+   * the same, and removing it announces nothing either.
+   *
+   * What must never happen is one sentence replacing another the listener has not
+   * heard yet, and there are two ways for that to arise — two peers timing out in
+   * one sweep, and two peers whose graceful departures arrive in consecutive
+   * macrotasks. A list answers the first; retaining the list for
+   * `ANNOUNCE_RETENTION_MS` answers the second. See the header.
    */
-  function rebuild(): void {
+  function rebuild(now: number): void {
     if (pending.length > 0) {
-      events = pending
+      events = [
+        ...events.filter((event) => now - event.at < ANNOUNCE_RETENTION_MS),
+        ...pending,
+      ]
       pending = []
+    } else {
+      const kept = events.filter(
+        (event) => now - event.at < ANNOUNCE_RETENTION_MS
+      )
+      if (kept.length !== events.length) events = kept
     }
     cached = { peers: [...peers.values()], events }
     for (const listener of listeners) listener()
@@ -206,7 +262,8 @@ export function createPresenceStore(): PresenceStore {
 
   function announce(
     kind: PresenceEventKind,
-    peer: Pick<PeerPresence, 'peerId' | 'name' | 'cursor'>
+    peer: Pick<PeerPresence, 'peerId' | 'name' | 'cursor'>,
+    now: number
   ): void {
     seq += 1
     pending.push({
@@ -215,6 +272,7 @@ export function createPresenceStore(): PresenceStore {
       peerId: peer.peerId,
       name: peer.name,
       cursor: peer.cursor,
+      at: now,
     })
   }
 
@@ -225,9 +283,9 @@ export function createPresenceStore(): PresenceStore {
       if (state === null) {
         if (known === undefined) return
         peers.delete(peerId)
-        spokeEditAt.delete(peerId)
-        announce('left', known)
-        rebuild()
+        grewEditsAt.delete(peerId)
+        announce('left', known, now)
+        rebuild(now)
         return
       }
 
@@ -242,9 +300,16 @@ export function createPresenceStore(): PresenceStore {
       })
 
       if (known === undefined) {
-        // Deliberately *not* stamped as spoken: an edit made straight after
-        // arriving is news, and only a second one inside the quiet period is not.
-        announce('joined', { peerId, name: state.name, cursor: state.cursor })
+        /*
+         * Deliberately *not* stamped in `grewEditsAt`: an edit made straight after
+         * arriving is a decision rather than the continuation of a gesture this
+         * tab was never watching, and it is news.
+         */
+        announce(
+          'joined',
+          { peerId, name: state.name, cursor: state.cursor },
+          now
+        )
       } else if (state.edits > known.edits) {
         /*
          * The one movement-adjacent event that is announced, and only because the
@@ -253,39 +318,58 @@ export function createPresenceStore(): PresenceStore {
          * *down* is a peer that reconnected and started counting again, which is
          * not news.
          *
-         * Capped, because a slider drag grows the count eight times a second and
-         * every one of them rendered the same sentence again. The *state* still
-         * updates on every frame — the roster and the carets are live — only the
-         * speaking is rationed.
+         * Spoken when the growth follows a *gap*, and silent while it is the
+         * continuation of a stream — see `EDIT_BURST_MS`. The stamp moves on every
+         * increment either way, so a drag stays one gesture however long it runs
+         * and the sentence after it is its own. The *state* updates on every frame
+         * regardless: the roster and the carets are live, only the speaking is
+         * rationed.
          */
-        const spoke = spokeEditAt.get(peerId) ?? -Infinity
-        if (now - spoke >= EDIT_ANNOUNCE_QUIET_MS) {
-          spokeEditAt.set(peerId, now)
-          announce('edited', { peerId, name: state.name, cursor: state.cursor })
+        const grew = grewEditsAt.get(peerId) ?? -Infinity
+        grewEditsAt.set(peerId, now)
+        if (now - grew >= EDIT_BURST_MS) {
+          announce(
+            'edited',
+            { peerId, name: state.name, cursor: state.cursor },
+            now
+          )
         }
       }
-      rebuild()
+      rebuild(now)
     },
 
     expire(now) {
       const gone = [...peers.values()].filter(
         (peer) => now - peer.seenAt >= PRESENCE_TIMEOUT_MS
       )
-      if (gone.length === 0) return
+      if (gone.length === 0) {
+        /*
+         * Still a rebuild when a *sentence* has aged out, and only then: this is
+         * the one call the store gets on a clock (`presenceChannel` sweeps on the
+         * heartbeat), so it is what empties the region in a session that has gone
+         * quiet — and `useSyncExternalStore` compares snapshots by identity, so a
+         * rebuild that changed nothing would be a render loop.
+         */
+        const stale = events.some(
+          (event) => now - event.at >= ANNOUNCE_RETENTION_MS
+        )
+        if (stale) rebuild(now)
+        return
+      }
       // Every departure, not just the last: one dropped network takes two peers
       // with it, and a listener told about one of them is a listener misinformed.
       for (const peer of gone) {
         peers.delete(peer.peerId)
-        spokeEditAt.delete(peer.peerId)
-        announce('left', peer)
+        grewEditsAt.delete(peer.peerId)
+        announce('left', peer, now)
       }
-      rebuild()
+      rebuild(now)
     },
 
     clear() {
       if (peers.size === 0 && events.length === 0) return
       peers.clear()
-      spokeEditAt.clear()
+      grewEditsAt.clear()
       events = []
       pending = []
       cached = EMPTY

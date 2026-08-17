@@ -38,10 +38,25 @@
  * single `expire` sweep can remove two peers at once — one dropped network — and a
  * region with one slot announced only the last of them, leaving a listener sure
  * that somebody who had gone was still there.
+ *
+ * ── TWO PEOPLE CALLED ANA ────────────────────────────────────────────────
+ *
+ * A display name is `user_metadata.full_name` and is not unique, and one person in
+ * two tabs produces two peers with the same one. The row is name, access-in-words
+ * and place, and the only other thing distinguishing two peers was a *hue* on a
+ * swatch this file correctly hides from assistive technology — so a listener met
+ * two byte-identical list items and could not tell whether two people were here or
+ * one sentence had been read twice.
+ *
+ * So a name shared by more than one peer is numbered, in the roster and in every
+ * sentence the region says about those peers. The number is the peer's position
+ * among the peers sharing that name, and it is stable while they are here because
+ * the roster is insertion-ordered. A name nobody else has is left exactly as it
+ * was: «Ana (1)» for a lone Ana would be a number invented for nothing.
  * ═══════════════════════════════════════════════════════════════════════
  */
 
-import { useSyncExternalStore } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { collaboratorHue } from '../../lib/collab-colour'
@@ -61,9 +76,30 @@ export interface PresenceRosterProps {
 }
 
 export function PresenceRoster({ store, qubits }: PresenceRosterProps) {
-  const { t } = useTranslation('collab')
+  const { t, i18n } = useTranslation('collab')
   const snapshot = useSyncExternalStore(store.subscribe, store.snapshot)
   const { peers, events } = snapshot
+
+  /*
+   * §10: figures reach the reader through `Intl.NumberFormat`. A column is legal
+   * to 4095, so «colonne 1234» on a French page beside a timeline reading «1 234»
+   * is reachable — one number spelled two ways on one screen. The counts are not
+   * formatted here because they are bounded by the roster and by
+   * `MAX_PRESENCE_SELECTION`, and `count` has to stay a number to pick the plural.
+   */
+  const numbers = useMemo(
+    () => new Intl.NumberFormat(i18n.language),
+    [i18n.language]
+  )
+
+  /*
+   * One label per peer, numbered only where a name is shared. Built from the
+   * peers *and* the events, so a sentence about somebody who has just left carries
+   * the same label their row carried a moment ago.
+   */
+  const labels = labelPeers(peers, events, t)
+  const labelFor = (peerId: string, name: string | null): string =>
+    labels.get(peerId) ?? name ?? t('presence.anonymous')
 
   return (
     <>
@@ -94,9 +130,9 @@ export function PresenceRoster({ store, qubits }: PresenceRosterProps) {
                  * — are said in words on the same line.
                  */}
                 <span className="presence-roster__swatch" aria-hidden="true" />
-                <span>{peer.name ?? t('presence.anonymous')}</span>
+                <span>{labelFor(peer.peerId, peer.name)}</span>
                 <span className="presence-roster__where">
-                  {describe(peer, qubits, t)}
+                  {describe(peer, qubits, t, numbers)}
                 </span>
               </li>
             ))}
@@ -110,11 +146,59 @@ export function PresenceRoster({ store, qubits }: PresenceRosterProps) {
        */}
       <p className="visually-hidden" role="status">
         {events.map((event) => (
-          <span key={event.seq}>{announce(event, qubits, t)}</span>
+          <span key={event.seq}>
+            {announce(
+              event,
+              labelFor(event.peerId, event.name),
+              qubits,
+              t,
+              numbers
+            )}
+          </span>
         ))}
       </p>
     </>
   )
+}
+
+/**
+ * `peerId` → the name to show, numbered where two peers share one.
+ *
+ * Events are folded in after the peers so that a departure keeps the number its
+ * row had; a peer that appears only in an event (they have already gone) is still
+ * counted, because "Ana (2) has left" beside "Ana (1)" in the list is the
+ * sentence that tells a listener which of them went.
+ */
+function labelPeers(
+  peers: readonly PeerPresence[],
+  events: readonly PresenceEvent[],
+  t: Translate
+): Map<string, string> {
+  const named = new Map<string, string[]>()
+  const nameOf = new Map<string, string>()
+  const remember = (peerId: string, name: string | null): void => {
+    if (nameOf.has(peerId)) return
+    const shown = name ?? t('presence.anonymous')
+    nameOf.set(peerId, shown)
+    const holders = named.get(shown) ?? []
+    holders.push(peerId)
+    named.set(shown, holders)
+  }
+  for (const peer of peers) remember(peer.peerId, peer.name)
+  for (const event of events) remember(event.peerId, event.name)
+
+  const labels = new Map<string, string>()
+  for (const [name, holders] of named) {
+    if (holders.length === 1) {
+      const only = holders[0]
+      if (only !== undefined) labels.set(only, name)
+      continue
+    }
+    for (const [index, peerId] of holders.entries()) {
+      labels.set(peerId, t('presence.namedNth', { name, index: index + 1 }))
+    }
+  }
+  return labels
 }
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
@@ -129,7 +213,12 @@ type Translate = (key: string, values?: Record<string, unknown>) => string
  * (`geometry.ts`): reporting it as "qubit 3" on a three-wire circuit would name a
  * wire that does not exist.
  */
-function describe(peer: PeerPresence, qubits: number, t: Translate): string {
+function describe(
+  peer: PeerPresence,
+  qubits: number,
+  t: Translate,
+  numbers: Intl.NumberFormat
+): string {
   const doing = t(
     peer.access === 'read' ? 'presence.watching' : 'presence.editing'
   )
@@ -137,16 +226,24 @@ function describe(peer: PeerPresence, qubits: number, t: Translate): string {
     peer.selection.length === 0
       ? null
       : t('presence.holding', { count: peer.selection.length })
-  const where = place(peer, qubits, t)
+  const where = place(peer, qubits, t, numbers)
   return [doing, where, held].filter((part) => part !== null).join(' · ')
 }
 
-function place(peer: PeerPresence, qubits: number, t: Translate): string {
+function place(
+  peer: PeerPresence,
+  qubits: number,
+  t: Translate,
+  numbers: Intl.NumberFormat
+): string {
   const cursor = peer.cursor
   if (cursor === null) return t('presence.nowhere')
   return cursor.qubit >= qubits
-    ? t('presence.atRegister', { column: cursor.column })
-    : t('presence.atCell', { qubit: cursor.qubit, column: cursor.column })
+    ? t('presence.atRegister', { column: numbers.format(cursor.column) })
+    : t('presence.atCell', {
+        qubit: numbers.format(cursor.qubit),
+        column: numbers.format(cursor.column),
+      })
 }
 
 /**
@@ -156,17 +253,25 @@ function place(peer: PeerPresence, qubits: number, t: Translate): string {
  * the sentence a listener can act on — "somebody changed something somewhere" is an
  * interruption that costs attention and returns nothing.
  */
-function announce(event: PresenceEvent, qubits: number, t: Translate): string {
-  const name = event.name ?? t('presence.anonymous')
+function announce(
+  event: PresenceEvent,
+  name: string,
+  qubits: number,
+  t: Translate,
+  numbers: Intl.NumberFormat
+): string {
   if (event.kind === 'joined') return t('presence.announce.joined', { name })
   if (event.kind === 'left') return t('presence.announce.left', { name })
   const cursor = event.cursor
   if (cursor === null) return t('presence.announce.edited', { name })
   return cursor.qubit >= qubits
-    ? t('presence.announce.editedRegister', { name, column: cursor.column })
+    ? t('presence.announce.editedRegister', {
+        name,
+        column: numbers.format(cursor.column),
+      })
     : t('presence.announce.editedCell', {
         name,
-        qubit: cursor.qubit,
-        column: cursor.column,
+        qubit: numbers.format(cursor.qubit),
+        column: numbers.format(cursor.column),
       })
 }

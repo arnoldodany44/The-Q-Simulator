@@ -517,6 +517,26 @@ export const MAX_COLLAB_PENDING_DELIVERIES = 16
 interface Attachment {
   readonly circuitId: string
   /**
+   * The handle the *client* named, which every frame about this attachment
+   * quotes.
+   *
+   * `circuitId` above is the resolved id — what keys the document, the row and
+   * the channel — and the two differ whenever a peer joined by slug, which is
+   * the only handle that reaches an UNLISTED circuit (`findReadable`). The join
+   * answer and every refusal already quoted the client's handle, because that is
+   * what the client asked about; `collab:update`, `collab:presence` and
+   * `collab:left` quoted the resolved id instead, and that asymmetry made a
+   * slug-joined session **silently deaf**: the browser's transport drops any
+   * frame whose `circuitId` is not the handle it joined with (see
+   * `collabSession.ts`), so a watcher who opened an unlisted link saw the
+   * document once, at the join, and never another edit or another caret.
+   *
+   * Found by the two-browser suite in `apps/web/e2e/live`, which is the only
+   * test in this repository where one side joins by slug and then waits to be
+   * told something.
+   */
+  readonly handle: string
+  /**
    * What this peer was authorised to do at `checkedAt`.
    *
    * Mutable, because it is re-decided: an owner who transfers a circuit keeps
@@ -1068,7 +1088,8 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
     forget(attachment)
     ports.send({
       type: 'collab:left',
-      circuitId: attachment.circuitId,
+      // The handle this client used, not the resolved id — see `handle`.
+      circuitId: attachment.handle,
       reason,
     })
   }
@@ -1084,6 +1105,17 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
    * sends is then refused with FORBIDDEN, which is the honest thing to tell
    * somebody whose circuit was transferred out from under them.
    */
+  /**
+   * How many documents this socket holds, whichever handles address them.
+   *
+   * `attachments` maps *both* an id and a slug onto one attachment, so its `size`
+   * is not a count of documents and must never be compared to
+   * `MAX_COLLAB_DOCUMENTS_PER_SOCKET`.
+   */
+  function documentCount(): number {
+    return new Set(attachments.values()).size
+  }
+
   async function stillAttached(attachment: Attachment): Promise<boolean> {
     // Not subject to the TTL, for the same reason it is not for a subscription:
     // an expired credential is the end of this socket's authority, not a
@@ -1096,7 +1128,25 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
 
     let decision: CircuitAccess | null
     try {
-      decision = await read(attachment.circuitId, viewerId)
+      /*
+       * ── ASKED ABOUT THE HANDLE THE CLIENT PRESENTED, NOT THE RESOLVED ID ──
+       *
+       * The two differ for a slug join, and re-checking the *id* asks a question
+       * this viewer was never granted an answer to: an id reaches only what a
+       * listing may show (`idAddressableCircuitFilter`), so for a stranger
+       * holding a link to an UNLISTED circuit `findReadable(id)` is null while
+       * `findReadable(slug)` is the circuit. The re-check therefore ejected
+       * exactly the peer the join had just admitted, two seconds after admitting
+       * them — `collab:left` with reason `unauthorised`, and a reader told their
+       * circuit "stopped being yours to open" while they were looking at it.
+       *
+       * Re-asking the original question is also the only *correct* re-check:
+       * revocation has to be measured against the access this peer actually
+       * claimed. A circuit made PRIVATE stops resolving by slug too, so nothing
+       * is weakened — the two-browser suite in `apps/web/e2e/live` covers both
+       * directions.
+       */
+      decision = await read(attachment.handle, viewerId)
     } catch (error) {
       /*
        * The database is unreachable. The attachment is *kept*, which is a
@@ -1115,6 +1165,13 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
       return true
     }
     if (decision === null) return false
+    /*
+     * A handle that now names a different circuit. Unreachable today — a slug is
+     * unique and immutable, and an id is a primary key — and checked anyway,
+     * because the alternative would be to go on relaying one circuit's document
+     * to a peer authorised against another.
+     */
+    if (decision.circuitId !== attachment.circuitId) return false
     attachment.access = decision.access
     attachment.checkedAt = now
     return true
@@ -1143,7 +1200,8 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
     if (attachment.ended || closed) return
     ports.send({
       type: 'collab:update',
-      circuitId: attachment.circuitId,
+      // The handle this client used, not the resolved id — see `handle`.
+      circuitId: attachment.handle,
       update: encodeBinaryPayload(update),
     })
   }
@@ -1198,7 +1256,8 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
     }
     const frame: ServerFrame = {
       type: 'collab:presence',
-      circuitId: attachment.circuitId,
+      // The handle this client used, not the resolved id — see `handle`.
+      circuitId: attachment.handle,
       peerId: subject,
       state,
     }
@@ -1297,14 +1356,25 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
     /*
      * Before the database read, as the subscription ceiling is: a socket already
      * holding as many documents as it may must not be able to buy a query with a
-     * frame. The handle is not yet resolved here, so the ceiling is applied to
-     * the handle — which is the conservative direction: a socket that joined the
-     * same circuit by id and by slug is charged for two, and the resolution
-     * below then makes the second one idempotent.
+     * frame.
+     *
+     * ── COUNTED PER DOCUMENT, NOT PER HANDLE ────────────────────────────────
+     *
+     * `attachments` is keyed by *both* handles of every document it holds — see
+     * the registration below, which is what lets a slug join and an id join for
+     * one circuit find each other rather than build two sessions. So `size` is up
+     * to twice the number of documents, and comparing it to the ceiling made a
+     * single slug join fill a budget of two: the enforced bound was one, for every
+     * client that joins by slug, which is every browser (`editor.tsx` passes
+     * `base.slug`). Measured — three joins by id are admitted, admitted, refused,
+     * while two joins by slug are admitted, refused.
+     *
+     * `documentCount` counts the distinct attachments instead, which is the figure
+     * the constant is named after.
      */
     if (
       attachments.get(circuitId) === undefined &&
-      attachments.size >= MAX_COLLAB_DOCUMENTS_PER_SOCKET
+      documentCount() >= MAX_COLLAB_DOCUMENTS_PER_SOCKET
     ) {
       failCircuit(circuitId, 'RATE_LIMITED')
       return
@@ -1396,6 +1466,8 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
 
     const attachment: Attachment = {
       circuitId: documentId,
+      // What the client asked about, which is what its frames will quote back.
+      handle: circuitId,
       access: decision.access,
       checkedAt: ports.now(),
       peer: null,
@@ -1521,7 +1593,8 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
       if (attachment.ended || closed) return
       ports.send({
         type: 'collab:presence',
-        circuitId: attachment.circuitId,
+        // The handle this client used, not the resolved id — see `handle`.
+        circuitId: attachment.handle,
         peerId: record.peerId,
         state: record.state,
       })
@@ -1787,6 +1860,40 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
         return
       }
       /*
+       * ── REVOCATION IS RE-DECIDED HERE, NOT ONLY WHEN A PEER SPEAKS ─────────
+       *
+       * `stillAttached` is reached from `update`, `presence`, `deliverUpdate` and
+       * `deliverPresence` — every one of which needs *traffic*. A peer that stops
+       * speaking therefore kept its attachment, its reader slot and its hold on
+       * the live document after its read access had been withdrawn, and was told
+       * nothing: measured at 32 s of silence after a circuit was made PRIVATE,
+       * with the socket still open and no `collab:left` sent. No data leaked — the
+       * first frame after the owner edits is the ejection, never the edit — but
+       * this channel's own vocabulary promises the decision is «re-checked while
+       * the session runs», and "while somebody chooses to speak" is not that.
+       *
+       * So the sweep asks, on the attachment's own chain so it cannot overtake a
+       * frame in flight. It costs one read per document per sweep at most: the TTL
+       * check inside `stillAttached` returns immediately for anything a live
+       * session has just re-checked, so an active peer pays nothing here and a
+       * silent one pays a query every `SWEEP` interval.
+       */
+      for (const attachment of new Set(attachments.values())) {
+        if (attachment.ended) continue
+        if (now - attachment.checkedAt < AUTHORISATION_TTL_MS) continue
+        attachment.chain = attachment.chain.then(async () => {
+          if (attachment.ended || closed) return
+          if (await stillAttached(attachment)) return
+          ports.log(
+            'info',
+            { circuitId: attachment.circuitId, viewerId },
+            'a silent collaboration attachment lost read access and was ended'
+          )
+          endAttachment(attachment, 'unauthorised')
+        })
+      }
+
+      /*
        * An attachment counts as much as a subscription, and forgetting it would
        * be the bug this whole channel is most likely to grow: a watcher in a
        * shared session says nothing for minutes at a time — that is what
@@ -1828,6 +1935,7 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
 
     viewerId: () => viewerId,
     subscriptionCount: () => subscriptions.size,
-    attachmentCount: () => attachments.size,
+    // Documents, not map entries: one document joined by slug occupies two keys.
+    attachmentCount: documentCount,
   }
 }

@@ -5,6 +5,28 @@ name: E2E
 # nobody is tempted to merge past it. This job downloads a browser and drives
 # a real editor, which is minutes rather than seconds, so it runs on the
 # branch that matters and on demand.
+#
+# ── The live collaboration suite is NOT run here, and that is a decision ────
+#
+# `apps/web/e2e/live/` is Fase 5's acceptance test: two or three real browsers
+# against a running API, proving that a gate placed in one appears in another.
+# It is run with `pnpm --filter web test:e2e:live` (its own Playwright config,
+# which starts the API as well as Vite), and it is left out of this workflow for
+# one reason that is not about time:
+#
+#   IT CREATES AND DELETES TWO REAL ACCOUNTS IN A REAL DATABASE.
+#
+# Wiring it in would mean putting DATABASE_URL, SUPABASE_SECRET_KEY and the
+# rest into GitHub secrets, and pointing a CI runner at the only Postgres this
+# project has — with a Supabase *admin* key, on a free tier whose pooler
+# allows one connection. That is the owner's call to make and not a default to
+# ship: the suite is written to clean up after itself (a `teardown` project
+# deletes both accounts, which cascades every circuit, session row and comment
+# they own) and it verifies the deletion, but a runner that is killed
+# mid-test-run cannot run a teardown.
+#
+# When there is a database CI may have — a branch database, or a Supabase
+# preview project — the job is this one plus `test:e2e:live` and the env block.
 on:
   push:
     branches: [main]

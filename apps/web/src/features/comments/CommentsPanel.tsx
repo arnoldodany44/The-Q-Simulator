@@ -302,30 +302,46 @@ export function CommentsPanel({
                           })
                     )
                   }}
+                  /*
+                   * ── ANNOUNCED WHEN IT HAPPENED, NOT WHEN IT WAS ASKED FOR ──
+                   *
+                   * These three said their sentence next to `mutate` rather than
+                   * inside `onSuccess`, so a request that failed left the polite
+                   * region asserting the opposite of what happened: measured, the
+                   * region said «Thread resolved.» while the assertive alert said
+                   * «The server could not be reached», the filter counts said the
+                   * thread was still open, and the reader's last unambiguous
+                   * statement was the false one. A failure has its own alert and
+                   * needs no retraction; a success is the only thing this region
+                   * has to add.
+                   */
                   onReply={(body) => {
-                    post.mutate({
-                      handle,
-                      input: { body, parentId: thread.root.id },
-                    })
-                    say(t('comments.announce.replied'))
+                    post.mutate(
+                      { handle, input: { body, parentId: thread.root.id } },
+                      { onSuccess: () => say(t('comments.announce.replied')) }
+                    )
                   }}
                   onResolve={(resolved) => {
-                    resolve.mutate({
-                      handle,
-                      commentId: thread.root.id,
-                      resolved,
-                    })
-                    say(
-                      t(
-                        resolved
-                          ? 'comments.announce.resolved'
-                          : 'comments.announce.reopened'
-                      )
+                    resolve.mutate(
+                      { handle, commentId: thread.root.id, resolved },
+                      {
+                        onSuccess: () => {
+                          say(
+                            t(
+                              resolved
+                                ? 'comments.announce.resolved'
+                                : 'comments.announce.reopened'
+                            )
+                          )
+                        },
+                      }
                     )
                   }}
                   onDelete={(commentId) => {
-                    remove.mutate({ handle, commentId })
-                    say(t('comments.announce.deleted'))
+                    remove.mutate(
+                      { handle, commentId },
+                      { onSuccess: () => say(t('comments.announce.deleted')) }
+                    )
                   }}
                 />
               ))}

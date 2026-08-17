@@ -95,10 +95,57 @@
  *     definition session can change — `customGates` — applied to the document as
  *     it now stands. A peer's edits made during the detour are therefore kept,
  *     which writing the store's frozen host circuit would have deleted.
+ *
+ * =====================================================================
+ * ATTACHING MUST NOT DELETE WORK THE SESSION HAS NEVER SEEN
+ * =====================================================================
+ *
+ * The first version adopted the document and stopped there, and that lost work
+ * in three different ways that were really one:
+ *
+ *   1. A gate placed in the second between the canvas painting and the join
+ *      landing. The authorisation read alone measures 273–547 ms against this
+ *      repository's own API on localhost, and a real join additionally reads a
+ *      row and builds a Y.Doc.
+ *   2. A reload of `/c/:slug?c=…`. `useUnsavedWork` rests on «the draft is the
+ *      URL» being the only copy, and `routes/editor.tsx` states the precedence
+ *      itself — the `?c=` payload «always wins, including over the version stored
+ *      under the slug». The join arrived with the *saved* version and replaced the
+ *      draft, after which `suppressed` stripped `?c=` from the address bar.
+ *   3. A peer that edited while its socket was down, closed the tab, and reopened
+ *      the address it had been left with.
+ *
+ * In all three the store held operations that were in no document at all, so
+ * nothing anywhere held them once the adoption ran — no peer, no row, and no undo
+ * step, because the `Y.UndoManager` did not exist when the edit was made.
+ *
+ * So attaching **carries** them. The rule is one sentence and it is deliberately
+ * asymmetric:
+ *
+ *   **The document wins for everything it knows about; the store contributes
+ *   only what the document has never held.**
+ *
+ * Additive, so nothing a peer wrote is deleted — which is what rules out the
+ * obvious alternative of writing the store's circuit straight in, since
+ * `writeCircuit` is a diff and would delete every operation the store happens not
+ * to have. And filtered through `saved`, the version the store was seeded from,
+ * so that an operation a *peer deleted* is not resurrected: absent from the
+ * document and present in `saved` means somebody removed it, while absent from
+ * both means this reader made it. Without that filter, joining a session would
+ * undelete every gate deleted since the last save.
+ *
+ * The carry is written *after* the undo manager exists, so it lands as one
+ * undoable step: the work is the reader's and a reader who does not want it in the
+ * shared document can press undo once. A *seed* write into an empty document is
+ * the opposite case and stays where it was, before the manager — that write is the
+ * document's beginning, and `loadCircuit` gives the rule: «being able to undo past
+ * the beginning of the document you just opened is how you lose the document you
+ * just opened».
  */
 
 import {
   applyCircuitUpdate,
+  defaultQubitLabel,
   isEmptyDocument,
   projectCircuit,
   writeCircuit,
@@ -106,7 +153,7 @@ import {
   type UpdateResult,
 } from '@qsim/collab'
 import { MAX_COLLAB_STATE_BYTES } from '@qsim/contract'
-import { safeParseCircuit, type Circuit } from '@qsim/schema'
+import { qubitsOf, safeParseCircuit, type Circuit } from '@qsim/schema'
 import * as Y from 'yjs'
 
 import {
@@ -136,8 +183,29 @@ export interface BridgeOptions {
    * open" and knows the document is empty or expendable.
    */
   readonly seed?: 'document' | 'store'
+  /**
+   * The saved version the store was seeded from, when there is one.
+   *
+   * Read for exactly one question — see the header on carrying local work: an
+   * operation the document does not hold is this reader's own if `saved` did not
+   * hold it either, and a peer's deletion if it did. Omitting it makes the carry
+   * unconditional, which is right for a caller that knows the store's circuit is
+   * nobody else's (a test, a preview) and wrong for the editor.
+   */
+  readonly saved?: Circuit
   /** Called whenever the projection changes, for a view of the conflicts. */
   readonly onProjection?: (projection: CircuitProjection) => void
+  /**
+   * Called when the store opens and closes a gesture — a slider drag, a typing
+   * session — which the store already groups into one undo step.
+   *
+   * It exists for presence and for nothing else. A gesture is dozens of commits,
+   * so it is dozens of document updates, and `presence.ts` has to announce it as
+   * *one* edit to a listener: a receiving client can only guess at that from the
+   * rate, and guessing was measured getting it wrong in both directions. The
+   * sender knows, so the sender says.
+   */
+  readonly onGesture?: (active: boolean) => void
   /**
    * Called once when this tab opens a *different* circuit while bridged.
    *
@@ -152,6 +220,16 @@ export interface BridgeOptions {
 
 export interface CircuitDocumentBridge {
   readonly doc: Y.Doc
+  /**
+   * Whether attaching wrote work of this client's into the document.
+   *
+   * True when the store held operations, wires, parameters or definitions the
+   * document had never seen — see the header. The transport needs it because the
+   * consequence differs by access: a writer's carry travels in the reconnection
+   * delta, and a *watcher's* cannot travel at all, which is the divergence
+   * `CollabSessionSnapshot.reconciled` exists to report.
+   */
+  readonly carried: boolean
   /**
    * The origin the *editor's* writes carry.
    *
@@ -278,14 +356,18 @@ export function bridgeCircuitDocument(
     publish(merged)
   }
 
-  if (options.seed === 'store' || isEmptyDocument(doc)) {
+  /*
+   * The document's beginning, when it has none: this tab's circuit becomes the
+   * shared one. Before the undo manager exists on purpose — a seed is not an
+   * editing move and undoing past it would delete the document.
+   */
+  const seeded = options.seed === 'store' || isEmptyDocument(doc)
+  if (seeded) {
     projection = writeCircuit(doc, store.getState().circuit, {
       origin,
       baseline: projection,
     })
   }
-  adopt()
-  announce()
 
   const undo = createSharedUndo({
     doc,
@@ -296,7 +378,43 @@ export function bridgeCircuitDocument(
       store.getState().setSelection(ids)
     },
   })
-  store.getState().attachHistory(undo)
+  /*
+   * The store's gesture boundaries, passed on. `beginGesture`/`endGesture` are the
+   * only signal in the system that says "these dozens of commits are one thing a
+   * person did", and presence needs it — see `onGesture`.
+   */
+  store.getState().attachHistory({
+    ...undo,
+    beginGesture: () => {
+      undo.beginGesture()
+      options.onGesture?.(true)
+    },
+    endGesture: () => {
+      undo.endGesture()
+      options.onGesture?.(false)
+    },
+  })
+
+  /*
+   * Work the session has never seen, carried in as one undoable step. See the
+   * header: additive so nothing a peer wrote is deleted, and filtered through
+   * `saved` so nothing a peer *deleted* comes back.
+   */
+  let carried = false
+  if (!seeded) {
+    const merged = withLocalWork(
+      projection,
+      store.getState().circuit,
+      options.saved
+    )
+    if (merged !== null) {
+      carried = true
+      projection = writeCircuit(doc, merged, { origin, baseline: projection })
+    }
+  }
+
+  adopt()
+  announce()
 
   /** Store → document. */
   const unsubscribe = store.subscribe((next, previous) => {
@@ -358,6 +476,7 @@ export function bridgeCircuitDocument(
 
   return {
     doc,
+    carried,
     origin,
     onLocalUpdate: (listener) => {
       listeners.add(listener)
@@ -378,6 +497,171 @@ export function bridgeCircuitDocument(
       undo.destroy()
     },
   }
+}
+
+/**
+ * The document's circuit plus whatever the store holds that it has never held,
+ * or `null` when there is nothing to carry.
+ *
+ * ── The two sets this walks, and why neither is `projection.circuit` alone ──
+ *
+ * "What the document holds" is *not* the projected circuit: an operation the
+ * projection **deferred** is in the document and out of the circuit, and treating
+ * it as absent would write a second copy of it into a second slot — one more
+ * contender for a cell that is already contested. So the known set is the
+ * projection's `slots` (the survivors) together with the ids of everything it
+ * deferred.
+ *
+ * "What is this reader's own" is decided against `saved`, the version the store
+ * was seeded from. Absent from the document and present in `saved` is a peer's
+ * deletion and is left deleted; absent from both is work only this tab has. With
+ * no `saved` the caller is asserting the store's circuit is nobody else's, so
+ * everything missing is carried.
+ *
+ * The register is widened rather than replaced, for the reason `widenRegister`
+ * gives about undo: a wire cannot be withdrawn from under somebody else's gate,
+ * and narrowing to this tab's count would do exactly that. Labels, parameters and
+ * definitions follow the same additive rule — the document's value stands, and
+ * only a name it has never carried is added — because they are the keys
+ * `writeCircuit` *deletes* when the circuit it is handed does not account for
+ * them.
+ */
+function withLocalWork(
+  projection: CircuitProjection,
+  local: Circuit,
+  saved: Circuit | undefined
+): Circuit | null {
+  const known = new Set<string>(projection.slots.keys())
+  for (const entry of projection.deferred) {
+    const id = entry.operation?.id
+    if (id !== undefined) known.add(id)
+  }
+  const wasSaved =
+    saved === undefined
+      ? null
+      : new Set(saved.operations.map((operation) => operation.id))
+
+  const carried = local.operations.filter(
+    (operation) =>
+      !known.has(operation.id) && !(wasSaved?.has(operation.id) ?? false)
+  )
+
+  const projected = projection.circuit
+  let qubits = projected.qubits
+  let clbits = projected.clbits
+  for (const operation of carried) {
+    // `qubitsOf` rather than targets and controls read by hand: a control is a
+    // `{ qubit, state }` as often as it is a number, and the contract owns which.
+    for (const qubit of qubitsOf(operation)) {
+      qubits = Math.max(qubits, qubit + 1)
+    }
+    for (const clbit of operation.clbitTargets ?? []) {
+      clbits = Math.max(clbits, clbit + 1)
+    }
+    const condition = operation.condition
+    if (condition !== undefined) clbits = Math.max(clbits, condition.clbit + 1)
+  }
+  /*
+   * A wire this reader added since the save is theirs too, even with nothing on
+   * it yet: they widened the register and the register is part of the document.
+   *
+   * Only with a `saved` to compare against. Without one there is no way to tell a
+   * wire this reader added from one a peer removed, and guessing would restore a
+   * register somebody deliberately narrowed — so an unknown store widens the
+   * document only as far as the operations it is actually carrying require.
+   */
+  if (saved !== undefined) {
+    if (local.qubits > saved.qubits) qubits = Math.max(qubits, local.qubits)
+    if (local.clbits > saved.clbits) clbits = Math.max(clbits, local.clbits)
+  }
+
+  const labels = carriedLabels(projected, local, qubits)
+  const parameters = carriedParameters(projected, local, saved)
+  const gates = carriedGates(projected, local, saved)
+
+  if (
+    carried.length === 0 &&
+    qubits === projected.qubits &&
+    clbits === projected.clbits &&
+    labels === undefined &&
+    parameters === undefined &&
+    gates === undefined
+  ) {
+    return null
+  }
+
+  const merged: Circuit = {
+    ...projected,
+    qubits,
+    clbits,
+    operations: [...projected.operations, ...carried],
+    ...(labels === undefined ? {} : { qubitLabels: labels }),
+    ...(parameters === undefined ? {} : { parameters }),
+    ...(gates === undefined ? {} : { customGates: gates }),
+  }
+  // A merge the contract refuses is not written at all — reachable by a document
+  // already at `MAX_OPERATIONS` — and the document then wins outright, which is
+  // the behaviour that shipped rather than a new way to lose anything.
+  return safeParseCircuit(merged).ok ? merged : null
+}
+
+/**
+ * The document's wire names, extended to cover the widened register.
+ *
+ * `undefined` when nothing has to change. A rename this tab made to a wire the
+ * document already names is *not* carried: the document's name stands, exactly as
+ * its operations do, and a lost rename is visible in a way a lost gate is not.
+ */
+function carriedLabels(
+  projected: Circuit,
+  local: Circuit,
+  qubits: number
+): string[] | undefined {
+  const held = projected.qubitLabels
+  const mine = local.qubitLabels
+  if (held === undefined && mine === undefined) return undefined
+  if (held !== undefined && qubits === projected.qubits) return undefined
+  const labels: string[] = []
+  for (let index = 0; index < qubits; index += 1) {
+    labels.push(held?.[index] ?? mine?.[index] ?? defaultQubitLabel(index))
+  }
+  return labels
+}
+
+function carriedParameters(
+  projected: Circuit,
+  local: Circuit,
+  saved: Circuit | undefined
+): Circuit['parameters'] | undefined {
+  const held = projected.parameters ?? []
+  const names = new Set(held.map((parameter) => parameter.name))
+  const savedNames = new Set(
+    (saved?.parameters ?? []).map((parameter) => parameter.name)
+  )
+  const extra = (local.parameters ?? []).filter(
+    (parameter) =>
+      !names.has(parameter.name) &&
+      !(saved !== undefined && savedNames.has(parameter.name))
+  )
+  if (extra.length === 0) return undefined
+  return [...held, ...extra]
+}
+
+function carriedGates(
+  projected: Circuit,
+  local: Circuit,
+  saved: Circuit | undefined
+): Circuit['customGates'] | undefined {
+  const held = projected.customGates ?? {}
+  const mine = local.customGates ?? {}
+  const savedGates = saved?.customGates ?? {}
+  const extra = Object.entries(mine).filter(
+    ([name]) =>
+      !Object.hasOwn(held, name) &&
+      !(saved !== undefined && Object.hasOwn(savedGates, name))
+  )
+  if (extra.length === 0) return undefined
+  return { ...held, ...Object.fromEntries(extra) }
 }
 
 /**

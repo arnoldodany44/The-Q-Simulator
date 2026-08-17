@@ -16,7 +16,8 @@
       "edited": "{{name}} edited the circuit.",
       "editedCell": "{{name}} edited at qubit {{qubit}}, column {{column}}.",
       "editedRegister": "{{name}} edited at the classical register, column {{column}}."
-    }
+    },
+    "namedNth": "{{name}} ({{index}})"
   },
   "comments": {
     "heading": "Comments",
@@ -92,6 +93,41 @@
     },
     "readOnly": "You are watching this session. Only the owner may edit.",
     "reconnecting": "Reconnecting to the shared session…",
-    "invalid": "The shared document reached a state this circuit cannot hold, so the session was let go."
+    "invalid": "The shared document reached a state this circuit cannot hold, so the session was let go.",
+    "unavailable": "The shared session could not be opened, so this circuit is yours alone in this tab.",
+    "diverged": "Some of your changes were too large to send, so the shared session does not have them yet.",
+    "tooLarge": "This document has grown past what a shared session can serve, so this circuit is yours alone in this tab.",
+    "disabled": "Shared sessions are switched off here, so this circuit is yours alone in this tab."
+  },
+  "deferred": {
+    "heading_one": "{{formatted}} operation is in the document but not on the canvas",
+    "heading_other": "{{formatted}} operations are in the document but not on the canvas",
+    "hint": "Two people wrote to the same place. Nothing was lost and everybody’s copy agrees — these are held back until something makes room for them.",
+    "wanted": "wanted qubit {{qubit}}, column {{column}}",
+    "unreadable": "An operation this version cannot read",
+    "reason": {
+      "column-conflict": "Another gate already holds that cell.",
+      "clbit-in-use": "Another gate in that column already writes that classical bit.",
+      "out-of-register": "It names a wire or a classical bit this circuit does not have.",
+      "malformed": "The document holds a shape that is not an operation.",
+      "invalid": "The circuit does not accept it as it stands."
+    },
+    "reveal": "Show what is holding it",
+    "makeRoom": "Make room for it",
+    "widen": "Widen the register",
+    "unresolvable": "No edit here can place it.",
+    "more_one": "and {{formatted}} more",
+    "more_other": "and {{formatted}} more",
+    "overflow_one": "{{formatted}} further operation in this document is past what one circuit can hold, and is not read at all.",
+    "overflow_other": "{{formatted}} further operations in this document are past what one circuit can hold, and are not read at all.",
+    "announce": {
+      "revealed_one": "Selected the gate that is in the way.",
+      "revealed_other": "Selected the {{count}} gates that are in the way.",
+      "gone": "What was holding it is no longer in this circuit.",
+      "madeRoom": "Made room. The held operation should appear on the canvas.",
+      "widened": "Widened the register. The held operation should appear on the canvas.",
+      "refused": "That could not be done. The document may have changed."
+    },
+    "label": "Operations held back"
   }
 }

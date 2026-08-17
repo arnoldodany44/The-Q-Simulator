@@ -43,6 +43,15 @@ export default defineConfig({
   testDir: './e2e',
   // `support/` holds helpers, not specs, and must not be collected.
   testMatch: /.*\.spec\.ts$/,
+  /*
+   * `e2e/live/` is the two-browser acceptance suite for the shared session, and
+   * it needs what this config deliberately does not start: the API, a database,
+   * a Supabase project and two accounts it creates and deletes. It has a config
+   * of its own (`playwright.live.config.ts`) and a script of its own
+   * (`test:e2e:live`); ignoring it here is what keeps *this* suite runnable on a
+   * checkout with no `.env`, which is why it can be the one that runs on `main`.
+   */
+  testIgnore: '**/live/**',
 
   fullyParallel: true,
   // A `.only` left in a spec silently shrinks the suite to one test, which is

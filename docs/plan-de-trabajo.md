@@ -4,20 +4,20 @@ Documento operativo derivado de [`especificacion.md`](./especificacion.md). La s
 
 - Repositorio: `arnoldodany44/The-Q-Simulator`
 - Rama desplegable: `main`
-- Última actualización: agosto 2026
+- Última actualización: agosto 2026 — Fases 0 a 5 completas
 
 ---
 
 ## 0. Estado actual del entorno
 
-| Herramienta       | Estado               | Nota                                        |
-| ----------------- | -------------------- | ------------------------------------------- |
-| Repo git + remoto | ✅ conectado         | `arnoldodany44/The-Q-Simulator`             |
-| Node.js           | ✅ **v24.19.0**      | LTS actual; supera el v22 que pedía la spec |
-| pnpm              | ✅ **v11.21.0**      | vía corepack, ver nota abajo                |
-| Monorepo          | ✅ **M0.0 completo** | 4 workspaces, CI, fronteras, i18n trilingüe |
-| Docker            | ❌ ausente           | bloqueante desde Fase 2 — B9                |
-| GitHub CLI (`gh`) | ❌ ausente           | opcional; facilita PRs                      |
+| Herramienta       | Estado               | Nota                                               |
+| ----------------- | -------------------- | -------------------------------------------------- |
+| Repo git + remoto | ✅ conectado         | `arnoldodany44/The-Q-Simulator`                    |
+| Node.js           | ✅ **v24.19.0**      | LTS actual; supera el v22 que pedía la spec        |
+| pnpm              | ✅ **v11.21.0**      | vía corepack, ver nota abajo                       |
+| Monorepo          | ✅ **M0.0 completo** | 4 workspaces, CI, fronteras, i18n trilingüe        |
+| Docker            | ❌ ausente           | dejó de bloquear: Redis se tomó gestionado, ver B9 |
+| GitHub CLI (`gh`) | ❌ ausente           | opcional; facilita PRs                             |
 
 **Detalle de la instalación de pnpm.** `corepack enable pnpm` falla con `EPERM` porque intenta escribir los shims en `C:\Program Files\nodejs`, que requiere elevación. La solución sin permisos de administrador fue apuntar corepack al directorio de npm del usuario, que ya está en el `PATH`:
 
@@ -400,7 +400,7 @@ Zod, dnd-kit, Zustand, Zundo y fflate quedan del lado del editor; el chunk de en
 
 ---
 
-## 4. Fase 1 — Producto real
+## 4. Fase 1 — Producto real · ✅ **COMPLETADA**
 
 **Objetivo:** cuentas, persistencia, galería. Con esto, Fase 0 + Fase 1 ya son la app completa y defendible que menciona §14.
 
@@ -416,24 +416,103 @@ Zod, dnd-kit, Zustand, Zundo y fflate quedan del lado del editor; el chunk de en
 | **M1.8** | Deploy de `apps/api` en Railway, `prisma migrate deploy` como paso de release, healthcheck, Sentry                                                                                                                                         | M      | **B6**   |
 | **M1.9** | Perfil de usuario, colecciones, página de settings                                                                                                                                                                                         | M      | M1.5     |
 
-**Criterio de terminado de la fase:** un usuario se registra con GitHub, construye un circuito, lo guarda, lo hace público, otro usuario lo forkea y le da estrella. Todo en producción.
+**Criterio de terminado de la fase:** un usuario se registra con GitHub, construye un circuito, lo guarda, lo hace público, otro usuario lo forkea y le da estrella. Todo en producción. ✅ Cumplido.
+
+**Dos correcciones de esta fase que valen más que su tamaño.** La primera: un
+build de producción sin `VITE_API_URL` lanzaba una excepción mientras el grafo de
+módulos todavía cargaba, así que React nunca montaba y no había ninguna frontera de
+error por encima — el sitio entero, incluidas la landing y el editor que no tocan la
+API, era una página en blanco. La Fase 0 llevaba un día en vivo y se cayó en el
+momento en que la Fase 1 se fusionó, por una variable ausente de un dashboard. La
+respuesta no fue un valor por omisión —enviar cada petición al origen de Vercel
+haría que un problema de despliegue apareciera como «la API mandó una respuesta
+inesperada»— sino **no tener origen**: la aplicación degrada a la Fase 0. La
+segunda: el mismo campo, esta vez con `the-q-simulator-production.up.railway.app`
+copiado de un dashboard que muestra hosts sin esquema. Un valor así es una URL
+_relativa_. Ahora se repara en vez de rechazarse, porque hay exactamente una cosa
+que `https://` delante de un dominio desnudo puede significar.
 
 ---
 
-## 5. Fases 2 – 5 (resumen operativo)
+## 5. Fase 2 — Profundidad técnica · ✅ **COMPLETADA**
 
-Se detallarán al cerrar la Fase 1. Orden y dependencias clave:
+**Objetivo:** que el motor deje de ser solo ideal, y que un circuito grande deje de morir en la pestaña.
 
-- **Fase 2 — Profundidad técnica.** `density.ts` + `noise.ts` (Kraus, §5.4) → modo ruido con comparación de fidelidad · Redis + BullMQ + `apps/worker` para simulaciones > 20 qubits · compuertas personalizadas / subcircuitos · Q-sphere y métricas de entrelazamiento (entropía de von Neumann, concurrencia) · parser de QASM 2/3. **Requiere B9.**
-- **Fase 3 — Aprendizaje.** Lecciones guiadas **× 3 locales** — es aquí donde se paga el costo de D2, ver §1.1 y B3b · modo reto con **validación autoritativa en servidor** usando el mismo `@qsim/core` (riesgo #5) · tablas de posiciones · embeds con CSP restrictiva.
-- **Fase 4 — Hardware y escala.** Cliente de IBM Quantum como proxy · cifrado AES-256-GCM de tokens · vista comparativa ideal / ruido / real · núcleo WASM en Rust con SIMD · API pública con API keys. **Requiere B8, B10.**
-- **Fase 5 — Colaboración.** Yjs CRDT · cursores compartidos · comentarios anclados a compuertas.
+| Hito     | Qué quedó                                                                                                                                                                          | Autoridad                                                         |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **M2.1** | `density.ts` y `noise.ts`: matriz de densidad, canales de Kraus (§5.4), despolarizante, desfase, T1/T2 y error de lectura. Modo ruido con comparación de fidelidad contra el ideal | `packages/qsim/src/density.ts`, `noise.ts`                        |
+| **M2.2** | Redis + BullMQ + `apps/worker`: simulación en servidor para circuitos por encima del techo del navegador, con progreso por WebSocket y cancelación                                 | `apps/worker`, `apps/api/src/routes/simulate.ts`, `packages/jobs` |
+| **M2.3** | Compuertas personalizadas y subcircuitos: definición, uso, edición de la definición como documento aparte, `inlineOperation` para explotar una llamada                             | `apps/web/src/features/circuit-editor/`, §6 `customGates`         |
+| **M2.4** | Q-sphere y métricas de entrelazamiento: entropía de von Neumann, concurrencia, pureza                                                                                              | `packages/qsim/src/metrics.ts`, `features/analysis/`              |
+| **M2.5** | Parser de OpenQASM 2 y 3 en `@qsim/qasm`, con importador y sus rechazos                                                                                                            | `packages/qasm`, `features/import/`                               |
 
-**Punto de extracción de `@qsim/core`** (§12.1): cuando pasen dos semanas sin cambios en su API pública. Probablemente durante la Fase 3.
+**Lo que enseñó.** La verificación por _propiedad_ es lo que atrapa un motor de ruido: un canal de Kraus está bien si conserva la traza y si el estado sigue siendo semidefinido positivo, y esas dos son afirmaciones que se pueden hacer sobre miles de casos generados. Y `density.ts` tiene que coincidir con `statevector.ts` en el caso sin ruido — un verificador entero existe solo para eso, porque un motor de ruido que no reproduce el ideal cuando el ruido es cero está mintiendo en todas partes.
 
 ---
 
-## 6. Lo que necesito de ti
+## 6. Fase 3 — Aprendizaje · ✅ **COMPLETADA**
+
+**Objetivo:** que el producto enseñe, y que se pueda incrustar en el material de clase de alguien más.
+
+| Hito     | Qué quedó                                                                                                                                                                        | Autoridad                                                   |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **M3.1** | Lecciones guiadas × 3 locales. Un paso nombra su circuito como **diferencia** del paso anterior, así que «ahora agrega un CNOT» es una línea de datos junto a una frase de prosa | `features/lessons/`, `apps/api/src/routes/lessons.ts`       |
+| **M3.2** | Objetivos de lección verificados **en el navegador**: no hay tabla de posiciones, nadie escribe nada que otra persona vea, y se puede pulsar Siguiente de todas formas           | `features/lessons/objectives.ts`                            |
+| **M3.3** | Modo reto con validación **autoritativa en el servidor** contra el mismo `@qsim/core` (riesgo #5), y tablas de posiciones                                                        | `apps/api/src/routes/challenges.ts`, `features/challenges/` |
+| **M3.4** | Embeds: `embed.html` como segundo documento con su propio grafo de módulos, `GET /embed/:handle` con política `public`, y las cinco decisiones de cabeceras de §3.4              | `apps/web/src/embed/`, `apps/api/src/routes/embed.ts`       |
+
+**Lo que enseñó.** La asimetría «lección en el cliente, reto en el servidor» es una decisión y no una inconsistencia, y está escrita en cuatro lugares porque las dos funciones se ven iguales una al lado de la otra. Lo más caro que encontró la verificación fue que la ruta de envío era un **oráculo de extracción**: una violación de restricción se reportaba pero no suprimía la fidelidad a plena precisión, así que sondear con compuertas sueltas y leer el número reconstruía el objetivo que un reto existe para esconder. Ahora una violación se rechaza **antes** de preguntarle nada al motor, y el test de regresión reproduce el ataque de diez sondeos y exige ceros.
+
+---
+
+## 7. Fase 4 — Hardware y escala · ✅ **COMPLETADA**
+
+**Objetivo:** correr en una máquina real, y decir la verdad sobre lo que devuelve.
+
+| Hito     | Qué quedó                                                                                                                                                                                               | Autoridad                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **M4.1** | `@qsim/transpile`: base nativa `{cz, id, rx, rz, rzz, sx, x}`, cada descomposición **derivada y luego probada** como unitaria salvo fase global, y colocación que **se niega** en vez de insertar SWAPs | `packages/transpile`                                    |
+| **M4.2** | `@qsim/ibm` como proxy de IBM Quantum, cifrado AES-256-GCM de tokens, ciclo de vida del trabajo con reanudación idempotente                                                                             | `packages/ibm`, `apps/api/src/routes/hardware.ts`       |
+| **M4.3** | Vista comparativa de tres columnas: ideal / ruido / real, con la versión **que se envió** como clave de los estados base                                                                                | `features/hardware/HardwareResultView.tsx`              |
+| **M4.4** | Núcleo WASM en Rust con SIMD y su gate de equivalencia contra el `.wasm` real                                                                                                                           | `packages/qsim-wasm`                                    |
+| **M4.5** | API pública con API keys: acuñado, hashing, alcances, documentación generada                                                                                                                            | `apps/api/src/routes/api-keys.ts`, `features/api-keys/` |
+
+**Presupuesto de QPU gastado en toda la fase: 2 segundos de 600.** Dos trabajos reales en un dispositivo.
+
+**Lo que enseñó.** Dos hallazgos fueron la razón por la que esas lentes de verificación existían. El gate de equivalencia de WASM era **ciego a NaN** —comparaba con `>`, y toda comparación contra NaN es falsa— así que lo único que separaba un kernel compilado de su instalación habría puntuado como perfecto un kernel que llena el statevector de NaN. Y un envío cuya respuesta se perdía **se reenviaba al dispositivo cada sesenta segundos, para siempre**: nada registraba el intento, nada era idempotente, y los tres techos que debían detenerlo no lo hacían. En un plan que concede diez minutos cada veintiocho días, eso es la cuota entera y la demostración para la que se estaba guardando.
+
+---
+
+## 8. Fase 5 — Colaboración · ✅ **COMPLETADA**
+
+**Objetivo:** dos personas en un circuito, y que el editor de una persona no empeore por ello.
+
+| Hito     | Qué quedó                                                                                                                                                                                                                     | Autoridad                                                 |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **M5.1** | `@qsim/collab`: un circuito como documento Yjs, `projectCircuit` puro, `writeCircuit` como diferencia, el puente al almacén y el deshacer por usuario sobre `Y.UndoManager`                                                   | `packages/collab`, `features/collab/circuitDocument.ts`   |
+| **M5.2** | El relevo: canal `circuit:<id>` en el socket `/ws` que ya existía, `CircuitSession` como fila mutable, abanico por Redis, y las cuatro decisiones de §3.4                                                                     | `apps/api/src/ws/documents.ts`, `session.ts`              |
+| **M5.3** | Presencia: frame **tipado** (el servidor compone `name` y `access`), concesión con plazo de 30 s, colores de colaborador fuera de la rueda de fase, y las dos superficies accesibles                                          | `apps/api/src/ws/presence.ts`, `features/collab/`         |
+| **M5.4** | Comentarios anclados a `operations[].id`, orfandad resuelta **en el cliente contra el documento que se dibuja**, hilos de dos niveles, cuerpo con dos producciones y ninguna lista negra                                      | `packages/contract/src/comments.ts`, `features/comments/` |
+| **M5.5** | El transporte del navegador: `collabSession.ts` como objeto plano sobre puertos, con coalescencia de salida, reentrada acotada, reconciliación en las dos direcciones y una regla — nada toca el almacén antes de un `joined` | `features/collab/collabSession.ts`, `useCollabSession.ts` |
+| **M5.6** | **El montaje.** `routes/editor.tsx` abre la sesión, dibuja el panel, la capa de carets y el modo de solo lectura; `DeferredOperations` hace visible la decisión de convergencia                                               | `apps/web/src/routes/editor.tsx`                          |
+
+**M5.6 es el hito que esta fase estuvo a punto de no tener.** El commit de la Fase 5 se registró explícitamente como incompleto: el relevo, el deshacer compartido y toda la superficie de presencia eran correctos, estaban probados y **ninguna acción de ninguna persona podía alcanzarlos**. Se anotó en el mensaje del commit en vez de esconderse, y el pase siguiente lo cableó.
+
+**La pregunta de diseño de la que depende la fase.** Un circuito no es un documento de texto. Un CRDT converge; no valida. Dos personas pueden hacer cada una una edición legal cuya fusión viola §6 —dos operaciones en una columna compartiendo un qubit— y ningún algoritmo de fusión la rechazará. La respuesta es converger y luego **particionar**, nunca reparar los bytes: una reparación es una escritura, y todos los pares la ejecutan, así que dos pares escribiendo «moví al perdedor a la columna 4» inventan un segundo conflicto a partir del arreglo. En vez de eso cada par ordena las operaciones del documento idénticamente, coloca lo que cabe y **difiere el resto** con una razón que nombra qué lo bloqueó. La proyección es función pura de los bytes, así que los pares no pueden divergir; las operaciones diferidas siguen en el documento, así que resolver una es una edición ordinaria y no una recuperación.
+
+### Lo que enseñó la Fase 5
+
+**Un rasgo que nada monta es un rasgo que no existe, y ya había pasado antes.** La Fase 1 publicó `useSimulation` sin importador y el editor no simulaba nada; la Fase 5 publicó siete módulos de colaboración cuyos únicos importadores eran sus propios tests. Las dos veces todas las suites estaban verdes, porque cada suite conduce su propia capa directamente. La regla que faltaba no es «¿alguien importa esto?» —los siete archivos tenían importadores— sino **«¿se llega a esto desde algo que un navegador abre?»**, y ahora hay un test que camina el grafo de importación real desde los puntos de entrada y **nombra** lo que quedó fuera.
+
+**Un editor que se comparte no puede empeorar al editor que no.** Cuatro de los defectos más caros del pase de reparación son de esta forma, y ninguno rompía la colaboración: entrar a una sesión borraba una compuerta colocada un segundo antes y el borrador que la barra de direcciones llevaba en `?c=`; un final de sesión vaciaba la pila de deshacer mientras las compuertas seguían en el lienzo; un socket caído le devolvía un editor escribible a quien solo puede mirar, y la compuerta que colocaba entonces no llegaba a ninguna otra réplica jamás. La promesa «quien edita sola no paga nada» hay que probarla con una suite que solo tenga una persona dentro.
+
+**Una región viva se mide con un lector, no se razona.** El tope de dos segundos por par para «alguien editó» era chatarrero y a la vez sordo al mismo tiempo: un arrastre de nueve segundos repetía la frase tres veces y seis de ocho ediciones deliberadas eran silenciosas. Un ritmo no puede distinguir un gesto de ocho decisiones; quien arrastra sí, porque el almacén ya agrupa el gesto para deshacer. Y dos personas cerrando la pestaña a la vez producen dos mutaciones de una región atómica dentro del mismo turno del lector, de las que se lee **una**.
+
+**Punto de extracción de `@qsim/core`** (§12.1): sigue sin cumplirse el criterio de dos semanas sin cambios en su API pública — la Fase 4 la volvió a tocar para el kernel WASM. Se mantiene como paquete del monorepo.
+
+---
+
+## 9. Lo que necesito de ti
 
 Ordenado por cuándo bloquea. Los marcados 🔴 detienen el trabajo hasta resolverse.
 
@@ -455,7 +534,7 @@ Ordenado por cuándo bloquea. Los marcados 🔴 detienen el trabajo hasta resolv
 
 ---
 
-## 7. Convenciones operativas
+## 10. Convenciones operativas
 
 - **Ramas:** una por hito, con el nombre indicado arriba (`feat/qsim-statevector`, etc.)
 - **Commits:** Conventional Commits con scope de paquete — `feat(qsim): add controlled gate support`
@@ -466,9 +545,38 @@ Ordenado por cuándo bloquea. Los marcados 🔴 detienen el trabajo hasta resolv
 
 ---
 
-## 8. Estado: Fase 0 cerrada y publicada
+## 11. Estado: la especificación entera está construida
 
-**https://the-q-simulator.vercel.app** — M0.0 a M0.10 completos.
+**https://the-q-simulator.vercel.app** — Fases 0 a 5. Las seis fases del roadmap
+de §14 de la especificación están implementadas, verificadas y desplegadas; la
+Fase 5 cierra el documento.
+
+| Fase | Qué añadió                                                                     | Tests unitarios al cerrarla |
+| ---- | ------------------------------------------------------------------------------ | --------------------------- |
+| 0    | Motor, editor, análisis, scrubber, circuito en la URL, landing                 | 2 002                       |
+| 1    | Cuentas, persistencia versionada, galería, esferas de Bloch, exportación       | ~3 900                      |
+| 2    | Ruido y matriz de densidad, simulación en servidor, subcircuitos, QASM entrada | ~5 400                      |
+| 3    | Lecciones, retos con validación en servidor, tablas de posiciones, embeds      | 6 607                       |
+| 4    | Transpilador, IBM Quantum, comparación de tres columnas, WASM, API pública     | 7 729                       |
+| 5    | CRDT, presencia, comentarios anclados, y el transporte que lo hace alcanzable  | 8 341                       |
+
+Las cifras de las fases 1 y 2 son aproximadas: se leyeron del mensaje de commit
+de la fase siguiente, no de un registro propio. Las otras cuatro son exactas.
+
+**Estado medido al cerrar la Fase 5**, en dos corridas en frío tras borrar
+`.turbo`: **8 341 tests unitarios** repartidos en 57 tareas de turbo (3 438 en
+`apps/web`, 1 499 en `@qsim/core`, 975 en `apps/api`, 666 en `@qsim/qasm`, 569 en
+`@qsim/transpile`, y el resto en los otros nueve paquetes y el worker), **158
+especificaciones end-to-end** de Playwright, **14 presupuestos de rendimiento** del
+motor, y **0 violaciones de frontera** sobre 1 162 módulos y 5 553 dependencias.
+Fuera de `pnpm verify` corren cuatro suites que necesitan la pila viva —la
+aceptación de dos navegadores, convergencia en vivo, presencia con lector de
+pantalla y autorización del relevo— cada una con su propia configuración, sus
+propias cuentas y su propio `teardown`.
+
+### Recuento de la Fase 0, que sigue siendo la base
+
+M0.0 a M0.10 completos.
 
 | Hito  | Qué quedó                                                                |
 | ----- | ------------------------------------------------------------------------ |
@@ -484,7 +592,7 @@ Ordenado por cuándo bloquea. Los marcados 🔴 detienen el trabajo hasta resolv
 | M0.9  | Presets, circuitos en la URL, landing                                    |
 | M0.10 | Despliegue en Vercel con COOP/COEP y aislamiento de origen verificado    |
 
-**2002 tests unitarios, 53 e2e, 3 presupuestos de rendimiento.** Sin cuentas y sin backend: la simulación corre en la pestaña del lector y el circuito viaja dentro de su propio enlace.
+**2002 tests unitarios, 53 e2e, 3 presupuestos de rendimiento** al cerrarla. Sin cuentas y sin backend: la simulación corre en la pestaña del lector y el circuito viaja dentro de su propio enlace, y eso sigue siendo cierto hoy — sin `VITE_API_URL` la aplicación degrada a la Fase 0 en vez de romperse (dos incidentes de producción lo enseñaron; ver los commits `fd21bf8` y `e652ffe`).
 
 ### Lo que enseñó la Fase 0
 
@@ -500,8 +608,51 @@ Ordenado por cuándo bloquea. Los marcados 🔴 detienen el trabajo hasta resolv
 
 ---
 
-## 9. Siguiente: Fase 1
+## 12. Lo que queda, dicho sin adornos
 
-El código de M1.1 y M1.2 está desbloqueado — las credenciales de Supabase están verificadas y funcionando (PostgreSQL 17.6, pooler compartido IPv4). Lo que falta de tu lado está en §6: las apps OAuth de GitHub y Google (que no bloquean, porque email/contraseña no necesita configuración) y activar el auto-deploy de Railway cuando exista `apps/api`.
+La especificación está construida. Lo que sigue no son fases: son cosas que este
+documento sabe que están abiertas, y decirlas por escrito vale más que un plan
+para ellas.
+
+**Fuera de alcance a propósito, y §3.4 lo dice.** Las notificaciones de
+comentarios: §14 no las pide, necesitan un medio de entrega que este proyecto no
+tiene, una preferencia para apagarlas y un resumen para que un hilo activo no sean
+treinta mensajes. Lo que sí sale gratis es la cuenta, y está en el filtro.
+
+**Sin resolver, y anotado en §3.4 como tal.** El pub/sub de Redis es
+a-lo-más-una-vez, así que un mensaje perdido puede dejar dos réplicas separadas
+hasta el siguiente `sync`. Hoy el servicio corre **una sola réplica**, así que no
+es alcanzable; si algún día corre varias en serio, la respuesta es enrutar los
+sockets de un circuito a una réplica o intercambiar vectores de estado
+periódicamente entre ellas. No se resolvió ahora porque hacerlo sin poder
+reproducir el problema es escribir código contra una hipótesis.
+
+**Una divergencia que el transporte reporta y no puede reparar.** Una
+actualización, o un delta de reconexión, por encima de `MAX_COLLAB_UPDATE_BYTES`:
+esos bytes quedan en el documento de un par y en el de nadie más. Se **dice**
+(`reconciled: false` y una frase en el panel) en lugar de esconderse, porque es
+exactamente lo que un CRDT no puede arreglar solo. La alternativa —partir la
+actualización en piezas que quepan— existe y no se hizo: el caso es un pegado
+enorme o una edición de registro muy ancha, y una función que aparece una vez cada
+mucho tiempo no justifica un fragmentador en el camino caliente sin haber medido
+que ocurre.
+
+**Un costo medido que se acepta.** Una sesión unida hace que cada commit cueste
+unas cuatro veces más —0.16 ms contra 0.72 ms en un circuito de 21 operaciones,
+0.94 ms contra 4.17 ms en uno de 301— porque el puente escribe el documento en
+cada uno. Es el intercambio que `circuitDocument.ts` declara en su encabezado y lo
+paga quien tiene una sesión abierta, no quien edita sola: sin sesión no hay puente.
+Ninguna corrida de navegador mostró un cambio observable, y queda escrito aquí para
+que nadie lo redescubra como si fuera un defecto.
+
+**La suite en vivo no está aislada, y ahora se niega en vez de corromper.** Las
+identidades viven en una ruta fija y la configuración fija los puertos 5173 y
+8080, así que dos corridas en un mismo árbol lo comparten todo. Cuando ocurrió, la
+segunda sobreescribió el archivo de identidades entre el `setup` y el `teardown` de
+la primera, y la primera **borró las cuentas de la segunda, afirmó sobre ellas y
+reportó éxito** dejando las suyas en la única base de datos que hay. La corrección
+honesta para una suite que no puede aislarse baratamente es rechazar la segunda
+corrida: un candado con el pid del proceso de Playwright, y un mensaje que dice por
+qué.
 
 **Regla de publicación acordada:** se publica al cerrar cada fase, sin preguntar de nuevo.

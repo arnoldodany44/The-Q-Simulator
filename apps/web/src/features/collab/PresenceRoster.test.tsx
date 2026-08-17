@@ -9,7 +9,7 @@ import esCollab from '../../i18n/locales/es/collab.json'
 import frCollab from '../../i18n/locales/fr/collab.json'
 import { PresenceRoster } from './PresenceRoster'
 import {
-  EDIT_ANNOUNCE_QUIET_MS,
+  EDIT_BURST_MS,
   createPresenceStore,
   type PresenceStore,
 } from './presence'
@@ -76,6 +76,24 @@ function mount(
 function announcement(): string {
   const region = document.querySelector('[role="status"]')
   return region?.textContent ?? ''
+}
+
+/**
+ * The newest sentence in the region.
+ *
+ * The region deliberately *keeps* what it said in the last second rather than
+ * replacing it — a `role="status"` region is atomic, so two sentences produced a
+ * few milliseconds apart have to be present together or one of them is never read
+ * (`ANNOUNCE_RETENTION_MS`). So a test about one event asks for the last node
+ * rather than for the region's whole text.
+ */
+function latestAnnouncementNode(): Element | undefined {
+  const spans = document.querySelectorAll('[role="status"] span')
+  return spans[spans.length - 1]
+}
+
+function latestAnnouncement(): string {
+  return latestAnnouncementNode()?.textContent ?? ''
 }
 
 afterEach(cleanup)
@@ -200,7 +218,58 @@ describe('what the live region says', () => {
     act(() => {
       store.receive('p1', null, 1_100)
     })
-    expect(announcement()).toBe('Ada has left this circuit.')
+    expect(latestAnnouncement()).toBe('Ada has left this circuit.')
+    // And the arrival is still there, 100 ms old: an atomic region that dropped it
+    // would be a region mutated twice inside one screen-reader turn.
+    expect(announcement()).toBe(
+      'Ada is now in this circuit.Ada has left this circuit.'
+    )
+  })
+
+  /**
+   * THE REQUIREMENT `ANNOUNCE_RETENTION_MS` EXISTS FOR.
+   *
+   * One dropped network, or two tabs closed together, produces two departures in
+   * *separate* macrotasks — measured 1 ms and 17 ms apart against the real relay,
+   * which sends one `collab:presence` frame per peer. A region that replaced its
+   * content per event held one sentence, was replaced before the screen reader
+   * finished its turn, and read only the last of them: a listener was left
+   * believing somebody who had gone was still in the document.
+   */
+  it('announces two departures that arrive one after the other', () => {
+    const store = createPresenceStore()
+    mount(store)
+    act(() => {
+      store.receive('ana', state({ name: 'Ana' }), 1_000)
+      store.receive('beto', state({ name: 'Beto' }), 1_000)
+    })
+    // Two frames, two changes, 17 ms apart — not one sweep.
+    act(() => {
+      store.receive('ana', null, 2_000)
+    })
+    act(() => {
+      store.receive('beto', null, 2_017)
+    })
+
+    const said = announcement()
+    expect(said).toContain('Ana has left this circuit.')
+    expect(said).toContain('Beto has left this circuit.')
+  })
+
+  it('lets a sentence go once it is no longer news', () => {
+    const store = createPresenceStore()
+    mount(store)
+    act(() => {
+      store.receive('p1', state(), 1_000)
+    })
+    expect(announcement()).toBe('Ada is now in this circuit.')
+
+    // The heartbeat sweep, a full retention window later. Nothing expired — the
+    // peer is still here — but the region has nothing left to say.
+    act(() => {
+      store.expire(3_000)
+    })
+    expect(announcement()).toBe('')
   })
 
   it('announces an edit, and says where', () => {
@@ -216,7 +285,7 @@ describe('what the live region says', () => {
         1_100
       )
     })
-    expect(announcement()).toBe('Ada edited at qubit 1, column 4.')
+    expect(latestAnnouncement()).toBe('Ada edited at qubit 1, column 4.')
   })
 
   /**
@@ -269,21 +338,63 @@ describe('what the live region says', () => {
     act(() => {
       store.receive('p1', state({ edits: 2 }), 1_100)
     })
-    const first = document.querySelector('[role="status"] span')
+    const first = latestAnnouncementNode()
     /*
-     * Past `EDIT_ANNOUNCE_QUIET_MS`, so this is a second *edit* and not one more
+     * Past `EDIT_BURST_MS`, so this is a second *edit* and not one more
      * frame of the same drag — which the store deliberately does not speak, or the
      * region would read the identical sentence eight times a second for as long as
      * somebody held a slider.
      */
     act(() => {
-      store.receive('p1', state({ edits: 3 }), 1_100 + EDIT_ANNOUNCE_QUIET_MS)
+      store.receive('p1', state({ edits: 3 }), 1_100 + EDIT_BURST_MS)
     })
-    const second = document.querySelector('[role="status"] span')
+    const second = latestAnnouncementNode()
 
     expect(second?.textContent).toBe(first?.textContent)
     expect(second).not.toBe(first)
     expect(second?.textContent).not.toBe('')
+  })
+
+  /**
+   * The other half of `EDIT_BURST_MS`, and the half a rate could not deliver: a
+   * person placing a gate every eight hundred milliseconds is making decisions,
+   * and six of eight of them used to be silent.
+   */
+  it('speaks every deliberate edit, and a whole drag only once', () => {
+    const store = createPresenceStore()
+    mount(store)
+    act(() => {
+      store.receive('p1', state({ edits: 0 }), 0)
+    })
+
+    let spoken = 0
+    let last = latestAnnouncementNode()
+    const count = (): void => {
+      const node = latestAnnouncementNode()
+      if (node !== last) spoken += 1
+      last = node
+    }
+
+    // Eight placements, 800 ms apart. Every one of them is news.
+    for (let edit = 1; edit <= 8; edit += 1) {
+      act(() => {
+        store.receive('p1', state({ edits: edit }), edit * 800)
+      })
+      count()
+    }
+    expect(spoken).toBe(8)
+
+    // Then one slider drag: a frame every `PRESENCE_THROTTLE_MS`, for nine
+    // seconds. One sentence, however long it runs.
+    spoken = 0
+    const start = 8 * 800
+    for (let frame = 1; frame <= 75; frame += 1) {
+      act(() => {
+        store.receive('p1', state({ edits: 8 + frame }), start + frame * 120)
+      })
+      count()
+    }
+    expect(spoken).toBe(1)
   })
 
   it('says nothing when this tab is the one that left', () => {

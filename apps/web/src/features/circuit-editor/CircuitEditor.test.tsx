@@ -22,6 +22,7 @@ import frEditor from '../../i18n/locales/fr/editor.json'
 import frGates from '../../i18n/locales/fr/gates.json'
 import frSimulation from '../../i18n/locales/fr/simulation.json'
 import { CircuitEditor } from './CircuitEditor'
+import type { Cell } from './geometry'
 import { createCircuitStore, type CircuitStore } from './useCircuitStore'
 
 /**
@@ -1308,5 +1309,84 @@ describe('what a controlled cell is called', () => {
     open(emptyCircuit(3, 0), 'fr')
     buildToffoli()
     expect(targetCell().textContent).toContain('contrôlée par q1 et q2')
+  })
+})
+
+/**
+ * The two props a shared session drives (M5.6).
+ *
+ * The editor knows nothing about sessions and must not: `.dependency-cruiser.cjs`
+ * keeps that arrow pointing one way, so what it exposes is a boolean and a
+ * callback about a cell. Both are asserted here because the page that passes them
+ * cannot: `routes/editor.test.tsx` proves the wiring end to end, and this proves
+ * the two contracts it depends on — that read-only really disables the controls
+ * that write, and that a cursor is reported once per movement rather than once per
+ * render.
+ */
+describe('the editor answers a shared session', () => {
+  function openWith(props: {
+    readOnly?: boolean
+    onCursorMove?: (cell: Cell) => void
+  }) {
+    const store = createCircuitStore(emptyCircuit(2, 0))
+    const view = render(
+      <I18nextProvider i18n={i18nFor('en')}>
+        <CircuitEditor store={store} {...props} />
+      </I18nextProvider>
+    )
+    return { store, view }
+  }
+
+  it('disables every control that writes when told it may only watch', () => {
+    openWith({ readOnly: true })
+
+    for (const label of [
+      enEditor.toolbar.undo,
+      enEditor.toolbar.redo,
+      enEditor.toolbar.compact,
+    ]) {
+      expect(screen.getByRole('button', { name: label })).toHaveProperty(
+        'disabled',
+        true
+      )
+    }
+    // The packaging panel is hidden rather than disabled, exactly as it is on a
+    // compact viewport — the other reason this flag can be true.
+    expect(screen.queryByText(enEditor.customGates.title)).toBe(null)
+  })
+
+  it('leaves them alone by default, which is the editor that shipped', () => {
+    openWith({})
+
+    expect(
+      screen.getByRole('button', { name: enEditor.toolbar.undo })
+    ).toHaveProperty('disabled', false)
+  })
+
+  it('reports the cursor once when it moves, and not on every render', () => {
+    const seen: Cell[] = []
+    const { store } = openWith({
+      onCursorMove: (cell) => {
+        seen.push(cell)
+      },
+    })
+
+    // Once on mount: a peer that waited for its first movement would be drawn
+    // nowhere on everybody else's screen until its next heartbeat.
+    expect(seen).toEqual([{ qubit: 0, column: 0 }])
+
+    press('ArrowRight')
+    expect(seen.at(-1)).toEqual({ qubit: 0, column: 1 })
+    const afterMove = seen.length
+
+    /*
+     * A commit that does not move the cursor produces no report. This is the
+     * property the ref in `CircuitEditor` exists for: the store change re-renders
+     * this component, and a naive effect would have sent a frame for it.
+     */
+    act(() => {
+      store.getState().addClbit()
+    })
+    expect(seen.length).toBe(afterMove)
   })
 })

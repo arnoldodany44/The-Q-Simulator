@@ -8,7 +8,7 @@ import {
 import type { PresencePosition, PresenceState } from '@qsim/contract'
 import { describe, expect, it } from 'vitest'
 
-import { EDIT_ANNOUNCE_QUIET_MS, createPresenceStore } from './presence'
+import { EDIT_BURST_MS, createPresenceStore } from './presence'
 import type { PresenceEvent, PresenceStore } from './presence'
 import { createPresenceChannel } from './presenceChannel'
 
@@ -173,9 +173,9 @@ describe('what reaches a live region, and what must not', () => {
     store.receive('p1', state({ edits: 1 }), 1_000)
     store.receive('p1', state({ edits: 2 }), 1_100)
     const first = latest(store)
-    // Past the quiet period, so this is a second *edit* rather than one more frame
+    // Past the burst window, so this is a second *edit* rather than one more frame
     // of the same gesture.
-    store.receive('p1', state({ edits: 3 }), 1_100 + EDIT_ANNOUNCE_QUIET_MS)
+    store.receive('p1', state({ edits: 3 }), 1_100 + EDIT_BURST_MS)
     const second = latest(store)
 
     expect(second?.kind).toBe(first?.kind)

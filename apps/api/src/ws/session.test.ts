@@ -87,6 +87,15 @@ interface HarnessOptions {
   readonly verifies?: string | null
   /** Circuits and what each viewer may do with them — see `access`. */
   readonly circuits?: Record<string, CollabAccess | null>
+  /**
+   * Handles that resolve to a *different* circuit id, as a slug does.
+   *
+   * The default resolves a handle to itself, which is right for the tests that
+   * address circuits by id. A slug is the case where the frame's string and the
+   * document's key differ, and that difference is what the attachment budget was
+   * found miscounting.
+   */
+  readonly resolves?: Record<string, string>
   /** `false` models a deployment with the relay switched off. */
   readonly collaborative?: boolean
   /** What `attachDocument` refuses with, when a test wants a refusal. */
@@ -221,9 +230,16 @@ function harness(options: HarnessOptions = {}): Harness {
             return Promise.resolve(
               (() => {
                 const granted = access.get(key(circuitId, viewerId)) ?? null
-                // The double resolves a handle to itself: these tests address
-                // circuits by id, and the slug case has its own suite.
-                return granted === null ? null : { access: granted, circuitId }
+                // A handle resolves to itself unless a test says otherwise: most
+                // of these address circuits by id, and `resolves` is how the slug
+                // case — where the frame's string is not the document's key — is
+                // reached without a database.
+                return granted === null
+                  ? null
+                  : {
+                      access: granted,
+                      circuitId: options.resolves?.[circuitId] ?? circuitId,
+                    }
               })()
             )
           },
@@ -1133,6 +1149,29 @@ describe('joining a shared document', () => {
     expect(h.circuitReads).toEqual([key('c1', OWNER), key('c2', OWNER)])
   })
 
+  /**
+   * The bound is documents, and a slug join used to cost two of them.
+   *
+   * `attachments` is keyed by *both* handles of every document — that is what lets
+   * a slug join and an id join for one circuit find each other — so comparing its
+   * `size` to `MAX_COLLAB_DOCUMENTS_PER_SOCKET` enforced half the documented
+   * ceiling for every client that joins by slug, which is every browser.
+   */
+  it('charges one document for a join by slug, not two', async () => {
+    const h = harness({
+      circuits: { s1: 'write', s2: 'write' },
+      resolves: { s1: 'c1', s2: 'c2' },
+      identity: SESSION,
+    })
+
+    await h.send({ type: 'collab:join', circuitId: 's1' })
+    expect(h.session.attachmentCount()).toBe(1)
+
+    await h.send({ type: 'collab:join', circuitId: 's2' })
+    expect(h.session.attachmentCount()).toBe(MAX_COLLAB_DOCUMENTS_PER_SOCKET)
+    expect(h.sent.filter((frame) => frame.type === 'collab:error')).toEqual([])
+  })
+
   it('leaves the socket open when the relay is switched off', async () => {
     const h = harness({ circuits: { c1: 'write' }, collaborative: false })
     await h.send({ type: 'collab:join', circuitId: 'c1' })
@@ -1485,6 +1524,63 @@ describe('an idle socket holding only a document', () => {
     h.advance(IDLE_TIMEOUT_MS + 1)
     h.session.sweep()
     expect(h.closed).toEqual([SOCKET_CLOSE.IDLE])
+  })
+
+  /**
+   * REVOCATION IS NOT A PROPERTY OF TRAFFIC.
+   *
+   * `stillAttached` was reached only from `update`, `presence` and the two
+   * delivery paths, so a peer that stopped speaking kept its attachment, its
+   * reader slot and its hold on the live document after its read access had been
+   * withdrawn — measured at 32 s of silence with the socket still open and no
+   * `collab:left` sent. Nothing leaked, because the first frame after the owner
+   * edits is the ejection rather than the edit; what was wrong is the lifecycle,
+   * and this channel's own comment promises the decision is «re-checked while the
+   * session runs».
+   */
+  it('ends a silent attachment whose read access was withdrawn', async () => {
+    const h = harness({ circuits: { c1: 'read' } })
+    await h.send({ type: 'collab:join', circuitId: 'c1' })
+    expect(h.session.attachmentCount()).toBe(1)
+
+    // The owner made the circuit PRIVATE. This peer says nothing at all.
+    h.access.set(key('c1', null), null)
+    h.advance(AUTHORISATION_TTL_MS + 1)
+    h.session.sweep()
+    await settle()
+
+    expect(h.sent.at(-1)).toEqual({
+      type: 'collab:left',
+      circuitId: 'c1',
+      reason: 'unauthorised',
+    })
+    expect(h.session.attachmentCount()).toBe(0)
+  })
+
+  it('keeps a silent attachment the owner has not revoked', async () => {
+    const h = harness({ circuits: { c1: 'read' } })
+    await h.send({ type: 'collab:join', circuitId: 'c1' })
+    h.sent.length = 0
+
+    h.advance(AUTHORISATION_TTL_MS + 1)
+    h.session.sweep()
+    await settle()
+
+    // Watching is silence, and silence is not a reason to be thrown out.
+    expect(h.sent).toEqual([])
+    expect(h.session.attachmentCount()).toBe(1)
+    expect(h.closed).toEqual([])
+  })
+
+  it('asks nothing of the database for an attachment inside the TTL', async () => {
+    const h = harness({ circuits: { c1: 'read' } })
+    await h.send({ type: 'collab:join', circuitId: 'c1' })
+    const reads = h.circuitReads.length
+
+    // A session with traffic has just re-checked; the sweep must not double it.
+    h.session.sweep()
+    await settle()
+    expect(h.circuitReads).toHaveLength(reads)
   })
 })
 

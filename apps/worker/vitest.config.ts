@@ -30,6 +30,14 @@ export default defineConfig({
      */
     testTimeout: 20_000,
     hookTimeout: 20_000,
+    /*
+     * Bounded for the same reason apps/api's is, and with more force here: this
+     * pool forks a real child process per job under test, so an unbounded pool
+     * multiplies processes twice over. Turbo already runs up to ten packages at
+     * once on 12 cores, and this suite failed once in about five cold runs at
+     * full width even with the generous timeout above.
+     */
+    maxWorkers: 3,
     env: liveQueue
       ? { NODE_ENV: 'test' }
       : { NODE_ENV: 'test', REDIS_URL: '', DATABASE_URL: '' },

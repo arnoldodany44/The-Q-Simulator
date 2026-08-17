@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { openSharedCircuit } from './support/collab'
+
 /**
  * No route, in any language, may render a raw i18n key.
  *
@@ -277,6 +279,67 @@ for (const route of ['/lessons', '/lessons/qpe']) {
           timeout: 10_000,
         })
         .not.toContain('`')
+    })
+  }
+}
+
+/*
+ * ── THE ADDRESS WHERE COLLABORATION AND COMMENTS ACTUALLY PAINT (M5.6) ────
+ *
+ * `/c/nobody12345` is in the list above and cannot reach any of this. With no API
+ * behind this suite it settles into its "no such circuit" sentence, so about
+ * seventy strings — most of the `collab` namespace: the presence roster, the
+ * read-only notice, the deferral panel and every word of the comment panel — sat
+ * outside this guardrail entirely. They existed in all three catalogs,
+ * `locale-parity.test.ts` was satisfied, the component tests imported the catalogs
+ * directly, and no page in the suite rendered one of them. That is precisely the
+ * arrangement this file exists to catch, and it was the largest hole in it.
+ *
+ * ── WHAT THIS BLOCK REACHES, AND WHERE THE REST IS COVERED ────────────────
+ *
+ * Forty of the namespace's ninety-three keys, measured rather than assumed. The
+ * two families it cannot reach are the session's *endings* — which need the
+ * transport ejected, refused or disconnected, states a relay does not volunteer —
+ * and the comment compose and reply forms, which are drawn only for a signed-in
+ * viewer and this suite has no Supabase behind it. `CollabPanel.test.tsx`,
+ * `DeferredOperations.test.tsx` and `CommentsPanel.test.tsx` each apply the same
+ * property in all three languages to exactly those surfaces, so no `collab` string
+ * is unchecked; what is asserted *here* is the thing only a page can prove — that
+ * the route's chunk fetches the namespace, and that a real render of the real
+ * editor is made of translations.
+ *
+ * So this address brings its own fixture (`support/collab.ts`): the circuit
+ * request answers with a saved document, the comment request answers with threads
+ * in every state the panel has words for, and §8's socket is mocked frame for
+ * frame so the join lands and two peers appear in the roster. Nothing else in the
+ * suite needs a fixture, and this one does, because these strings exist *only*
+ * once a circuit has resolved and a session has joined — which is another way of
+ * saying they are the ones nobody has on screen while translating.
+ *
+ * Both accesses, because they are two different surfaces rather than two states
+ * of one: a watcher is told they are watching and is shown a read-only editor,
+ * while a writer gets the toolbar, the parameter editor and the packaging control
+ * — and, in the deferral panel, a repair button the watcher does not get. One
+ * load would leave whichever half it did not pick unswept.
+ */
+for (const access of ['read', 'write'] as const) {
+  for (const language of LANGUAGES) {
+    test(`a joined session renders no raw i18n keys in ${language} (${access})`, async ({
+      page,
+    }) => {
+      await openSharedCircuit(page, { language, access })
+      await expect(page.locator('#root')).not.toBeEmpty()
+      // The roster is what says the session actually joined. Without it the rest
+      // of the assertion would pass by rendering nothing at all, which is how a
+      // guardrail quietly stops guarding.
+      await expect(page.locator('.presence-roster')).toBeVisible()
+
+      await expect
+        .poll(() => rawKeysOn(page), {
+          message: `a joined session in ${language} (${access}) rendered i18n keys instead of translations`,
+          timeout: 10_000,
+        })
+        .toEqual([])
     })
   }
 }

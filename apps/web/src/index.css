@@ -1170,6 +1170,92 @@ body {
   color: var(--text-muted);
 }
 
+/* ---- the session, mounted above the canvas (M5.6) ---- */
+
+/*
+ * Empty for a solo editor, and that is the requirement rather than an accident:
+ * the panel's only unconditional child is the roster's live region, which is
+ * `visually-hidden`, so `gap` on an empty flex column adds nothing and the page
+ * `/new` renders is the page that shipped. `:empty` cannot be used for this —
+ * the hidden region is a child — so the collapse is done with a zero row gap on
+ * the hidden element instead of a margin on the container.
+ */
+.collab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.collab-panel__notice {
+  margin: 0;
+}
+
+/*
+ * The deferral panel is a notice about the *document*, so it takes the notice
+ * surface rather than a colour of its own — nothing here is an error, and §6's
+ * conflict resolution is not a failure state. The left rule is what makes it read
+ * as being about the canvas below it rather than about the toolbar above.
+ */
+.deferred-panel {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--wire);
+  border-left: 3px solid var(--accent);
+  background: var(--bg-panel);
+  font-size: var(--text-caption);
+}
+
+/*
+ * The panel after its last deferral was resolved: no border, no padding, nothing
+ * to see. It stays in the DOM only so that its live region can finish saying what
+ * the press did — see the component — and a bordered empty box would be the visual
+ * cost of an accessibility fix.
+ */
+.deferred-panel--quiet {
+  padding: 0;
+  border: 0;
+}
+
+.deferred-panel__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--text);
+}
+
+.deferred-panel__hint,
+.deferred-panel__more,
+.deferred-panel__overflow {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+}
+
+.deferred-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deferred-panel__entry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.deferred-panel__why,
+.deferred-panel__stuck {
+  color: var(--text-muted);
+}
+
+.deferred-panel__actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
 /* ------------------------------------------------------------------ *
  * Comments anchored to gates (M5.4)
  *

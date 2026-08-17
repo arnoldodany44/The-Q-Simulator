@@ -35,14 +35,20 @@
 import type { Circuit } from '@qsim/schema'
 import { useSyncExternalStore, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useStore } from 'zustand'
 
 import {
   DEFAULT_METRICS,
   cellBounds,
+  editableColumns,
   gridSizeOf,
   MIN_COLUMNS,
   type GridMetrics,
 } from '../circuit-editor/geometry'
+import {
+  useCircuitStore,
+  type CircuitStore,
+} from '../circuit-editor/useCircuitStore'
 import { presenceMarks, type PresenceMark } from './presenceMarks'
 import type { PresenceStore } from './presence'
 
@@ -88,6 +94,45 @@ export function PresenceCursors({
         </span>
       ))}
     </div>
+  )
+}
+
+export interface PresenceCursorLayerProps {
+  /** The session's presence store, or `null` when there is no session. */
+  readonly store: PresenceStore | null
+  readonly circuitStore?: CircuitStore
+  readonly metrics?: GridMetrics
+}
+
+/**
+ * The layer a page can hand the canvas without reading the document itself.
+ *
+ * The circuit is read *here* rather than by the page, and that is the whole
+ * reason this wrapper exists: `routes/editor.tsx` renders the document bar, the
+ * comment panel and the version controls, and a subscription to `circuit` up
+ * there would re-render all of it on every keystroke. Subscribing inside the
+ * layer keeps the re-render to the layer — the same arrangement, and the same
+ * argument, as `CommentMarkerLayer`.
+ *
+ * `minColumns` comes from `editableColumns`, which is what `CircuitEditor` passes
+ * to the canvas. It has to be the same number or the marks land on the wrong
+ * cells, and computing it from one function in both places is what makes that a
+ * property rather than a coincidence.
+ */
+export function PresenceCursorLayer({
+  store,
+  circuitStore = useCircuitStore,
+  metrics = DEFAULT_METRICS,
+}: PresenceCursorLayerProps) {
+  const circuit = useStore(circuitStore, (state) => state.circuit)
+  if (store === null) return null
+  return (
+    <PresenceCursors
+      store={store}
+      circuit={circuit}
+      minColumns={editableColumns(circuit)}
+      metrics={metrics}
+    />
   )
 }
 

@@ -16,11 +16,12 @@
       "edited": "{{name}} a modifié le circuit.",
       "editedCell": "{{name}} a modifié au qubit {{qubit}}, colonne {{column}}.",
       "editedRegister": "{{name}} a modifié au registre classique, colonne {{column}}."
-    }
+    },
+    "namedNth": "{{name}} ({{index}})"
   },
   "comments": {
     "heading": "Commentaires",
-    "hint": "Sélectionnez une porte pour la commenter, ou écrivez à propos du circuit entier. Un fil résolu reste ici, pour que « nous en avons discuté et décidé » ne se perde pas.",
+    "hint": "Sélectionnez une porte pour la commenter, ou écrivez à propos du circuit entier. Un fil résolu reste ici, pour que « nous en avons discuté et décidé » ne se perde pas.",
     "loading": "Chargement des commentaires…",
     "retry": "Réessayer",
     "filter": {
@@ -92,6 +93,41 @@
     },
     "readOnly": "Vous observez cette session. Seul le propriétaire peut modifier.",
     "reconnecting": "Reconnexion à la session partagée…",
-    "invalid": "Le document partagé a atteint un état que ce circuit ne peut pas contenir, la session a donc été libérée."
+    "invalid": "Le document partagé a atteint un état que ce circuit ne peut pas contenir, la session a donc été libérée.",
+    "unavailable": "La session partagée n’a pas pu s’ouvrir, ce circuit n’appartient donc qu’à vous dans cet onglet.",
+    "diverged": "Certaines de vos modifications étaient trop volumineuses pour être envoyées, la session partagée ne les a donc pas encore.",
+    "tooLarge": "Ce document a dépassé ce qu’une session partagée peut servir, ce circuit n’appartient donc qu’à vous dans cet onglet.",
+    "disabled": "Les sessions partagées sont désactivées ici, ce circuit n’appartient donc qu’à vous dans cet onglet."
+  },
+  "deferred": {
+    "heading_one": "{{formatted}} opération est dans le document mais pas sur le canevas",
+    "heading_other": "{{formatted}} opérations sont dans le document mais pas sur le canevas",
+    "hint": "Deux personnes ont écrit au même endroit. Rien n’est perdu et toutes les copies concordent : celles-ci attendent que quelque chose leur fasse de la place.",
+    "wanted": "voulait le qubit {{qubit}}, colonne {{column}}",
+    "unreadable": "Une opération que cette version ne peut pas lire",
+    "reason": {
+      "column-conflict": "Une autre porte occupe déjà cette cellule.",
+      "clbit-in-use": "Une autre porte de cette colonne écrit déjà ce bit classique.",
+      "out-of-register": "Elle nomme un fil ou un bit classique que ce circuit n’a pas.",
+      "malformed": "Le document y garde une forme qui n’est pas une opération.",
+      "invalid": "Le circuit ne l’accepte pas en l’état."
+    },
+    "reveal": "Montrer ce qui la retient",
+    "makeRoom": "Lui faire de la place",
+    "widen": "Élargir le registre",
+    "unresolvable": "Aucune modification d’ici ne peut la placer.",
+    "more_one": "et {{formatted}} de plus",
+    "more_other": "et {{formatted}} de plus",
+    "overflow_one": "{{formatted}} opération supplémentaire de ce document dépasse ce qu’un circuit peut contenir et n’est pas lue du tout.",
+    "overflow_other": "{{formatted}} opérations supplémentaires de ce document dépassent ce qu’un circuit peut contenir et ne sont pas lues du tout.",
+    "announce": {
+      "revealed_one": "La porte qui gêne a été sélectionnée.",
+      "revealed_other": "Les {{count}} portes qui gênent ont été sélectionnées.",
+      "gone": "Ce qui la retenait n’est plus dans ce circuit.",
+      "madeRoom": "De la place a été faite. L’opération en attente devrait apparaître sur le canevas.",
+      "widened": "Le registre a été élargi. L’opération en attente devrait apparaître sur le canevas.",
+      "refused": "Impossible. Le document a peut-être changé."
+    },
+    "label": "Opérations retenues"
   }
 }

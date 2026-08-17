@@ -488,6 +488,35 @@ export async function loadNamespaces(
   ])
 }
 
+/**
+ * The interpolation the whole app runs with, exported so a test can share it.
+ *
+ * A component test builds its own i18next instance — that is what lets it render
+ * three languages in one file without a network — and an instance configured
+ * differently from the app's is a test asserting something the reader never sees.
+ *
+ * ── WHY §10's FIGURES ARE NOT SOLVED HERE ────────────────────────────────
+ *
+ * The tempting answer to «every figure through `Intl.NumberFormat`» is
+ * `alwaysFormat` with a `format` of our own. It does not work: i18next 21 and
+ * later install their own `Formatter` service and overwrite
+ * `interpolation.format` with it unconditionally, and that formatter returns the
+ * value untouched unless the catalog tagged the placeholder (`{{val, number}}`).
+ * Replacing the module wholesale to get one behaviour would take the built-in
+ * date, list and relative-time formatters down with it.
+ *
+ * So the convention stays what `TimelineScrubber`, `CircuitCanvas`,
+ * `SaveCircuitPanel` and `CommentsPanel` already do: the *call site* formats, and
+ * a figure that can reach four digits is interpolated as an already-formatted
+ * string. A plural key keeps `count` as a number, because that is what selects the
+ * form, and carries the formatted figure beside it.
+ */
+export const INTERPOLATION = {
+  // React escapes for us; doing it twice mangles apostrophes, which matters for
+  // French.
+  escapeValue: false,
+} as const
+
 export async function initI18n(): Promise<typeof i18n> {
   await i18n
     .use(LanguageDetector)
@@ -507,11 +536,7 @@ export async function initI18n(): Promise<typeof i18n> {
       resources: {},
       // Resources arrive after init, one language at a time.
       partialBundledLanguages: true,
-      interpolation: {
-        // React escapes for us; doing it twice mangles apostrophes, which
-        // matters for French.
-        escapeValue: false,
-      },
+      interpolation: { ...INTERPOLATION },
       detection: {
         order: ['localStorage', 'navigator'],
         lookupLocalStorage: LANGUAGE_STORAGE_KEY,

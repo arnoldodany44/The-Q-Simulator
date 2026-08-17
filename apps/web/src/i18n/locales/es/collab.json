@@ -16,7 +16,8 @@
       "edited": "{{name}} editó el circuito.",
       "editedCell": "{{name}} editó en el qubit {{qubit}}, columna {{column}}.",
       "editedRegister": "{{name}} editó en el registro clásico, columna {{column}}."
-    }
+    },
+    "namedNth": "{{name}} ({{index}})"
   },
   "comments": {
     "heading": "Comentarios",
@@ -76,8 +77,8 @@
       "position": "Página {{page}} de {{pages}} · {{total}} hilos"
     },
     "announce": {
-      "revealed": "Puerta seleccionada en {{qubit}}, columna {{column}}.",
-      "revealMissing": "La puerta de este comentario ya no está en el circuito.",
+      "revealed": "Compuerta seleccionada en {{qubit}}, columna {{column}}.",
+      "revealMissing": "La compuerta de este comentario ya no está en el circuito.",
       "replied": "Respuesta enviada.",
       "resolved": "Hilo resuelto.",
       "reopened": "Hilo reabierto.",
@@ -92,6 +93,41 @@
     },
     "readOnly": "Estás observando esta sesión. Solo quien es dueño puede editar.",
     "reconnecting": "Reconectando con la sesión compartida…",
-    "invalid": "El documento compartido llegó a un estado que este circuito no admite, así que la sesión se liberó."
+    "invalid": "El documento compartido llegó a un estado que este circuito no admite, así que la sesión se liberó.",
+    "unavailable": "No se pudo abrir la sesión compartida, así que este circuito es solo tuyo en esta pestaña.",
+    "diverged": "Algunos de tus cambios eran demasiado grandes para enviarse, así que la sesión compartida aún no los tiene.",
+    "tooLarge": "Este documento superó lo que una sesión compartida puede servir, así que este circuito es solo tuyo en esta pestaña.",
+    "disabled": "Las sesiones compartidas están desactivadas aquí, así que este circuito es solo tuyo en esta pestaña."
+  },
+  "deferred": {
+    "heading_one": "{{formatted}} operación está en el documento pero no en el lienzo",
+    "heading_other": "{{formatted}} operaciones están en el documento pero no en el lienzo",
+    "hint": "Dos personas escribieron en el mismo lugar. No se perdió nada y todas las copias coinciden: estas quedan en espera hasta que algo les haga sitio.",
+    "wanted": "quería el qubit {{qubit}}, columna {{column}}",
+    "unreadable": "Una operación que esta versión no puede leer",
+    "reason": {
+      "column-conflict": "Otra compuerta ya ocupa esa celda.",
+      "clbit-in-use": "Otra compuerta de esa columna ya escribe ese bit clásico.",
+      "out-of-register": "La operación nombra un hilo o un bit clásico que este circuito no tiene.",
+      "malformed": "El documento guarda ahí algo que no es una operación.",
+      "invalid": "El circuito no la admite tal como está."
+    },
+    "reveal": "Mostrar qué la detiene",
+    "makeRoom": "Hacerle sitio",
+    "widen": "Ampliar el registro",
+    "unresolvable": "Ninguna edición de aquí puede colocarla.",
+    "more_one": "y {{formatted}} más",
+    "more_other": "y {{formatted}} más",
+    "overflow_one": "{{formatted}} operación más de este documento excede lo que cabe en un circuito y no se lee en absoluto.",
+    "overflow_other": "{{formatted}} operaciones más de este documento exceden lo que cabe en un circuito y no se leen en absoluto.",
+    "announce": {
+      "revealed_one": "Se seleccionó la compuerta que estorba.",
+      "revealed_other": "Se seleccionaron las {{count}} compuertas que estorban.",
+      "gone": "Lo que la detenía ya no está en este circuito.",
+      "madeRoom": "Se hizo sitio. La operación en espera debería aparecer en el lienzo.",
+      "widened": "Se amplió el registro. La operación en espera debería aparecer en el lienzo.",
+      "refused": "No se pudo hacer. Puede que el documento haya cambiado."
+    },
+    "label": "Operaciones en espera"
   }
 }

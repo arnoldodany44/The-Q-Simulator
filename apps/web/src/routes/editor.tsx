@@ -53,6 +53,22 @@
  * the answer rather than autosave or a prompt, is in
  * `features/circuit-storage/useUnsavedWork.ts`.
  *
+ * ── THE SHARED SESSION IS OPENED HERE (M5.6) ─────────────────────────────
+ *
+ * `useCollabSession` is mounted by this page and by nothing else, which is what
+ * makes §3.4's collaboration reachable at all — the same relationship
+ * `CircuitEditor` has with `SimulationPanel`, and it is worth stating in the same
+ * words: deleting the call below would not fail a single test in
+ * `features/collab`, because every one of them drives the transport or a
+ * component directly, and the product would go back to shipping a channel nobody
+ * can open. `editor.test.tsx` asserts the mounting, where the mounting happens.
+ *
+ * The condition is `doc.base`, the circuit the *server answered* with, rather
+ * than the `:slug` the address matched; the reasoning is at the call site. What
+ * comes back drives three things on this page and nothing else: the panel that
+ * says who is here, the caret layer the canvas draws, and whether the editor is
+ * read-only because this viewer may watch and not write.
+ *
  * ── `?v=` REPLACES THE EDITOR; IT DOES NOT LOAD INTO IT (M1.4b) ──────────
  *
  * `/c/abc?v=3` shows version 3, read-only, and `/c/abc?v=3&vs=1` shows it with
@@ -80,6 +96,18 @@ import { CircuitEditor } from '../features/circuit-editor/CircuitEditor'
  * editor understands.
  */
 import { CommentMarkerLayer, CommentsPanel } from '../features/comments'
+/*
+ * The shared session (M5.6). The page owns it for the same reason it owns the
+ * comment layer: a session is about the *document*, and `CircuitEditor` is what
+ * edits the circuit already open in one. It is also the only place that knows
+ * whether this document has a home, which is the one condition §8's
+ * `circuit:<id>` cannot do without.
+ */
+import {
+  CollabPanel,
+  PresenceCursorLayer,
+  useCollabSession,
+} from '../features/collab'
 import { PresetPicker } from '../features/circuit-editor/PresetPicker'
 import { ShareLink } from '../features/circuit-editor/ShareLink'
 import { useCircuitStore } from '../features/circuit-editor/useCircuitStore'
@@ -153,6 +181,85 @@ export function EditorRoute() {
    * up would replace the reader's work with a spinner.
    */
   const painted = doc.status !== 'loading' || doc.openedWithDraft
+
+  /*
+   * ── THE SHARED SESSION IS MOUNTED HERE (M5.6) ──────────────────────────
+   *
+   * Everything in `features/collab` existed and was tested before this line, and
+   * none of it could be reached: no file outside that folder and the verification
+   * suites imported the transport, so no user action opened a channel and no
+   * `CircuitSession` row could ever be written. This is the join, and it is the
+   * whole milestone.
+   *
+   * `base` and not `slug` is what enables it, and the difference is the point.
+   * `slug` is what the address bar says; `base` is what the *server answered* —
+   * so a session is opened for a circuit that resolved, and never for a slug
+   * nobody minted, a circuit this viewer may not read, or a load that has not
+   * come back yet. `circuit:<id>` addresses one row, and asking the relay about a
+   * handle we have not confirmed exists would earn a NOT_FOUND per attempt.
+   *
+   * Not while a past version is on screen. `?v=3` renders `VersionPreview`
+   * *instead of* the editor and touches no store, so there is no document for a
+   * session to be about — and a roster drawn over a historical circuit would say
+   * that four people are editing something nobody can edit.
+   *
+   * A watcher gets a session too, and that is §3.4's decision 3 rather than an
+   * oversight: presence writes nothing that outlives the connection, and «un
+   * espectador invisible dejaría los cursores compartidos como una función que
+   * solo aprovecha quien ya es la única escritora del circuito». The relay decides
+   * who may write — `canEditCircuit`, the owner and nobody else today — and hands
+   * back `access`, which is what puts the editor below in read-only.
+   */
+  const collab = useCollabSession({
+    /*
+     * ── THE SLUG, NOT THE ID, AND IT IS NOT A DETAIL ────────────────────
+     *
+     * The relay resolves either handle to one document, one row and one channel
+     * — but `findReadable` does not admit either handle for every circuit. An id
+     * reaches only what a listing may show (`idAddressableCircuitFilter`), and
+     * §11 deliberately leaves UNLISTED out of that: **the slug is an unlisted
+     * circuit's access control, and therefore the only handle that addresses
+     * it.** Joining by id worked for the owner of anything and for a reader of a
+     * PUBLIC circuit, and answered NOT_FOUND for the one case §3.4 built
+     * watchers for — somebody who was sent an unlisted link. The editor showed
+     * them the circuit, over REST, by slug, and then told them the session
+     * "could not be opened".
+     *
+     * Found by the two-browser suite (`e2e/live/collaboration.spec.ts`), which
+     * is the first test in this repository where the two peers are two different
+     * people rather than one document opened twice.
+     */
+    circuitId: base?.slug ?? null,
+    enabled: !viewingVersion,
+    /*
+     * Which viewer this session belongs to. It is what makes the session reopen
+     * when the credential arrives: a page whose Supabase session had not been
+     * restored when the socket opened joined anonymously, the relay granted
+     * `read` on a circuit the reader in fact owns, and the editor told the owner
+     * she was watching until she reloaded. See `UseCollabSessionOptions.identity`.
+     */
+    identity: session.user?.id ?? null,
+    /*
+     * The version the canvas was seeded from, so a join can tell this reader's
+     * unpublished work from an operation a peer deleted — see
+     * `BridgeOptions.saved`. `base.circuit` is exactly that version.
+     */
+    saved: base?.circuit ?? null,
+  })
+  /*
+   * Read-only from the relay's answer, and only once it has answered. `access` is
+   * null while connecting and after the session ends, and neither of those may
+   * disable an editor that works perfectly well on its own — the degradation path
+   * is the whole promise of this feature, and an editor that went read-only
+   * because a socket was slow would be the opposite of it.
+   *
+   * It does *not* go away during a reconnect, and that is not this file's doing:
+   * the transport keeps the last access the relay stated until the session ends
+   * (see `CollabSessionSnapshot.access`), because a watcher handed a writable
+   * editor for the length of every dropped socket wrote gates into a document
+   * that no other replica would ever hold.
+   */
+  const watching = collab.access === 'read'
 
   return (
     <main className="page page--wide">
@@ -295,6 +402,22 @@ export function EditorRoute() {
         </div>
       ) : null}
 
+      {/*
+       * Who is here, whether this session is writable, and what the document
+       * holds that the canvas does not (M5.6). Above the editor, because all
+       * three change how the thing below is to be read — a reader who finds out
+       * they are watching *after* trying to place a gate has been misled by the
+       * layout.
+       *
+       * Only for a document with a home, and never over a version preview. For
+       * `/new` and for an unsaved draft this renders nothing at all, which is
+       * what keeps the page those visitors see byte-identical to the one that
+       * shipped.
+       */}
+      {base === null || viewingVersion ? null : (
+        <CollabPanel session={collab} store={useCircuitStore} />
+      )}
+
       {viewingVersion && base !== null ? (
         /*
          * Instead of the editor, never beside it. Two circuit canvases on one
@@ -311,21 +434,45 @@ export function EditorRoute() {
       ) : painted ? (
         <CircuitEditor
           /*
-           * The badges over the anchored gates (M5.4), as the canvas's opaque
-           * overlay. Only for a document with a home: a comment is a row against
-           * a circuit id, so `/new` and an unsaved draft have nothing to draw and
-           * nothing to fetch.
+           * Two layers over the canvas, as its one opaque overlay: the badges
+           * over the anchored gates (M5.4) and the other people's carets (M5.3).
+           * Only for a document with a home — a comment is a row against a
+           * circuit id and a session is a channel named after one, so `/new` and
+           * an unsaved draft have nothing to draw and nothing to fetch.
+           *
+           * The canvas takes one node and never looks inside it, which is exactly
+           * why two features can share the slot without either learning about the
+           * other. Order is paint order: a comment badge sits above a caret,
+           * because a badge is a handle a reader clicks and a caret is somebody
+           * else's position.
            */
           {...(base === null
             ? {}
             : {
                 canvasOverlay: (
-                  <CommentMarkerLayer
-                    handle={base.slug}
-                    store={useCircuitStore}
-                  />
+                  <>
+                    <PresenceCursorLayer store={collab.presence} />
+                    <CommentMarkerLayer
+                      handle={base.slug}
+                      store={useCircuitStore}
+                    />
+                  </>
                 ),
               })}
+          /*
+           * The relay's answer, drawn. A watcher may look and not write, and the
+           * refusal is the relay's on every frame — this only stops the editor
+           * from inviting an edit it will drop.
+           */
+          readOnly={watching}
+          /*
+           * The outbound half of presence: only the grid knows where this reader
+           * is looking. Passed straight through rather than wrapped in an arrow,
+           * because the session's own `setCursor` is stable for the life of the
+           * session and a fresh function per render would be a cursor frame per
+           * keystroke.
+           */
+          onCursorMove={collab.setCursor}
         />
       ) : doc.paused ? (
         /*

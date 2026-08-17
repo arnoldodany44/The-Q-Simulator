@@ -39,6 +39,20 @@
  * store: it is a way of looking at the document, not part of it, and undo has
  * no business restoring where somebody was looking.
  *
+ * ## What a shared session is allowed to ask of it (M5.6)
+ *
+ * Two props, and neither of them teaches this file what a session is — the
+ * one-way arrow `.dependency-cruiser.cjs` enforces means the editor may never
+ * import the CRDT or the transport, because most sessions have one person in them
+ * and a solo editor must not download Yjs to find that out.
+ *
+ * `readOnly` is the relay's answer, drawn: a peer who may watch and not write
+ * gets the same editor a compact viewport gets. `onCursorMove` is the outbound
+ * half of presence, because only the grid knows where this reader is looking. The
+ * inbound half arrives as `canvasOverlay`, which this component forwards without
+ * looking inside — so the carets are drawn over the canvas by a layer the editor
+ * has never heard of.
+ *
  * ## Why the shared store is a default and not a hard-coded import
  *
  * The editor takes its store as a prop. Tests build an isolated one, and a
@@ -60,7 +74,7 @@ import {
   type ScreenReaderInstructions,
 } from '@dnd-kit/core'
 import { isGateId, type Circuit } from '@qsim/schema'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from 'zustand'
 
@@ -110,11 +124,34 @@ export interface CircuitEditorProps {
    * editor is what edits the circuit already open in one.
    */
   readonly canvasOverlay?: ReactNode
+  /**
+   * Forces the whole editor read-only, on top of the compact-viewport rule.
+   *
+   * For a shared session this peer may watch and not write (M5.6). It is a
+   * *drawing* decision and never a permission: §11 puts authorisation on the
+   * relay, which refuses a `collab:update` from a read-only peer whatever this
+   * component drew, and may start refusing after this render — an owner who
+   * transfers a circuit mid-session is downgraded in place. What it buys is that
+   * the reader is not invited to make edits the relay will drop on the floor.
+   */
+  readonly readOnly?: boolean
+  /**
+   * Where the grid cursor is, whenever it moves.
+   *
+   * The outbound half of presence (§3.4): only the grid knows where this reader
+   * is looking, and a cursor is a way of looking at the document rather than part
+   * of it, so it is reported rather than stored. A `Cell` and not a presence
+   * type, because this file must not learn what a session is — the one-way arrow
+   * `.dependency-cruiser.cjs` enforces.
+   */
+  readonly onCursorMove?: (cell: Cell) => void
 }
 
 export function CircuitEditor({
   store = useCircuitStore,
   canvasOverlay,
+  readOnly: forcedReadOnly = false,
+  onCursorMove,
 }: CircuitEditorProps) {
   const { t } = useTranslation(['editor', 'gates'])
   const circuit = useStore(store, (state) => state.circuit)
@@ -125,7 +162,9 @@ export function CircuitEditor({
    * needs the difference — see `useTimeline`.
    */
   const documentId = useStore(store, (state) => state.documentId)
-  const readOnly = useCompactViewport()
+  // Either reason is enough. A small screen cannot place a gate accurately and a
+  // watcher may not place one at all; the controls that write are hidden for both.
+  const readOnly = useCompactViewport() || forcedReadOnly
 
   // One free column past the end of the circuit, and never more than the
   // canvas can draw: without the free column the grid has nowhere to grow
@@ -173,6 +212,36 @@ export function CircuitEditor({
   )
 
   const selected = selectedOperations(circuit, selection)[0] ?? null
+
+  /*
+   * Tell whoever asked where the cursor is (M5.6).
+   *
+   * Keyed on the two numbers rather than on `grid.cursor`, because that is a fresh
+   * object on every render of this component: an effect keyed on it would fire on
+   * every keystroke, which for a presence channel is a frame per keystroke instead
+   * of a frame per movement.
+   *
+   * ── AND ON THE CALLBACK, WHICH IS NOT AN OVERSIGHT ──────────────────────
+   *
+   * The first version held it in a ref and keyed the effect on the coordinates
+   * alone, so the position was reported *once*, on mount, into whatever callback
+   * existed then — and the session does not exist then. The editor paints as soon
+   * as the circuit arrives; the socket opens, authenticates and joins over the
+   * second that follows, and `useCollabSession` returns a no-op `setCursor` until
+   * it has. Nothing re-reported afterwards, so a peer who placed a gate without
+   * ever moving the cursor was announced as «Ana edited the circuit» with the cell
+   * dropped and listed in the roster as «not on the grid» — a false statement
+   * about somebody who was on the grid, and exactly the placeless interruption
+   * `presence.ts` says is not worth making.
+   *
+   * Re-reporting on a new callback costs nothing: `presenceChannel.moved` drops a
+   * position that did not move, so a parent that passes a fresh function every
+   * render cannot produce a frame, only a comparison.
+   */
+  const { qubit: cursorQubit, column: cursorColumn } = grid.cursor
+  useEffect(() => {
+    onCursorMove?.({ qubit: cursorQubit, column: cursorColumn })
+  }, [cursorQubit, cursorColumn, onCursorMove])
 
   return (
     <div
