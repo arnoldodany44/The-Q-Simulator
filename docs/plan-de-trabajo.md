@@ -655,4 +655,23 @@ honesta para una suite que no puede aislarse baratamente es rechazar la segunda
 corrida: un candado con el pid del proceso de Playwright, y un mensaje que dice por
 qué.
 
+**Un fallo intermitente abierto, con dos hipótesis ya refutadas.** `pnpm verify`
+falla de vez en cuando bajo turbo; la suite señalada siempre pasa aislada y en el
+reintento inmediato. Antes de acotar los pools de `apps/api` y `apps/worker` y de
+darle a `api` el timeout de 20 s que `worker` ya tenía, la tasa era de una corrida
+en frío de cada cinco. Después: **1 fallo en 17 corridas en frío (~6 %)** en tres
+tandas medidas. Más bajo, y es plausible que sea por ese cambio, pero no es cero
+—así que «oversubscripción más un timeout impaciente» es a lo más una parte y no
+está establecido como la causa. La segunda hipótesis, que los presupuestos de
+ventana fija del relevo se reinicien a mitad del test, también se comprobó y se
+descartó: la ventana es de 10 s contra un techo de 60 tramas, y el test empuja
+unas 65 con un puñado de cesiones al event loop, que no alcanzan a cruzarla.
+
+Se documenta en vez de arreglarse porque ya se mandó **un** arreglo contra una
+hipótesis y no funcionó; mandar un segundo sin haber visto el fallo repetiría el
+error. Y no hace falta un bucle de captura: turbo escribe la salida de cada tarea
+en `<paquete>/.turbo/turbo-<tarea>.log` y una tarea que falla nunca se cachea, así
+que tras una corrida roja ese archivo tiene el fallo de verdad. Hay que leerlo
+antes de correr cualquier otra cosa, que lo sobreescribe.
+
 **Regla de publicación acordada:** se publica al cerrar cada fase, sin preguntar de nuevo.

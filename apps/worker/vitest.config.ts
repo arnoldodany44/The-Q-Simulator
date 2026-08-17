@@ -34,8 +34,12 @@ export default defineConfig({
      * Bounded for the same reason apps/api's is, and with more force here: this
      * pool forks a real child process per job under test, so an unbounded pool
      * multiplies processes twice over. Turbo already runs up to ten packages at
-     * once on 12 cores, and this suite failed once in about five cold runs at
-     * full width even with the generous timeout above.
+     * once on 12 cores.
+     *
+     * That is the whole justification. This suite is one of the two that fail
+     * intermittently under turbo, and bounding the pool did NOT fix that — see
+     * apps/api/vitest.config.ts for the measured rates, the two refuted
+     * hypotheses, and where the next failure will be recorded.
      */
     maxWorkers: 3,
     env: liveQueue

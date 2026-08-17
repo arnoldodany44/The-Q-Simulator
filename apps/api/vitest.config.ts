@@ -7,26 +7,33 @@ export default defineConfig({
     /*
      * A TIMEOUT IS A SAFETY NET AGAINST A HANG, NOT A PERFORMANCE ASSERTION.
      *
-     * At vitest's 5 s default this suite failed roughly one cold `pnpm verify`
-     * in five, always passing in isolation and on the immediately following
-     * run. The cause is oversubscription rather than anything here: turbo runs
-     * up to ten packages at once, each vitest sizes its own worker pool to the
-     * machine's cores, and 57 tasks over 12 cores means a test can be descheduled
-     * for seconds. Under that, 5 s stops meaning "this hung" and starts meaning
-     * "this box was busy" — and a suite that goes red at random is a suite
-     * everyone learns to ignore, which is exactly the reasoning that moved the
-     * engine's wall-clock budgets out of the default run
-     * (packages/qsim/src/performance.perf.test.ts).
+     * These two settings are defensible on their own terms, and that is the
+     * only claim made for them. 20 s matches apps/worker; a genuine hang still
+     * fails, and raising a hang-detector's patience asserts nothing about
+     * speed, so this is not the thing that
+     * packages/qsim/src/performance.perf.test.ts argues against — there is no
+     * assertion on elapsed time anywhere in this suite. The pool is bounded
+     * because every test here builds a Fastify instance and drives it with
+     * `inject()`, so the work is CPU-bound and unbounded parallelism inside one
+     * package makes every sibling package slower for no gain of its own.
      *
-     * 20 s, matching apps/worker. A genuine hang still fails; contention no
-     * longer decides. This is NOT the thing that file argues against: there is
-     * no assertion on elapsed time anywhere in this suite, and raising a
-     * hang-detector's patience asserts nothing about speed.
+     * WHAT THEY DID NOT DO IS FIX THE FLAKE, and an earlier version of this
+     * comment asserted a cause that measurement then refuted. For the record,
+     * so nobody re-derives the dead end: `pnpm verify` fails intermittently
+     * under turbo, always green in isolation and on the retry. Before these
+     * settings the rate was roughly one cold run in five. After them: 1 failure
+     * in 17 cold runs (~6%) across three measured batches. Lower, plausibly
+     * because of these settings, but not zero — so "oversubscription plus an
+     * impatient timeout" is at most part of it and is not established as the
+     * cause. A second hypothesis, that the relay's fixed-window frame budgets
+     * roll over mid-test, was also checked and refuted: the window is 10 s
+     * (SOCKET_FRAME_WINDOW_MS) against a 60-frame ceiling, and the tests push
+     * ~65 frames with a handful of event-loop yields, which cannot span it.
      *
-     * The pool is bounded for the other half of the same problem. Every test
-     * here builds a Fastify instance and drives it with `inject()`, so the work
-     * is CPU-bound and unbounded parallelism inside one package makes every
-     * sibling package slower for no gain of its own.
+     * The next occurrence is already instrumented and needs no capture loop:
+     * turbo writes each task's output to <package>/.turbo/turbo-<task>.log and
+     * a failing task is never cached, so after a red run that file holds the
+     * real failure. Read it before running anything else, which overwrites it.
      */
     testTimeout: 20_000,
     hookTimeout: 20_000,
