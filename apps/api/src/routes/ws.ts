@@ -224,11 +224,34 @@ const plugin: FastifyPluginCallback<WebSocketRoutesOptions> = (
             expiresAt: identity.expiresAt,
           }
         },
-        readRun: (runId, viewerId) => app.runs.findReadableRun(runId, viewerId),
+        readRun: async (runId, viewerId) => {
+          const run = await app.runs.findReadableRun(runId, viewerId)
+          return run === null ? null : { kind: 'run', status: run.status }
+        },
+        /*
+         * `null` when this deployment has no ENCRYPTION_KEY, which is the same
+         * supported state the routes answer 503 to — a socket then treats a
+         * hardware job id as an id it has never heard of, which is exactly what
+         * it is here.
+         */
+        readHardwareJob:
+          app.hardware === null
+            ? null
+            : async (jobId, viewerId) => {
+                const hardware = app.hardware
+                // A watcher must have proved an identity: a hardware job has an
+                // owner and, unlike a simulation run, is never readable by
+                // whoever merely holds its id.
+                if (hardware === null || viewerId === null) return null
+                const job = await hardware.repository.findJob(jobId, viewerId)
+                return job === null
+                  ? null
+                  : { kind: 'hardware', status: job.status }
+              },
         subscribe:
           app.runEvents === null
             ? null
-            : (runId, listener) => {
+            : (id, kind, listener) => {
                 // Narrowed inside the closure rather than captured above: the
                 // decorator builds its bus lazily, so reading it per call is
                 // what keeps the first socket from being the thing that opens a
@@ -239,7 +262,7 @@ const plugin: FastifyPluginCallback<WebSocketRoutesOptions> = (
                     new Error('the run event bus went away')
                   )
                 }
-                return bus.subscribe(runId, listener)
+                return bus.subscribe(id, kind, listener)
               },
         now: () => Date.now(),
         log: (level, fields, message) => {

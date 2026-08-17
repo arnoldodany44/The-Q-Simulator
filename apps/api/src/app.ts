@@ -37,6 +37,8 @@ import type { ApiEnv } from './env.js'
 import { configurationWarnings } from './env.js'
 import { ApiError, toApiError } from './errors.js'
 import { buildLoggerOptions } from './logging.js'
+import apiKeysPlugin from './plugins/api-keys.js'
+import type { ApiKeysPluginOptions } from './plugins/api-keys.js'
 import authPlugin, { authEnforcement } from './plugins/auth.js'
 import circuitsPlugin from './plugins/circuits.js'
 import type { CircuitsPluginOptions } from './plugins/circuits.js'
@@ -44,6 +46,10 @@ import databasePlugin from './plugins/database.js'
 import type { DatabasePluginOptions } from './plugins/database.js'
 import eventsPlugin from './plugins/events.js'
 import type { EventsPluginOptions } from './plugins/events.js'
+import hardwarePlugin from './plugins/hardware.js'
+import type { HardwarePluginOptions } from './plugins/hardware.js'
+import hardwareQueuePlugin from './plugins/hardware-queue.js'
+import type { HardwareQueuePluginOptions } from './plugins/hardware-queue.js'
 import queuePlugin from './plugins/queue.js'
 import type { QueuePluginOptions } from './plugins/queue.js'
 import rateLimitPlugin from './plugins/rate-limit.js'
@@ -55,13 +61,16 @@ import {
 } from './plugins/validation.js'
 import type { ZodTypeProvider } from './plugins/validation.js'
 import type { JwksCache } from './auth/jwks.js'
+import { apiKeyRoutes } from './routes/api-keys.js'
 import { challengeRoutes } from './routes/challenges.js'
 import { circuitRoutes } from './routes/circuits.js'
 import { collectionRoutes } from './routes/collections.js'
 import { embedRoutes } from './routes/embed.js'
 import { galleryRoutes } from './routes/gallery.js'
+import { hardwareRoutes } from './routes/hardware.js'
 import { healthRoutes } from './routes/health.js'
 import { lessonRoutes } from './routes/lessons.js'
+import { openApiRoutes } from './routes/openapi.js'
 import { simulateRoutes } from './routes/simulate.js'
 import { userRoutes } from './routes/users.js'
 import { webSocketRoutes } from './routes/ws.js'
@@ -99,6 +108,11 @@ export interface BuildAppOptions {
   readonly database?: DatabasePluginOptions
   /** Tests inject an in-memory repository; production builds one on `app.db`. */
   readonly circuits?: CircuitsPluginOptions
+  /**
+   * The public API's credentials (§3.5). Tests inject an in-memory repository
+   * and, where the clock matters, a verifier built over it.
+   */
+  readonly apiKeys?: ApiKeysPluginOptions
   /** Same arrangement for the run repository, which two processes write. */
   readonly runs?: RunsPluginOptions
   /**
@@ -113,6 +127,14 @@ export interface BuildAppOptions {
    * or leaves `app.runEvents` null when REDIS_URL is absent.
    */
   readonly events?: Omit<EventsPluginOptions, 'env'>
+  /**
+   * Real hardware (§3.7). Tests inject a port backed by a recorded transport
+   * and an in-memory repository; production builds one on the first hardware
+   * request, or leaves `app.hardware` null when ENCRYPTION_KEY is absent.
+   */
+  readonly hardware?: Omit<HardwarePluginOptions, 'env'>
+  /** The hardware poll queue, injected the same way. */
+  readonly hardwareQueue?: Omit<HardwareQueuePluginOptions, 'env'>
   /** Tests pass a cache backed by a locally generated key pair. */
   readonly jwks?: JwksCache
   /** `false` silences logging; tests use it to keep output readable. */
@@ -326,10 +348,22 @@ export async function buildApp(options: BuildAppOptions) {
 
   await app.register(authEnforcement)
   await app.register(databasePlugin, options.database ?? {})
+  /*
+   * The second credential (§3.5). After the database because verifying a key
+   * is a query, and its own hook is global — so it still runs before the rate
+   * limiter's route-level one, which is the ordering that matters. The whole
+   * argument is at the top of `plugins/api-keys.ts`.
+   */
+  await app.register(apiKeysPlugin, options.apiKeys ?? {})
   await app.register(circuitsPlugin, options.circuits ?? {})
   await app.register(runsPlugin, options.runs ?? {})
   await app.register(queuePlugin, { ...(options.queue ?? {}), env })
   await app.register(eventsPlugin, { ...(options.events ?? {}), env })
+  await app.register(hardwarePlugin, { ...(options.hardware ?? {}), env })
+  await app.register(hardwareQueuePlugin, {
+    ...(options.hardwareQueue ?? {}),
+    env,
+  })
 
   /*
    * Health lives at the root, outside the versioned surface: a platform
@@ -352,7 +386,15 @@ export async function buildApp(options: BuildAppOptions) {
   await app.register(lessonRoutes, { prefix: API_PREFIX })
   await app.register(challengeRoutes, { prefix: API_PREFIX, env })
   await app.register(simulateRoutes, { prefix: API_PREFIX, env })
+  await app.register(hardwareRoutes, { prefix: API_PREFIX, env })
   await app.register(userRoutes, { prefix: API_PREFIX, env })
+  await app.register(apiKeyRoutes, { prefix: API_PREFIX, env })
+  /*
+   * Last, and inside the versioned prefix rather than beside `/health`,
+   * because the document describes `/api/v1` specifically — a `/api/v2` would
+   * publish its own beside it rather than replacing this one.
+   */
+  await app.register(openApiRoutes, { prefix: API_PREFIX })
 
   for (const warning of configurationWarnings(env)) {
     app.log.warn({ configuration: true }, warning)

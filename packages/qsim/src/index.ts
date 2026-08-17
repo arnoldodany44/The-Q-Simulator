@@ -85,6 +85,26 @@ export {
 } from './apply.js'
 export type { ControlSpec } from './apply.js'
 
+/*
+ * `kernel.ts` is the attachment point for the optional Rust/WASM core of
+ * §5.6. Exported so `@qsim/wasm` can install one; adding no dependency and no
+ * requirement, because with nothing installed the engine is exactly the
+ * TypeScript it was. The `check*` guards `kernel.ts` shares with `apply.ts`
+ * are deliberately not exported here — they are an internal contract between
+ * those two files, not API.
+ */
+export {
+  acceleratedApplyControlled,
+  acceleratedApplyISwap,
+  acceleratedApplySwap,
+  activeStatevectorKernel,
+  disableStatevectorKernel,
+  installStatevectorKernel,
+  kernelStatus,
+  uninstallStatevectorKernel,
+} from './kernel.js'
+export type { KernelStatus, StatevectorKernel } from './kernel.js'
+
 export {
   MidCircuitMeasurementError,
   analyticMode,

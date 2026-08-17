@@ -57,8 +57,17 @@ describe('parseRunEvent', () => {
     }
   })
 
-  it('covers every name §8 lists', () => {
+  /*
+   * §8's three, plus the two Phase 4 added for a job that runs on somebody
+   * else's machine. The hardware pair is not a fourth and fifth *kind* of
+   * notification — it is the same "there is something new to read" over a
+   * lifecycle with two more states (SUBMITTED, CANCELLED) than a simulation
+   * has, which is why it could not be folded into `job:status`.
+   */
+  it('covers every name §8 lists, and the two hardware added', () => {
     expect([...RUN_EVENT_TYPES].sort()).toEqual([
+      'hardware:complete',
+      'hardware:status',
       'job:status',
       'run:complete',
       'run:progress',

@@ -160,9 +160,29 @@ async function rawKeysOn(page: Page): Promise<string[]> {
  * in all three languages by `features/challenges/challenges.test.tsx`, where
  * one can be handed in without a server.
  */
+/*
+ * §3.7's comparison view adds one address, `/runs/:jobId`, and it earns its
+ * place for the reason `/challenges/nobody12345` does and then some. It *needs
+ * the API* — a hardware run is one row, fetched by id — so with no API behind
+ * this suite it settles into its "no such run" state, which is the state
+ * hardest to remember to translate and is also the one §11 requires to be
+ * identical for somebody else's run and for an id nobody minted.
+ *
+ * Its chunk loads `hardware` **plus `analysis`**, and that pairing is the
+ * arrangement this file exists to catch: the page mounts the real
+ * `ProbabilityHistogram` and the real `NoisePanel`, so a route that fetched
+ * only its own catalog would render three paragraphs of careful prose beside a
+ * chart labelled in raw keys. Neither of those two components is on screen in
+ * the failure state this suite reaches, which is why the assertion that matters
+ * for them is made in `features/hardware/HardwareResultView.test.tsx` — it
+ * renders the finished comparison, the failed run, the queued run and the
+ * refused join in all three languages and applies this same shape-based
+ * property to each.
+ */
 const ROUTES = [
   '/',
   '/new',
+  '/runs/nobody12345',
   '/c/nobody12345',
   '/gallery',
   '/u/nobody',

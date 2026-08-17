@@ -368,7 +368,20 @@ function controlValue(controls: readonly ControlSpec[]): number {
   return value
 }
 
-function checkQubit(state: Statevector, qubit: number, role: string): void {
+/*
+ * The four guards below are exported for `kernel.ts` and for nothing else.
+ * They are absent from `index.ts` on purpose: they are not API, they are the
+ * shared definition of "this call is well formed", and the optional WASM
+ * accelerator has to apply exactly that definition — same conditions, same
+ * `RangeError` messages — before it is offered a gate. Reimplementing them on
+ * the other side of a language boundary is how the two would drift.
+ */
+
+export function checkQubit(
+  state: Statevector,
+  qubit: number,
+  role: string
+): void {
   if (!Number.isInteger(qubit) || qubit < 0 || qubit >= state.qubits) {
     throw new RangeError(
       `${role} qubit ${qubit} is outside [0, ${state.qubits}).`
@@ -376,7 +389,7 @@ function checkQubit(state: Statevector, qubit: number, role: string): void {
   }
 }
 
-function checkDistinct(q0: number, q1: number): void {
+export function checkDistinct(q0: number, q1: number): void {
   if (q0 === q1) {
     throw new RangeError(
       `A two-qubit gate needs two different qubits, got ${q0} twice.`
@@ -384,7 +397,7 @@ function checkDistinct(q0: number, q1: number): void {
   }
 }
 
-function checkMatrix(matrix: Float64Array, expected: number): void {
+export function checkMatrix(matrix: Float64Array, expected: number): void {
   if (matrix.length !== expected) {
     throw new RangeError(
       `Expected a matrix of ${expected} doubles, got ${matrix.length}. ` +
@@ -399,7 +412,7 @@ function checkMatrix(matrix: Float64Array, expected: number): void {
  * and skipped at once) and the same qubit controlled twice (two conditions
  * that the mask/value pair cannot both represent).
  */
-function checkControls(
+export function checkControls(
   state: Statevector,
   controls: readonly ControlSpec[],
   ...targets: number[]

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  /*
+   * `node.json` rather than `lib.json`, and the difference is one global.
+   *
+   * This package speaks HTTP, so it needs `fetch`, `AbortController`,
+   * `URLSearchParams` and `TextEncoder` in scope — none of which are in
+   * `lib: ["ES2022"]`, and all four of which are platform globals a browser has
+   * too. What it must NOT have is a `node:` import, because that is what would
+   * make it un-runnable anywhere but a server; a boundary rule in
+   * `.dependency-cruiser.cjs` (`ibm-touches-no-node-builtins`) is what enforces
+   * that, since a `types` list cannot distinguish a global from a builtin.
+   */
+  "extends": "@qsim/config/tsconfig/node.json",
+  "include": ["src/**/*", "vitest.config.ts"]
+}

@@ -273,3 +273,35 @@ export const hardwareCredentialMetaSelect = {
 export type HardwareCredentialMeta = Prisma.HardwareCredentialGetPayload<{
   select: typeof hardwareCredentialMetaSelect
 }>
+
+/**
+ * An API key's metadata — §3.5. The sibling of the constant above, and here
+ * beside it for the same reason: it is a projection whose *whole job* is what
+ * it cannot fetch.
+ *
+ * `keyHash` is not named, so the query that serves every listing and every
+ * mutation response is incapable of loading it. That matters less than it does
+ * next door — a SHA-256 of 256 random bits is not a credential and cannot be
+ * turned back into one — and it is still the right shape, because "the read
+ * endpoint cannot reach the secret material" is a property worth being able to
+ * state about a credentials table without qualification.
+ *
+ * `keyPrefix` *is* named, and is the one deliberate exception: ten characters
+ * of the key in the clear, which is what lets a person tell two rows apart
+ * well enough to revoke the right one. The argument for why that is a
+ * disclosure worth making — and why it is not the "last four" convention this
+ * project refuses for hardware tokens — is in `@qsim/contract`'s `api-keys.ts`.
+ */
+export const apiKeyMetaSelect = {
+  id: true,
+  name: true,
+  keyPrefix: true,
+  scopes: true,
+  createdAt: true,
+  lastUsedAt: true,
+  revokedAt: true,
+} satisfies Prisma.ApiKeySelect
+
+export type ApiKeyMeta = Prisma.ApiKeyGetPayload<{
+  select: typeof apiKeyMetaSelect
+}>

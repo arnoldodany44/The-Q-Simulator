@@ -25,6 +25,50 @@
     "listMe": "Show my name on challenge leaderboards",
     "note": "Turning this off removes your name from the table other people read. It does not remove your results: your position is still counted, nobody moves up because you are hidden, and your own page still tells you where you stand. Your circuits are never published by a leaderboard either way — a solution is a spoiler."
   },
+  "apiKeys": {
+    "heading": "API keys",
+    "lead": "Create circuits, run simulations and read results from outside this application. A key acts as your account and can do no more than you can.",
+    "loading": "Loading your keys…",
+    "empty": "You have no API keys yet.",
+    "nameLabel": "Name",
+    "nameHint": "What holds this key — “CI”, “my laptop”, “the plotting notebook”. You will need it to know which one to revoke.",
+    "scopesLabel": "What this key may do",
+    "scopesNote": "Give a key the least it needs. No key can manage keys or submit jobs to real quantum hardware, whatever you tick here.",
+    "scope": {
+      "read": "Read",
+      "write": "Write",
+      "simulate": "Simulate"
+    },
+    "scopeHint": {
+      "read": "Your circuits, their versions, the gallery and the result of a run.",
+      "write": "Create, change and delete circuits, versions and collections.",
+      "simulate": "Run simulations, without being able to change anything."
+    },
+    "create": "Create key",
+    "creating": "Creating…",
+    "created": {
+      "heading": "Here is your key",
+      "body": "This is the only time “{{name}}” will be shown. Copy it somewhere safe before you continue.",
+      "label": "Your new API key",
+      "copy": "Copy the key",
+      "copied": "Copied to the clipboard.",
+      "copyFailed": "The clipboard is not available here. Select the field above and copy it yourself.",
+      "warning": "Once you dismiss this, the key cannot be shown again by anyone, including us. If you lose it, revoke this key and create another.",
+      "dismiss": "I have saved it — hide it"
+    },
+    "row": {
+      "created": "Created {{date}}",
+      "lastUsed": "last used {{date}}",
+      "neverUsed": "never used",
+      "noScopes": "No permissions.",
+      "revoke": "Revoke…",
+      "confirm": "Revoke permanently",
+      "confirmBody": "Revoking “{{name}}” takes effect immediately and cannot be undone. Anything using it will stop working on its next request.",
+      "revoking": "Revoking…",
+      "cancel": "Keep it",
+      "revoked": "Revoked {{date}}"
+    }
+  },
   "language": {
     "heading": "Language",
     "note": "The language is remembered in this browser rather than on your account, so it stays the one you picked here whether you are signed in or not."

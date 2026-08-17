@@ -1,0 +1,55 @@
+-- The public API's credentials gain scopes and a displayable head — §3.5,
+-- milestone M4.2.
+--
+-- Two columns and one index on a table that already exists. Nothing here
+-- drops, renames, rewrites or moves a row: both columns arrive with a default,
+-- so every existing row keeps every value it had and acquires the safest
+-- possible new ones.
+--
+-- ── Why this migration is hand-written ────────────────────────────────────
+--
+-- The same reason every migration since M1.9 is: `prisma migrate dev
+-- --create-only` replays the whole folder into a shadow database, and
+-- `20260815181340_lock_public_schema_to_the_api` ends with
+-- `ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY` — a table the
+-- shadow database does not have when the replay reaches it (P3006/P3018,
+-- 42P01). So the SQL is written by hand in exactly the form Prisma generates
+-- and applied with `prisma migrate deploy`, which uses no shadow database.
+--
+-- ── Why the defaults are the ones a security review would pick ────────────
+--
+-- `scopes` defaults to the **empty array**, which grants nothing. That matters
+-- for a reason beyond tidiness: this table has never been written to by any
+-- shipped code, so today the default applies to zero rows — but the same
+-- default is what a row would get if a future path inserted one without
+-- naming its scopes, and "forgot to say" must never mean "may do everything".
+-- The check that reads this column intersects it with a closed vocabulary
+-- (`isApiKeyScope` in @qsim/contract), so an empty array and an array of
+-- strings this build has never heard of are the same thing: no authority.
+--
+-- `keyPrefix` defaults to the empty string rather than being nullable. It is
+-- display text — the first ten characters of the key, `qsk_` plus six — and a
+-- listing renders it beside a name. Nullable would put a `null` check in a
+-- React component to answer a question the database can answer once, and the
+-- empty string renders as nothing, which is the honest thing to show for a row
+-- that predates the column.
+--
+-- ── Why no ENABLE ROW LEVEL SECURITY line ─────────────────────────────────
+--
+-- `ApiKey` is one of the fifteen tables of §7 and was locked by
+-- `20260815181340_lock_public_schema_to_the_api` when it closed the whole
+-- schema. RLS is a property of the table, not of its columns, so adding two
+-- columns cannot reopen it — and the tripwire in `migrations.test.ts` only
+-- requires the pairing for a `CREATE TABLE`, which this migration deliberately
+-- does not contain.
+
+-- AlterTable
+ALTER TABLE "ApiKey" ADD COLUMN     "keyPrefix" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "scopes" TEXT[] DEFAULT ARRAY[]::TEXT[];
+
+-- CreateIndex
+-- The two questions this table is asked that are not the hash lookup: list one
+-- account's keys, and count its live ones before minting another. Both are
+-- `WHERE "userId" = $1` with `revokedAt` either read or compared, so one
+-- composite index serves both and neither is a scan of everybody's keys.
+CREATE INDEX "ApiKey_userId_revokedAt_idx" ON "ApiKey"("userId", "revokedAt");

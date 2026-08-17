@@ -15,7 +15,7 @@ import {
   encodeFrame,
 } from '@qsim/contract'
 import type { ClientFrame, ServerFrame } from '@qsim/contract'
-import type { RunEvent, RunStatus } from '@qsim/jobs'
+import type { HardwareStatus, RunEvent, RunStatus } from '@qsim/jobs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AUTHORISATION_TTL_MS,
@@ -95,12 +95,29 @@ function harness(options: HarnessOptions = {}): Harness {
     },
     readRun: (runId, viewerId) => {
       reads.push(key(runId, viewerId))
-      return Promise.resolve(visibility.get(key(runId, viewerId)) ?? null)
+      const found = visibility.get(key(runId, viewerId)) ?? null
+      return Promise.resolve(found?.kind === 'run' ? found : null)
+    },
+    /*
+     * The second table. A hardware job has an owner and is never readable by
+     * whoever merely holds its id, which is the one §11 rule that differs from
+     * a simulation run — so an anonymous viewer reads nothing here.
+     */
+    readHardwareJob: (jobId, viewerId) => {
+      /*
+       * Deliberately not pushed onto `reads`. That list counts *the visibility
+       * question* the session asks about a run, and a hardware lookup is the
+       * second half of one question rather than a second question — counting it
+       * would make every run assertion in this file read one higher.
+       */
+      if (viewerId === null) return Promise.resolve(null)
+      const found = visibility.get(key(jobId, viewerId)) ?? null
+      return Promise.resolve(found?.kind === 'hardware' ? found : null)
     },
     subscribe:
       options.subscribable === false
         ? null
-        : (runId, listener) => {
+        : (runId, _kind, listener) => {
             if (options.busFails === true) {
               return Promise.reject(new Error('bus down'))
             }
@@ -136,7 +153,33 @@ function typesOf(frames: readonly ServerFrame[]): string[] {
 }
 
 function running(status: RunStatus = 'RUNNING'): ReadableRun {
-  return { status }
+  return { kind: 'run', status }
+}
+
+/** A hardware job in the given state, for the Phase 4 subscription tests. */
+function hardware(status: HardwareStatus = 'QUEUED'): ReadableRun {
+  return { kind: 'hardware', status }
+}
+
+/**
+ * An upgrade that already proved an identity.
+ *
+ * Every hardware test uses one, because a hardware job is never readable by
+ * whoever merely holds its id — unlike a simulation run, it spends a
+ * *particular person's* ten-minute allowance, so it always has an owner.
+ * `expiresAt` is in seconds, as `exp` is, and is far past the harness clock.
+ */
+const SESSION = { userId: OWNER, expiresAt: 2_000_000_000 }
+
+/**
+ * Lets the delivery chain drain.
+ *
+ * A published event is appended to a promise chain and every delivery makes an
+ * authorisation decision, so a frame is several microtasks behind the publish.
+ * Four turns is comfortably more than the longest path and still costs nothing.
+ */
+async function settle(): Promise<void> {
+  for (let turn = 0; turn < 4; turn++) await Promise.resolve()
 }
 
 describe('opening a socket', () => {
@@ -647,5 +690,161 @@ describe('closing', () => {
     await h.send({ type: 'unsubscribe', runId: 'r1' })
     expect([...h.channels]).toEqual([])
     expect(h.session.subscriptionCount()).toBe(0)
+  })
+})
+
+/**
+ * Watching a hardware job — §3.7, Phase 4.
+ *
+ * The same socket, the same `subscribe` frame, the same ceiling and the same
+ * ordering guard. What differs is the *lifecycle*: a hardware job has SUBMITTED
+ * and CANCELLED, which a simulation run cannot be, and it may sit in somebody
+ * else's queue for hours. That is exactly why it reuses this machinery rather
+ * than growing its own — the thing that is hard here is the sequencing, and the
+ * sequencing is identical.
+ */
+describe('watching a hardware job', () => {
+  it('subscribes by the same frame and reports its own vocabulary', async () => {
+    const h = harness({
+      runs: { j1: hardware('SUBMITTED') },
+      identity: SESSION,
+    })
+    await h.send({ type: 'subscribe', runId: 'j1' })
+    expect(h.sent.at(-1)).toEqual({
+      type: 'subscribed',
+      runId: 'j1',
+      status: 'SUBMITTED',
+    })
+  })
+
+  it('delivers a status change with the device queue position', async () => {
+    const h = harness({
+      runs: { j1: hardware('SUBMITTED') },
+      identity: SESSION,
+    })
+    await h.send({ type: 'subscribe', runId: 'j1' })
+    h.sent.length = 0
+    h.publish({
+      type: 'hardware:status',
+      runId: 'j1',
+      at: 10,
+      status: 'QUEUED',
+      queuePosition: null,
+    })
+    await settle()
+    expect(h.sent).toEqual([
+      {
+        type: 'hardware:status',
+        runId: 'j1',
+        status: 'QUEUED',
+        queuePosition: null,
+      },
+    ])
+  })
+
+  /*
+   * CANCELLED is a third terminal outcome and not a failure. Somebody who
+   * stopped a job to protect their ten-minute allowance has not had a failure,
+   * and reporting one would tell them their circuit was wrong.
+   */
+  it('reports a cancellation as its own outcome and releases the channel', async () => {
+    const h = harness({ runs: { j1: hardware('RUNNING') }, identity: SESSION })
+    await h.send({ type: 'subscribe', runId: 'j1' })
+    h.sent.length = 0
+    h.publish({
+      type: 'hardware:complete',
+      runId: 'j1',
+      at: 20,
+      status: 'CANCELLED',
+      error: null,
+    })
+    await settle()
+    expect(typesOf(h.sent)).toEqual(['hardware:complete', 'unsubscribed'])
+    expect([...h.channels]).toEqual([])
+  })
+
+  it('opens no channel for a job that is already terminal', async () => {
+    const h = harness({ runs: { j1: hardware('DONE') }, identity: SESSION })
+    await h.send({ type: 'subscribe', runId: 'j1' })
+    expect(h.sent.at(-1)).toEqual({
+      type: 'subscribed',
+      runId: 'j1',
+      status: 'DONE',
+    })
+    expect([...h.channels]).toEqual([])
+  })
+
+  /*
+   * A hardware job has an owner, always. Unlike a simulation run — where the id
+   * is the credential for an anonymous submission — there is no such thing as
+   * an anonymous hardware job, because a job spends a *particular person's*
+   * allowance.
+   */
+  it('refuses an anonymous watcher, as a NOT_FOUND', async () => {
+    const h = harness({ runs: { j1: hardware('QUEUED') } })
+    await h.send({ type: 'subscribe', runId: 'j1' })
+    expect(h.sent.at(-1)).toEqual({
+      type: 'error',
+      code: 'NOT_FOUND',
+      runId: 'j1',
+    })
+  })
+
+  /*
+   * The frame kinds cannot cross. The channels are separately namespaced so
+   * this is unreachable through Redis routing; the guard exists because the
+   * *authorisation* was decided about one row, and a frame of the other kind
+   * would be about something this socket was never granted.
+   */
+  it('drops a run event that arrives on a hardware subscription', async () => {
+    const h = harness({ runs: { j1: hardware('RUNNING') }, identity: SESSION })
+    await h.send({ type: 'subscribe', runId: 'j1' })
+    h.sent.length = 0
+    h.publish({
+      type: 'run:complete',
+      runId: 'j1',
+      at: 30,
+      status: 'DONE',
+      durationMs: 1,
+      error: null,
+    })
+    await settle()
+    expect(h.sent).toEqual([])
+    // And the subscription survives: a stray frame must not tear down a job
+    // that is still running, or the completion it is waiting for never lands.
+    expect(h.session.subscriptionCount()).toBe(1)
+  })
+
+  it('drops a hardware event that arrives on a run subscription', async () => {
+    const h = harness({ runs: { r1: running() } })
+    await h.send({ type: 'subscribe', runId: 'r1' })
+    h.sent.length = 0
+    h.publish({
+      type: 'hardware:status',
+      runId: 'r1',
+      at: 40,
+      status: 'RUNNING',
+      queuePosition: 3,
+    })
+    await settle()
+    expect(h.sent).toEqual([])
+  })
+
+  /* Rule 1 of the session header, applied to the second table. */
+  it('ends the subscription when the job stops being readable', async () => {
+    const h = harness({ runs: { j1: hardware('RUNNING') }, identity: SESSION })
+    await h.send({ type: 'subscribe', runId: 'j1' })
+    h.visibility.set(key('j1', OWNER), null)
+    h.advance(AUTHORISATION_TTL_MS + 1)
+    h.sent.length = 0
+    h.publish({
+      type: 'hardware:status',
+      runId: 'j1',
+      at: 50,
+      status: 'RUNNING',
+      queuePosition: null,
+    })
+    await settle()
+    expect(typesOf(h.sent)).toEqual(['unsubscribed'])
   })
 })

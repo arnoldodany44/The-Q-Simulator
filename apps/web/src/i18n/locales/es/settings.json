@@ -25,6 +25,50 @@
     "listMe": "Mostrar mi nombre en las tablas de posiciones de los retos",
     "note": "Si lo desactivas, tu nombre desaparece de la tabla que leen los demás. No desaparecen tus resultados: tu puesto se sigue contando, nadie sube por el hecho de que te ocultes y tu propia página te sigue diciendo dónde estás. Tus circuitos no los publica ninguna tabla en ningún caso: una solución es un spoiler."
   },
+  "apiKeys": {
+    "heading": "Claves de API",
+    "lead": "Crea circuitos, ejecuta simulaciones y consulta resultados desde fuera de esta aplicación. Una clave actúa como tu cuenta y no puede hacer más que tú.",
+    "loading": "Cargando tus claves…",
+    "empty": "Todavía no tienes claves de API.",
+    "nameLabel": "Nombre",
+    "nameHint": "Quién tiene esta clave: «CI», «mi portátil», «el cuaderno de gráficas». Lo necesitarás para saber cuál revocar.",
+    "scopesLabel": "Qué puede hacer esta clave",
+    "scopesNote": "Dale a cada clave lo mínimo que necesite. Ninguna clave puede administrar claves ni enviar trabajos a hardware cuántico real, marques lo que marques aquí.",
+    "scope": {
+      "read": "Lectura",
+      "write": "Escritura",
+      "simulate": "Simulación"
+    },
+    "scopeHint": {
+      "read": "Tus circuitos, sus versiones, la galería y el resultado de una ejecución.",
+      "write": "Crear, cambiar y borrar circuitos, versiones y colecciones.",
+      "simulate": "Ejecutar simulaciones, sin poder cambiar nada."
+    },
+    "create": "Crear clave",
+    "creating": "Creando…",
+    "created": {
+      "heading": "Aquí está tu clave",
+      "body": "Esta es la única vez que se mostrará «{{name}}». Cópiala en un lugar seguro antes de continuar.",
+      "label": "Tu nueva clave de API",
+      "copy": "Copiar la clave",
+      "copied": "Copiada al portapapeles.",
+      "copyFailed": "El portapapeles no está disponible aquí. Selecciona el campo de arriba y cópiala a mano.",
+      "warning": "En cuanto cierres esto, nadie podrá volver a mostrar la clave, nosotros incluidos. Si la pierdes, revoca esta clave y crea otra.",
+      "dismiss": "Ya la guardé: ocultarla"
+    },
+    "row": {
+      "created": "Creada el {{date}}",
+      "lastUsed": "usada por última vez el {{date}}",
+      "neverUsed": "nunca usada",
+      "noScopes": "Sin permisos.",
+      "revoke": "Revocar…",
+      "confirm": "Revocar permanentemente",
+      "confirmBody": "Revocar «{{name}}» surte efecto de inmediato y no se puede deshacer. Lo que la use dejará de funcionar en su siguiente petición.",
+      "revoking": "Revocando…",
+      "cancel": "Conservarla",
+      "revoked": "Revocada el {{date}}"
+    }
+  },
   "language": {
     "heading": "Idioma",
     "note": "El idioma se recuerda en este navegador y no en tu cuenta, así que sigue siendo el que elegiste aquí tanto si has iniciado sesión como si no."

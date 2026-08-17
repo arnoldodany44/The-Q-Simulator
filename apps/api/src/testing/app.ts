@@ -19,6 +19,18 @@ import { TEST_AUDIENCE, TEST_ISSUER, TEST_JWKS_URL } from './tokens.js'
 
 export const TEST_WEB_ORIGIN = 'https://the-q-simulator.vercel.app'
 
+/**
+ * A syntactically valid AES-256 key for the environment parser.
+ *
+ * Thirty-two zero bytes, base64. Deliberately not random and deliberately not
+ * a secret: nothing in the API suite seals anything with it — the hardware port
+ * is injected, and `testing/hardware.ts` builds its own cipher over
+ * `randomBytes`. What this exists for is `loadEnv`, which refuses a key that is
+ * not canonical base64 of exactly 32 bytes, and which every test drives.
+ */
+export const TEST_ENCRYPTION_KEY =
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+
 /** A complete, valid environment. Override one key to test one failure. */
 export function testEnvSource(overrides: EnvSource = {}): EnvSource {
   return {
@@ -61,6 +73,13 @@ export async function createTestApp(options: TestAppOptions = {}) {
     database: options.database ?? { probe: () => Promise.resolve() },
     ...(options.jwks === undefined ? {} : { jwks: options.jwks }),
     ...(options.circuits === undefined ? {} : { circuits: options.circuits }),
+    /*
+     * Absent by default, which leaves `app.apiKeys` reaching for `app.db` — a
+     * client no test has, so a route or a hook that started resolving keys
+     * without being asked fails loudly instead of silently answering 401. Only
+     * the suites that are about keys inject one.
+     */
+    ...(options.apiKeys === undefined ? {} : { apiKeys: options.apiKeys }),
     ...(options.runs === undefined ? {} : { runs: options.runs }),
     /*
      * Deliberately not defaulted to a working queue. A test that does not say
@@ -78,5 +97,15 @@ export async function createTestApp(options: TestAppOptions = {}) {
      * unrelated suite rather than opening a connection.
      */
     ...(options.events === undefined ? {} : { events: options.events }),
+    /*
+     * Absent by default, for the third time and the same reason: a test that
+     * does not say what the hardware port is gets `app.hardware === null`,
+     * which is the ENCRYPTION_KEY-absent state. §11 has no weaker mode, so the
+     * default in a test harness must be the one where nothing can be sealed.
+     */
+    ...(options.hardware === undefined ? {} : { hardware: options.hardware }),
+    ...(options.hardwareQueue === undefined
+      ? {}
+      : { hardwareQueue: options.hardwareQueue }),
   })
 }

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /*
+     * Declarations only, exactly as `@qsim/core` does it and for the same
+     * reasons: the package is consumed as source at runtime, so `dist/` is
+     * the type layer alone. See that package's tsconfig.build.json for the
+     * full argument — in particular why a consumer must not compile these
+     * sources under its own compiler options.
+     */
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  /*
+   * `src/testing/` is the linear-memory stand-in for the compiled artifact.
+   * It is reachable through the `./testing` export for this package's own
+   * suites and for a consumer that wants to exercise the bridge without a
+   * Rust toolchain, but it is not part of the type layer: nothing should be
+   * able to depend on it by accident, and it must never be mistaken for the
+   * accelerator.
+   */
+  "exclude": ["src/**/*.test.ts", "src/**/*.perf.test.ts", "src/testing/**"]
+}

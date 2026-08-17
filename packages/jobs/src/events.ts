@@ -54,6 +54,8 @@
  */
 
 import { z } from 'zod'
+import { HARDWARE_STATUSES } from './hardware.js'
+import type { HardwareStatus } from './hardware.js'
 import { JobProgressSchema } from './progress.js'
 import { RUN_STATUSES } from './run.js'
 import type { RunStatus } from './run.js'
@@ -72,6 +74,8 @@ export const RUN_EVENT_TYPES = [
   'run:progress',
   'run:complete',
   'job:status',
+  'hardware:status',
+  'hardware:complete',
 ] as const
 
 export type RunEventType = (typeof RUN_EVENT_TYPES)[number]
@@ -98,6 +102,12 @@ const RunStatusSchema = z.enum(
 )
 
 const TerminalStatusSchema = z.enum(['DONE', 'FAILED'])
+
+const HardwareStatusSchema = z.enum(
+  HARDWARE_STATUSES as unknown as [HardwareStatus, ...HardwareStatus[]]
+)
+
+const TerminalHardwareStatusSchema = z.enum(['DONE', 'FAILED', 'CANCELLED'])
 
 /**
  * One event, as it travels through Redis.
@@ -137,6 +147,51 @@ export const RunEventSchema = z.discriminatedUnion('type', [
      */
     error: z.string().max(64).nullable(),
   }),
+  /**
+   * A hardware job moved, or its queue position changed.
+   *
+   * ── `runId` here is the HardwareJob's id, and the field is shared ────
+   *
+   * Deliberately the same field name as the three above, because it is the
+   * *subscription key*: `apps/api`'s socket session identifies a subscription
+   * by one string and guards every delivery with "the event must name the thing
+   * this subscription was authorised for". A second field name would fork that
+   * guard into two, and a guard that exists twice is a guard that is enforced
+   * once. What a client subscribes to is an id; what kind of thing that id
+   * names is decided when the subscription is authorised, not per frame.
+   *
+   * `queuePosition` is nullable and is usually null, which is the honest
+   * reading rather than an unfinished one: the current Quantum API's job
+   * document carries no per-job position. What a person is shown instead is the
+   * device's queue length, which `GET /hardware/backends` reports and which is
+   * the number that decides whether a result arrives today.
+   */
+  z.object({
+    type: z.literal('hardware:status'),
+    runId: RunIdSchema,
+    at: InstantSchema,
+    status: HardwareStatusSchema,
+    queuePosition: z.int().min(0).nullable(),
+  }),
+  /**
+   * A hardware job reached a terminal status.
+   *
+   * Three terminal statuses rather than two, because CANCELLED is genuinely a
+   * third outcome here: a person who cancels a job to stop it spending their
+   * ten-minute allowance has not had a failure, and telling them they did would
+   * be telling them something went wrong with their circuit.
+   *
+   * Carries no result, exactly like `run:complete`: the answer lives in
+   * Postgres and is read through `GET /hardware/jobs/:id`, which re-applies the
+   * §11 filter on the way out.
+   */
+  z.object({
+    type: z.literal('hardware:complete'),
+    runId: RunIdSchema,
+    at: InstantSchema,
+    status: TerminalHardwareStatusSchema,
+    error: z.string().max(64).nullable(),
+  }),
 ])
 
 export type RunEvent = z.infer<typeof RunEventSchema>
@@ -158,6 +213,21 @@ export type RunEvent = z.infer<typeof RunEventSchema>
  */
 export function runEventChannel(prefix: string, runId: string): string {
   return `${prefix}:events:${runId}`
+}
+
+/**
+ * Where a hardware job's events are published.
+ *
+ * A separate namespace rather than the same one keyed by a different id, even
+ * though both ids are cuid2 and a collision is not a practical worry. The
+ * reason is what a collision would *do*: the session's delivery guard compares
+ * ids, so two different things sharing one channel would pass that check and a
+ * subscriber would receive frames about somebody else's job under its own id.
+ * Namespacing makes that unreachable rather than unlikely, and it costs one
+ * function.
+ */
+export function hardwareEventChannel(prefix: string, jobId: string): string {
+  return `${prefix}:hw:${jobId}`
 }
 
 /**

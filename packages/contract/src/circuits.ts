@@ -157,8 +157,21 @@ export function pageNumber(max: number, fallback: number) {
  * it takes its type from the *output* side, where the numbers are numbers.
  */
 export const PaginationQuery = z.object({
-  page: pageNumber(MAX_PAGE, 1),
-  perPage: pageNumber(MAX_PER_PAGE, DEFAULT_PER_PAGE),
+  /*
+   * Described rather than left bare, and the reason is the generated
+   * reference: the bounds live behind a `.pipe()`, so they are invisible on
+   * the *input* side of the schema — which is the side a published document
+   * has to describe, because it is what a caller sends. Without this the
+   * reference would print a query parameter with no constraints at all, which
+   * is precisely the sort of quietly-wrong sentence that generating
+   * documentation is supposed to prevent.
+   */
+  page: pageNumber(MAX_PAGE, 1).describe(
+    `The 1-based page number, at most ${String(MAX_PAGE)}.`
+  ),
+  perPage: pageNumber(MAX_PER_PAGE, DEFAULT_PER_PAGE).describe(
+    `Rows per page, at most ${String(MAX_PER_PAGE)}.`
+  ),
 })
 
 /** A resolved page selection: what the server ends up working with. */

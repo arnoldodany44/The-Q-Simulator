@@ -26,6 +26,8 @@
  */
 
 import process from 'node:process'
+import { isEncryptionKey } from '@qsim/db'
+import { DEFAULT_TIMEOUT_MS as DEFAULT_HARDWARE_TIMEOUT_MS } from '@qsim/ibm'
 import {
   DEFAULT_JOB_TIMEOUT_MS,
   DEFAULT_SERVER_QUBITS,
@@ -57,6 +59,13 @@ const HINTS: Record<string, string> = {
     'wall-clock bound on one run, enforced with SIGKILL; must match the API',
   SHUTDOWN_TIMEOUT_MS:
     'how long a graceful shutdown may take before the process is killed',
+  ENCRYPTION_KEY:
+    'base64 of 32 random bytes; must be the SAME value as the API has, or ' +
+    'no hardware credential this worker reads will decrypt. Without it the ' +
+    'hardware poll does not start and simulation is unaffected',
+  HARDWARE_CONCURRENCY: 'hardware poll ticks in flight at once',
+  HARDWARE_TIMEOUT_MS:
+    'how long one call to a hardware provider may take before it is abandoned',
 }
 
 const EnvSchema = z.object({
@@ -88,6 +97,43 @@ const EnvSchema = z.object({
   SIMULATION_MAX_QUBITS: z.coerce.number().int().min(1).max(28).optional(),
   SIMULATION_TIMEOUT_MS: z.coerce.number().int().min(1_000).optional(),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(100).default(30_000),
+
+  /*
+   * OPTIONAL HERE, AS IN THE API, AND WITH ONE EXTRA WARNING.
+   *
+   * Without it this process does not consume the hardware queue, and simulation
+   * — the thing it primarily exists for — is unaffected. What it must never be
+   * is *different* from the API's: the two seal and open the same rows, so a
+   * mismatched key produces credentials that store perfectly and refuse to
+   * decrypt, which surfaces hours later as every hardware job failing with a
+   * credential code. Nothing in either process can detect that, because a
+   * wrong-key decryption is indistinguishable from a tampered one by design.
+   *
+   * The `refine` catches the other half: Node's base64 decoder ignores
+   * characters outside the alphabet, so a typo becomes a different key
+   * silently.
+   */
+  ENCRYPTION_KEY: z
+    .string()
+    .min(1)
+    .refine(isEncryptionKey, {
+      message: 'expected canonical base64 of exactly 32 bytes',
+    })
+    .optional(),
+
+  /*
+   * Higher than WORKER_CONCURRENCY by default, and the reason is what a unit of
+   * each holds. A simulation job is a child process with up to 256 MB of typed
+   * array; a hardware tick is one HTTP request and a row update. What bounds
+   * this is the provider's rate limit rather than this container's memory.
+   */
+  HARDWARE_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
+  HARDWARE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(30_000)
+    .optional(),
 })
 
 function isRedisUrl(value: string): boolean {
@@ -118,6 +164,18 @@ export interface WorkerEnv {
   readonly maxQubits: number
   readonly timeoutMs: number
   readonly shutdownTimeoutMs: number
+  /**
+   * Real hardware (§3.7), or an absent master key.
+   *
+   * `encryptionKey === null` means this worker does not consume the hardware
+   * queue at all. That is a supported state and not a degraded one: §11 has no
+   * mode in which a credential is read without the key it was sealed under.
+   */
+  readonly hardware: {
+    readonly encryptionKey: string | null
+    readonly concurrency: number
+    readonly timeoutMs: number
+  }
 }
 
 export class EnvValidationError extends Error {
@@ -196,6 +254,11 @@ export function loadEnv(source: EnvSource): WorkerEnv {
     maxQubits: env.SIMULATION_MAX_QUBITS ?? DEFAULT_SERVER_QUBITS,
     timeoutMs: env.SIMULATION_TIMEOUT_MS ?? DEFAULT_JOB_TIMEOUT_MS,
     shutdownTimeoutMs: env.SHUTDOWN_TIMEOUT_MS,
+    hardware: {
+      encryptionKey: env.ENCRYPTION_KEY ?? null,
+      concurrency: env.HARDWARE_CONCURRENCY,
+      timeoutMs: env.HARDWARE_TIMEOUT_MS ?? DEFAULT_HARDWARE_TIMEOUT_MS,
+    },
   }
 }
 

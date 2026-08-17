@@ -332,6 +332,63 @@ describe('notation and layout', () => {
   })
 })
 
+/**
+ * §3.7 puts three distributions on one track, which is two overlay readings.
+ * The geometry has to keep them apart — see `HistogramOverlay` for why colour
+ * cannot do it — and it has to leave §3.3's single-overlay chart alone.
+ */
+describe('lanes, when a chart carries more than one further reading', () => {
+  it('leaves a chart with no overlay exactly as it was', () => {
+    const plain = histogramLayout(3, 4)
+
+    expect(plain.lanes).toBe(0)
+    expect(plain.deltaX).toEqual([])
+    expect(plain.barHeight).toBe(12)
+    expect(plain.rowHeight).toBe(24)
+  })
+
+  it('leaves a single reading undivided, on the geometry §3.3 had', () => {
+    const one = histogramLayout(3, 4, { comparisons: 1 })
+    const plain = histogramLayout(3, 4)
+
+    expect(one.barHeight).toBe(plain.barHeight)
+    expect(one.rowHeight).toBe(plain.rowHeight)
+    // The lane is the whole bar, so the sliver is drawn where it always was.
+    expect(one.laneHeight).toBe(one.barHeight)
+    expect(one.deltaX).toHaveLength(1)
+  })
+
+  it('divides the bar into a band per reading, and grows it to fit', () => {
+    const two = histogramLayout(3, 4, { comparisons: 2 })
+
+    expect(two.lanes).toBe(2)
+    expect(two.laneHeight * 2).toBe(two.barHeight)
+    // Grown rather than split: two six-pixel bands are thinner than the tick
+    // that marks each reading, and would read as one striped bar.
+    expect(two.barHeight).toBeGreaterThan(12)
+    expect(two.laneHeight).toBeGreaterThanOrEqual(8)
+  })
+
+  it('keeps the rows apart once the bars are taller', () => {
+    const two = histogramLayout(3, 4, { comparisons: 2 })
+
+    expect(two.rowHeight).toBeGreaterThan(two.barHeight)
+    expect(rowCentreY(two, 1) - rowCentreY(two, 0)).toBe(two.rowHeight)
+    expect(rowCentreY(two, 3) + two.barHeight / 2).toBeLessThan(two.height)
+  })
+
+  it('gives each reading a difference column of its own, left to right', () => {
+    const two = histogramLayout(3, 4, { comparisons: 2 })
+    const [first, second] = two.deltaX
+
+    expect(two.deltaX).toHaveLength(2)
+    expect(second as number).toBeGreaterThan(first as number)
+    // The chart is wide enough to hold the second column rather than clipping
+    // it: an SVG whose viewBox ends before its content simply cuts the number.
+    expect(two.width).toBeGreaterThan(second as number)
+  })
+})
+
 describe('unwrapping the phasor rotation', () => {
   it('takes the short way round zero', () => {
     // A phase creeping past 0 moves the arrow twenty degrees, not 340.

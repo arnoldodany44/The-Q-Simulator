@@ -82,8 +82,10 @@ export function NoiseComparisonPanel({
   )
   const noisyLabel = t('noise.comparison.column.noisy')
   const deltaLabel = t('noise.comparison.column.difference')
-  const overlay = useMemo(
-    () => overlayOf(comparison, noisyLabel, deltaLabel),
+  // An array of one. This chart draws a single further reading; §3.7's takes
+  // the same prop with two, which is the whole of what they have in common.
+  const overlays = useMemo(
+    () => [overlayOf(comparison, noisyLabel, deltaLabel)],
     [comparison, noisyLabel, deltaLabel]
   )
 
@@ -140,7 +142,7 @@ export function NoiseComparisonPanel({
       <ProbabilityHistogram
         state={state}
         barLimit={barLimit}
-        overlay={overlay}
+        overlays={overlays}
         heading={t('noise.comparison.chart.heading')}
         summary={t('noise.comparison.chart.summary')}
       />

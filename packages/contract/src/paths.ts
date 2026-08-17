@@ -88,6 +88,63 @@ export const SIMULATE_ROUTES = {
 export type SimulateRoute =
   (typeof SIMULATE_ROUTES)[keyof typeof SIMULATE_ROUTES]
 
+/**
+ * Real hardware — §3.7, §8, Phase 4.
+ *
+ * Two resources under one prefix, and they are genuinely two: a *credential* is
+ * a long-lived secret belonging to a person, and a *job* is one expensive thing
+ * that happened. §8 lists both, plus the backend listing that sits between them
+ * — which is a read *through* a credential rather than a resource of its own,
+ * and is why `backends` takes a `credentialId` in its query rather than living
+ * under `/hardware/credentials/:id/backends`. A device is not owned by a key;
+ * the key is merely how this system is allowed to ask about it.
+ *
+ * `job` is addressed by the *`HardwareJob` id* and never by the provider's,
+ * even though the provider's is returned. The provider's id is theirs: it means
+ * nothing to this system's authorisation, it is not unique across providers,
+ * and a route keyed on it would be a route where one user could name another's
+ * job by pasting a string from a console.
+ */
+export const HARDWARE_ROUTES = {
+  /** `GET` the caller's credentials, `POST` a new one. */
+  credentials: '/hardware/credentials',
+  /** `GET` one credential's metadata, `DELETE` to remove it. */
+  credential: '/hardware/credentials/:id',
+  /** `GET` the devices a credential can see, with their queue lengths. */
+  backends: '/hardware/backends',
+  /** `GET` the caller's jobs, `POST` to submit one. */
+  jobs: '/hardware/jobs',
+  /** `GET` one job. `DELETE` cancels it (§8). */
+  job: '/hardware/jobs/:id',
+} as const
+
+export type HardwareRoute =
+  (typeof HARDWARE_ROUTES)[keyof typeof HARDWARE_ROUTES]
+
+/**
+ * The public API's own credentials — §3.5, §7's `ApiKey`.
+ *
+ * Three routes and no fourth. There is no `GET /api-keys/:id`, because a key's
+ * metadata is three fields and the listing already carries all of them; and
+ * there is emphatically no route that returns a key, because the server holds
+ * a hash and could not answer one. `DELETE` revokes: the row survives with a
+ * `revokedAt`, so "which key did I turn off, and when" stays answerable, and
+ * the response is the revoked row rather than a bare 204 for exactly that
+ * reason.
+ *
+ * Reachable with a session and never with a key, which is the one rule of this
+ * resource — see `api-keys.ts` on why a key that could mint keys makes
+ * revocation meaningless.
+ */
+export const API_KEY_ROUTES = {
+  /** `GET` the caller's keys, `POST` to mint one. */
+  collection: '/api-keys',
+  /** `DELETE` to revoke. Immediate, and there is no undo. */
+  item: '/api-keys/:id',
+} as const
+
+export type ApiKeyRoute = (typeof API_KEY_ROUTES)[keyof typeof API_KEY_ROUTES]
+
 export const COLLECTION_ROUTES = {
   collection: '/collections',
   item: '/collections/:id',
@@ -243,6 +300,20 @@ export const challengePath = {
 
 export const embedPath = {
   item: (handle: string): string => fillRoute(EMBED_ROUTES.item, { handle }),
+} as const
+
+export const hardwarePath = {
+  credentials: (): string => HARDWARE_ROUTES.credentials,
+  credential: (id: string): string =>
+    fillRoute(HARDWARE_ROUTES.credential, { id }),
+  backends: (): string => HARDWARE_ROUTES.backends,
+  jobs: (): string => HARDWARE_ROUTES.jobs,
+  job: (id: string): string => fillRoute(HARDWARE_ROUTES.job, { id }),
+} as const
+
+export const apiKeyPath = {
+  collection: (): string => API_KEY_ROUTES.collection,
+  item: (id: string): string => fillRoute(API_KEY_ROUTES.item, { id }),
 } as const
 
 export const collectionPath = {

@@ -55,9 +55,35 @@
  * post the moment the author previewed their own embed. The route needs the
  * header to be *unreadable*, not merely unread, and `optional` cannot promise
  * that. See `routes/embed.ts`.
+ *
+ * ── The second credential, and the second declaration (§3.5) ──────────────
+ *
+ * A caller may also present an API key, which travels in the same
+ * `Authorization: Bearer` header and is resolved by `plugins/api-keys.ts` into
+ * `request.apiKey`. A key **acts as its user and can do no more** — every
+ * query it reaches is scoped by the very `viewerIdOf` that scopes a session's
+ * — but it may do *less*, and how much less is the second thing a route
+ * declares:
+ *
+ *     config: { auth: 'required', scope: 'write' }
+ *
+ * A route that declares no `scope` is unreachable with a key, and that default
+ * is the security property rather than an oversight. Every route in this API
+ * predates the public one, so a permissive default would have published the
+ * entire surface — key management and hardware included — on the commit that
+ * introduced keys. Fail-closed also means the *next* route is session-only
+ * until somebody decides otherwise, which is the only direction in which
+ * forgetting is safe.
+ *
+ * The scope is singular, and that is deliberate: a list would immediately
+ * raise "any of these, or all of them?", and a question a reader has to answer
+ * from the implementation is a question two readers will answer differently.
+ * One route, one capability.
  */
 
 import fp from 'fastify-plugin'
+import { API_KEY_SCOPES, isApiKeyScope } from '@qsim/contract'
+import type { ApiKeyScope } from '@qsim/contract'
 import type {
   FastifyInstance,
   FastifyRequest,
@@ -66,6 +92,8 @@ import type {
 } from 'fastify'
 import { ApiError, toApiError } from '../errors.js'
 import type { ApiEnv } from '../env.js'
+import type { VerifiedApiKey } from '../api-keys/verify.js'
+import { isApiKeyCredential } from '../api-keys/secret.js'
 import { JwksCache } from '../auth/jwks.js'
 import { bearerToken, verifyAccessToken } from '../auth/verify.js'
 import type { VerifiedIdentity } from '../auth/verify.js'
@@ -74,18 +102,41 @@ export type AuthPolicy = 'required' | 'optional' | 'public'
 
 declare module 'fastify' {
   interface FastifyRequest {
-    /** The verified identity, or `null` for an anonymous caller. */
+    /**
+     * The verified *session*, or `null`.
+     *
+     * Strictly a Supabase JWT and never an API key, which is why the two have
+     * separate slots rather than one synthesised identity. An API key has no
+     * email, no display name and no expiry, so a synthesised `VerifiedIdentity`
+     * would have to invent three claims — and code reading `auth.expiresAt`
+     * would be reading a number nobody minted. Route code should reach for
+     * `viewerIdOf`/`requireViewerId`, which answer "who is the caller" across
+     * both.
+     */
     auth: VerifiedIdentity | null
     /**
-     * Set when a token was presented and did not verify. Held rather than
-     * thrown so the rate limiter still sees the request; `enforceAuthPolicy`
-     * throws it a hook later.
+     * The verified API key, or `null`. Set by `plugins/api-keys.ts`.
+     *
+     * Never non-null at the same time as `auth`: the two resolvers each test
+     * for their own token shape and a string cannot have both.
+     */
+    apiKey: VerifiedApiKey | null
+    /**
+     * Set when a credential was presented and did not verify — a bad JWT or an
+     * unknown key alike. Held rather than thrown so the rate limiter still
+     * sees the request; `enforceAuthPolicy` throws it a hook later.
      */
     authFailure: ApiError | null
   }
 
   interface FastifyContextConfig {
     auth?: AuthPolicy
+    /**
+     * The capability an API key must carry to use this route (§3.5).
+     *
+     * Absent means no key may use it, whatever its scopes. See the header.
+     */
+    scope?: ApiKeyScope
   }
 
   interface FastifyInstance {
@@ -93,7 +144,25 @@ declare module 'fastify' {
     enforceAuthPolicy: onRequestHookHandler
     /** Exposed for the health route and for tests; never for route code. */
     jwks: JwksCache
+    /**
+     * Every route an API key may reach, recorded as the router received it.
+     *
+     * The authoritative answer to "what is the public API", derived from the
+     * declarations rather than kept beside them — so it cannot disagree with
+     * what is enforced, which a hand-maintained list eventually would. The
+     * generated reference is checked against it, and so is the assertion that
+     * the surface has not grown by accident.
+     */
+    readonly apiKeySurface: readonly ApiKeySurfaceEntry[]
   }
+}
+
+/** One method-and-path an API key may use, and the scope it must carry. */
+export interface ApiKeySurfaceEntry {
+  readonly method: string
+  /** The template, including the `/api/v1` prefix the router registered. */
+  readonly url: string
+  readonly scope: ApiKeyScope
 }
 
 export interface AuthPluginOptions {
@@ -106,11 +175,19 @@ export interface AuthPluginOptions {
  * The viewer id in the form `@qsim/db`'s visibility filters expect.
  *
  * Route code calls this instead of reaching for `request.auth?.userId`, so
- * that "the viewer" always means "a `sub` claim this process verified" and
- * never an id that arrived in a body or a path.
+ * that "the viewer" always means "an identity this process verified" and never
+ * an id that arrived in a body or a path.
+ *
+ * Both credentials answer here, and that single line is what makes §3.5's
+ * strongest guarantee structural rather than intended: **an API key sees
+ * exactly what its user sees**. Every visibility filter in the system takes
+ * this value, so a key cannot reach another account's PRIVATE circuit for the
+ * same reason its owner's browser cannot — there is no second code path where
+ * a key is handled, and therefore no second path where the filter could be
+ * forgotten.
  */
 export function viewerIdOf(request: FastifyRequest): string | null {
-  return request.auth?.userId ?? null
+  return request.auth?.userId ?? request.apiKey?.userId ?? null
 }
 
 /**
@@ -119,9 +196,28 @@ export function viewerIdOf(request: FastifyRequest): string | null {
  * from growing a null check that can only be reached by a policy bug.
  */
 export function requireViewerId(request: FastifyRequest): string {
-  const identity = request.auth
-  if (identity === null) throw new ApiError('AUTH_REQUIRED')
-  return identity.userId
+  const viewerId = viewerIdOf(request)
+  if (viewerId === null) throw new ApiError('AUTH_REQUIRED')
+  return viewerId
+}
+
+/**
+ * The `public.User` id of a caller whose row is guaranteed to exist already.
+ *
+ * `null` for a session, which has to go through `ensureOwner`: a Supabase
+ * identity can make its very first authenticated request to a route that
+ * writes, and the `public.User` row is created there rather than by a trigger
+ * (see `users.ts` in @qsim/db).
+ *
+ * An API key is the opposite case and the guarantee is a foreign key:
+ * `ApiKey.userId` references `User.id`, so a key can only exist if the row
+ * does. Calling `ensureOwner` for it would be an upsert whose answer is
+ * already known — and it would need an `email` claim that a key does not carry
+ * and never will, which would turn every write by a key into a 403 about a
+ * missing email address.
+ */
+export function establishedOwnerId(request: FastifyRequest): string | null {
+  return request.apiKey?.userId ?? null
 }
 
 function authPlugin(
@@ -133,6 +229,8 @@ function authPlugin(
   const jwks = options.jwks ?? new JwksCache({ url: env.jwksUrl })
 
   app.decorate('jwks', jwks)
+  const apiKeySurface: ApiKeySurfaceEntry[] = []
+  app.decorate('apiKeySurface', apiKeySurface)
   /*
    * `decorateRequest` with `null` rather than with an object: Fastify shares
    * one prototype across every request, so a decorator holding an object
@@ -141,6 +239,7 @@ function authPlugin(
    * its own slot.
    */
   app.decorateRequest('auth', null)
+  app.decorateRequest('apiKey', null)
   app.decorateRequest('authFailure', null)
 
   app.addHook('onRoute', (route) => {
@@ -156,6 +255,49 @@ function authPlugin(
           "'public' } — see src/plugins/auth.ts for what each one means."
       )
     }
+
+    const scope: unknown = route.config.scope
+    /*
+     * A misspelled scope would be a route no key could ever satisfy, because
+     * the comparison is a string equality against what a stored row holds.
+     * Silent unreachability is exactly the failure that gets shipped, so the
+     * process refuses to come up with it.
+     */
+    if (scope !== undefined && !isApiKeyScope(scope)) {
+      throw new Error(
+        `Route ${route.method.toString()} ${route.url} declares an unknown ` +
+          `API key scope. Use one of: ${API_KEY_SCOPES.join(', ')}.`
+      )
+    }
+    /*
+     * A `public` route never consults the header at all, so a scope on one
+     * would describe a check that cannot run — and would read, to the next
+     * person, as evidence that keys are honoured there. They are not.
+     */
+    if (scope !== undefined && route.config.auth === 'public') {
+      throw new Error(
+        `Route ${route.method.toString()} ${route.url} is auth: 'public' and ` +
+          'declares an API key scope. A public route never reads the ' +
+          'Authorization header, so the scope could never be checked.'
+      )
+    }
+
+    if (scope !== undefined && isApiKeyScope(scope)) {
+      const methods = Array.isArray(route.method)
+        ? route.method
+        : [route.method]
+      for (const method of methods) {
+        /*
+         * HEAD is skipped because Fastify synthesises one from every GET and
+         * copies its config, so recording it would list the public surface
+         * with a phantom entry per read — a difference between what the
+         * reference says and what the router holds, caused by a route nobody
+         * wrote.
+         */
+        if (method === 'HEAD') continue
+        apiKeySurface.push({ method, url: route.url, scope })
+      }
+    }
   })
 
   app.addHook('onRequest', async (request) => {
@@ -167,6 +309,14 @@ function authPlugin(
       request.authFailure = new ApiError('AUTH_INVALID_TOKEN')
       return
     }
+    /*
+     * Somebody else's credential. `plugins/api-keys.ts` resolves keys, and a
+     * key handed to `jwtVerify` would be recorded here as an invalid *token* —
+     * which is the same 401 by luck rather than by design, and would mean two
+     * hooks both writing `authFailure` for one request with the loser's answer
+     * silently overwriting the winner's.
+     */
+    if (isApiKeyCredential(token)) return
 
     try {
       request.auth = await verifyAccessToken(token, {
@@ -219,7 +369,44 @@ function authPlugin(
       return
     }
 
-    if (policy === 'required' && request.auth === null) {
+    /*
+     * The scope check (§3.5), and it runs before the `required` check below
+     * rather than after. That order is what makes the answer specific: a key
+     * without the scope for a route it may otherwise reach should be told
+     * exactly that, not "authentication required", which would send its holder
+     * to check a credential that verified perfectly.
+     */
+    const key = request.apiKey
+    if (key !== null) {
+      const required = request.routeOptions.config.scope
+      if (required === undefined) {
+        /*
+         * Fail-closed: a route that never declared a scope is not part of the
+         * public API. Key management and hardware live here permanently and by
+         * decision — see `@qsim/contract`'s `api-keys.ts` — and everything
+         * else lives here until somebody has thought about it.
+         */
+        done(new ApiError('API_KEY_NOT_ACCEPTED'))
+        return
+      }
+      if (!key.scopes.includes(required)) {
+        done(
+          new ApiError('API_KEY_SCOPE_REQUIRED', {
+            /*
+             * The missing scope travels in `details`, because it is the one
+             * thing the caller needs and cannot guess: it names the checkbox
+             * to tick when minting the replacement. It discloses nothing — the
+             * requirement is a property of the route, identical for everyone,
+             * and published in the generated reference.
+             */
+            details: [{ path: 'scope', code: required }],
+          })
+        )
+        return
+      }
+    }
+
+    if (policy === 'required' && viewerIdOf(request) === null) {
       done(new ApiError('AUTH_REQUIRED'))
       return
     }

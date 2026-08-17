@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /*
+     * Declarations only, the same arrangement as packages/schema, packages/qsim
+     * and packages/qasm: runtime consumers resolve this package's source through
+     * the `development` export condition, while type resolution goes to
+     * `dist/`.
+     */
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  /*
+   * `src/testing/` holds the vendored snapshot of a real Heron device and a
+   * random-circuit generator, both shared between suites and neither part of
+   * what this package ships. The snapshot in particular must never be
+   * reachable from production code: its error rates are hours old the moment
+   * they are written down, and a stale calibration that looks live is exactly
+   * the silent wrongness the placement search exists to avoid.
+   */
+  "exclude": ["src/**/*.test.ts", "src/testing/**"]
+}

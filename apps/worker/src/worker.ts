@@ -31,13 +31,24 @@
 
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { Queue } from 'bullmq'
 import {
+  createCredentialCipher,
+  decodeEncryptionKey,
   disconnectPrismaClient,
   getPrismaClient,
+  prismaHardwareRepository,
   prismaSimulationRunRepository,
 } from '@qsim/db'
+import type { HardwareRepository } from '@qsim/db'
+import { createIbmClient, createTokenCache, fetchTransport } from '@qsim/ibm'
+import { HARDWARE_QUEUE, hardwareTickId } from '@qsim/jobs'
+import type { HardwareJobPayload } from '@qsim/jobs'
 import { pino } from 'pino'
 import { EnvValidationError, loadProcessEnv } from './env.js'
+import { buildWorkerLoggerOptions } from './logging.js'
+import { startHardwareQueue, scheduleOn } from './hardware-queue.js'
+import type { HardwareRuntime } from './hardware-queue.js'
 import { createPool } from './pool.js'
 import { startReaper } from './reaper.js'
 import { assertReachable, createConnection, startQueue } from './queue.js'
@@ -57,19 +68,14 @@ const env = (() => {
   }
 })()
 
-const log = pino({
-  level: env.logLevel,
-  /*
-   * The same redaction discipline as the API's logger. A job payload carries a
-   * whole circuit and the id of whoever submitted it; neither belongs in a log
-   * aggregator, and the fields below are the ones a careless `err` serialisation
-   * would carry them out through.
-   */
-  redact: {
-    paths: ['*.circuit', '*.payload', 'err.cause.circuit'],
-    censor: '[redacted]',
-  },
-})
+/*
+ * The same rules as the API's logger, from the same package — see
+ * `logging.ts` for the leak that made sharing them non-optional. A job payload
+ * carries a whole circuit and the id of whoever submitted it, an error carries
+ * whatever the driver put in its message, and this is the process that holds
+ * `ENCRYPTION_KEY`.
+ */
+const log = pino(buildWorkerLoggerOptions(env))
 
 /**
  * Where the forked child lives.
@@ -132,13 +138,119 @@ const runtime = startQueue({
 })
 
 /*
- * The sweep that guarantees no run stays non-terminal for ever — see
- * `reaper.ts` for the three ways one can, none of which the queue can recover
- * from on its own. It lives in this process because this process already owns
+ * The hardware half, and it is optional in the same first-class way §11's key
+ * is: with no `ENCRYPTION_KEY` this process consumes only the simulation queue,
+ * and every hardware row simply waits for a deployment that has one. There is
+ * no mode in which a credential is read without the key it was sealed under.
+ */
+const hardware: {
+  runtime: HardwareRuntime
+  queue: Queue<HardwareJobPayload>
+  /** The rows, so the reaper can bound them. See `reaper.ts`. */
+  jobs: HardwareRepository
+  /** Drops every derived bearer token. Called on the way out — see `shutdown`. */
+  forgetTokens: () => void
+} | null = (() => {
+  const key = env.hardware.encryptionKey
+  if (key === null) return null
+
+  const cipher = createCredentialCipher(decodeEncryptionKey(key))
+  const jobs = prismaHardwareRepository(prisma)
+  const transport = fetchTransport()
+  const tokens = createTokenCache({
+    transport,
+    timeoutMs: env.hardware.timeoutMs,
+  })
+
+  /*
+   * A second `Queue` on the *same* connection as the consumer. Safe, and worth
+   * saying why: ioredis forbids ordinary commands only on a client in
+   * subscriber mode, and nothing in this process ever subscribes — it publishes
+   * and the API listens. A separate connection would be a second TCP session on
+   * a metered tier for a few `ZADD`s a minute.
+   */
+  const queue = new Queue<HardwareJobPayload>(HARDWARE_QUEUE, {
+    connection,
+    prefix: env.queuePrefix,
+    defaultJobOptions: { attempts: 1, removeOnComplete: true },
+  })
+
+  const runtime = startHardwareQueue({
+    connection,
+    queuePrefix: env.queuePrefix,
+    concurrency: env.hardware.concurrency,
+    jobs,
+    schedule: scheduleOn(queue, hardwareTickId),
+    /*
+     * The credential's whole plaintext lifetime is one IAM exchange inside
+     * `@qsim/ibm`. This closure reads it to learn which host to address, and
+     * hands the key itself to the client as a *callback* so that nothing here
+     * ever holds it — the same arrangement the API's port has, for the same
+     * reason.
+     */
+    clientFor: async (credentialId, userId) => {
+      const document = await jobs.openCredential(credentialId, userId, cipher)
+      if (document === null) {
+        /*
+         * The credential is gone — deleted by its owner while a job of theirs
+         * was in a queue. `DELETE /hardware/credentials/:id` calls
+         * `hardware.forget(id)` in the API for exactly this reason ("a key
+         * somebody revoked because it leaked would go on working from this
+         * process for up to an hour"), and that call cannot reach this
+         * process: two containers, two caches, no shared memory.
+         *
+         * This is the moment this process learns the same fact, and it is the
+         * earliest one available: every tick re-reads the row before it builds
+         * a client, so a deletion is observed on the next poll rather than an
+         * hour later when the token expires. Dropping the derived bearer token
+         * here is what closes the window on this side.
+         */
+        tokens.invalidate(credentialId)
+        return null
+      }
+      return createIbmClient({
+        crn: document.instance,
+        credentialId,
+        apiKey: async () => {
+          const fresh = await jobs.openCredential(credentialId, userId, cipher)
+          if (fresh === null) {
+            throw new Error('the credential went away mid-exchange')
+          }
+          return fresh.apiKey
+        },
+        transport,
+        tokens,
+        timeoutMs: env.hardware.timeoutMs,
+      })
+    },
+    log: (level, fields, message) => {
+      log[level](fields, message)
+    },
+  })
+
+  return {
+    runtime,
+    queue,
+    jobs,
+    forgetTokens: () => {
+      tokens.clear()
+    },
+  }
+})()
+
+/*
+ * The sweep that guarantees no row stays non-terminal for ever — see
+ * `reaper.ts` for the ways one can, none of which the queues can recover from
+ * on their own. It lives in this process because this process already owns
  * writing to those rows and because there is one of it.
+ *
+ * It is started *after* the hardware block so it can be given the hardware
+ * repository: a hardware job with no horizon is what turns a lost submission
+ * into a loop that keeps buying jobs on a real device.
  */
 const reaper = startReaper({
   runs,
+  ...(hardware === null ? {} : { hardware: hardware.jobs }),
   log: (level, fields, message) => {
     log[level](fields, message)
   },
@@ -150,9 +262,19 @@ log.info(
     maxQubits: env.maxQubits,
     timeoutMs: env.timeoutMs,
     queuePrefix: env.queuePrefix,
+    hardware: hardware !== null,
   },
   'worker ready'
 )
+
+if (hardware === null) {
+  log.warn(
+    { configuration: true },
+    'ENCRYPTION_KEY is not set, so this worker consumes no hardware jobs. ' +
+      'Simulation is unaffected; hardware rows wait for a deployment that ' +
+      'has the key the API sealed them with.'
+  )
+}
 
 let shuttingDown = false
 
@@ -177,6 +299,18 @@ async function shutdown(signal: string): Promise<void> {
   reaper.stop()
 
   try {
+    if (hardware !== null) {
+      await hardware.runtime.close()
+      await hardware.queue.close()
+      /*
+       * The bearer tokens go with the process, and they go *before* it is
+       * gone: they live an hour, they belong to users rather than to this
+       * service, and there is no reason for one to survive the process that
+       * fetched it. The API's port clears its own cache in `close()` for the
+       * same reason; this is the other half of that rule.
+       */
+      hardware.forgetTokens()
+    }
     await runtime.close()
     await pool.close()
     await disconnectPrismaClient()

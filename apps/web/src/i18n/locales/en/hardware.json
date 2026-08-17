@@ -1,0 +1,137 @@
+{
+  "job": {
+    "title": "Ideal, modelled and real",
+    "subtitle": "The same circuit three ways: computed exactly, predicted under a noise model, and measured on {{backend}}.",
+    "loading": "Loading the stored run…",
+    "missing": "There is no such run, or it is not one you may read.",
+    "unavailable": "This build has no server, so a stored hardware run cannot be loaded. Everything that runs in this tab still works.",
+    "circuitMissing": "The circuit this run belongs to could not be loaded, so there is nothing to compare the device against.",
+    "simulating": "Simulating the circuit to build the first two columns…",
+    "simulationFailed": "The circuit could not be simulated in this tab, so only the device’s own counts are available.",
+    "backToCircuit": "Open the circuit",
+    "circuitChanged": "This circuit has been edited since this job was submitted, so the drawing on screen is not the program the device ran. The ideal and modelled columns are not shown: every figure on them would be a subtraction between two different circuits, printed where a statement about the hardware belongs. The device’s own answer is below, unchanged."
+  },
+  "status": {
+    "heading": "Nothing to compare yet",
+    "SUBMITTED": "The run has been created and is on its way to {{backend}}.",
+    "QUEUED": "Waiting in {{backend}}’s queue. Real devices are shared, and a queue can be hours deep — nothing is lost by closing this page, and the result will be here when it lands.",
+    "RUNNING": "{{backend}} is running the circuit now.",
+    "CANCELLED": "This run was cancelled before it produced a result.",
+    "DONE": "Finished.",
+    "FAILED": "The run did not produce a result."
+  },
+  "failure": {
+    "heading": "The run did not produce a result",
+    "CREDENTIAL_MISSING": "The credential this run was paying with has been deleted, so it could no longer be followed.",
+    "CREDENTIAL_INVALID": "The provider refused the API key. It may have expired or been revoked, or its instance may no longer be reachable.",
+    "QUOTA_EXHAUSTED": "The plan’s quantum time was spent. It returns when the period rolls over.",
+    "PROVIDER_REFUSED": "The provider rejected the program. That is about the circuit or the device, not about the key.",
+    "PROVIDER_FAILED": "The device ran the circuit and reported a failure.",
+    "PROVIDER_UNAVAILABLE": "The provider could not be reached. This one may work if it is run again.",
+    "RESULT_UNREADABLE": "The device finished and its answer could not be read. The quantum time was spent and the counts were lost.",
+    "POLL_ABANDONED": "This system stopped asking after waiting far longer than any queue should take. The job may still exist in the provider’s console.",
+    "QUEUE_UNAVAILABLE": "The run was recorded but could not be scheduled, so nothing ever asked the provider about it.",
+    "unknown": "The run failed for a reason this build does not have a name for: {{code}}.",
+    "SUBMIT_ABANDONED": "This system tried to send the circuit and never learned whether the provider accepted it, so it stopped rather than sending it again — a repeat would buy a second run on the device. Check the provider’s console before submitting another."
+  },
+  "comparison": {
+    "heading": "The three distributions",
+    "lead": "One track, three readings. The bar is the ideal probability, with its phasor and its hue; each tick is where one of the other two readings put that outcome, and the sliver between them is the difference — outside the bar for an outcome that gained, cut out of it for one that lost.",
+    "column": {
+      "noisy": "Noise model",
+      "noisyDelta": "Model − ideal",
+      "real": "{{backend}}",
+      "realDelta": "Device − ideal"
+    },
+    "chart": {
+      "heading": "Ideal, modelled and measured, on one chart",
+      "summary": "Each bar is the ideal probability. The upper band of a bar is the noise model’s reading, the lower one is the device’s; a chart with only one band has no model beside it.",
+      "tableCaption": "One row per basis state: its ideal probability, the noise model’s, the device’s, and the difference each makes."
+    },
+    "figure": {
+      "deviceFidelity": "Device against ideal",
+      "deviceMoved": "Probability the device moved",
+      "modelFidelity": "Model against ideal",
+      "modelMoved": "Probability the model moved",
+      "modelVsDevice": "Model against device",
+      "shots": "Shots",
+      "modelVsDeviceMoved": "Probability between model and device"
+    },
+    "shotNote": "The device’s column is {{shots}} shots, so every figure taken from it carries a sampling error of roughly {{typical}}. A difference smaller than that is not a difference.",
+    "modelMissing": "No noise model ran beside this result, so the middle reading is absent and the chart carries two distributions rather than three.",
+    "modelVsDeviceMissing": "The noise run was sampled rather than computed exactly, so it produced a tally of the outcomes it happened to visit rather than a distribution over all of them. Model against device needs the second, and is left out rather than reconstructed from the first.",
+    "modelVsDeviceLead": "This is the number the third column is worth having for: it says how well the model predicted the machine, which neither of the other two figures can.",
+    "modelScopeNote": "The model runs the circuit as it was drawn, with transmon-like coherence and gate errors. The device ran the transpiled program below, which has more gates in it — so the model is usually the optimistic one, and the gap between it and the third column is largely what the transpilation cost.",
+    "movement": {
+      "none": "Nothing moved: the device reproduced the ideal distribution exactly, which at any real shot count means the differences are smaller than the sampling error.",
+      "gainOnly": "{{state}} gained {{gain}} on the device, and nothing lost any.",
+      "lossOnly": "{{state}} lost {{loss}} on the device, and nothing gained any.",
+      "both": "On the device, {{lost}} lost the most, {{loss}}, and {{gained}} gained the most, {{gain}}.",
+      "others": "the outcomes the circuit never reaches"
+    },
+    "refused": {
+      "heading": "These cannot be drawn on one chart",
+      "unmeasured-qubit": "This circuit leaves at least one qubit unmeasured, so the device reports a summary of the state rather than the state itself. Laying one over the other would attribute the missing half to hardware error.",
+      "unwritten-clbit": "This circuit has a classical bit no measurement fills, so one column of the device’s answer is not an outcome of anything.",
+      "repeated-qubit": "This circuit ends with one qubit written into two classical bits, so a device’s bitstring does not name a single basis state.",
+      "conditioned": "This circuit has a gate that only runs for some shots, so no single ideal state describes what the device did. The counts are still a measurement of it; there is simply nothing to lay them over.",
+      "mid-circuit-measurement": "This circuit measures a qubit and then keeps working on it. The device collapsed that wire and carried on; an ideal simulation with the measurement removed would keep a superposition the real run never had, and the difference would look exactly like hardware error.",
+      "note": "The device’s own counts are shown below, unchanged.",
+      "noCounts": "The device finished and returned no shots at all. There is nothing to compare, and nothing was measured — which is itself worth knowing, because the run still spent quantum time.",
+      "circuit-changed": "The circuit was edited after this job was submitted, so there is no ideal state on this page that describes what the device ran.",
+      "register-mismatch": "The stored counts are not keyed by the classical register this job’s program declared, so they cannot be laid over the chart. They belong to a different run, or to a different build of this system."
+    },
+    "deviceCounts": {
+      "heading": "What the device returned",
+      "outcome": "Outcome",
+      "count": "Shots",
+      "share": "Share"
+    },
+    "modelScopeNoteNamed": "The model runs the circuit as it was drawn, under the “{{profile}}” profile. The device ran the transpiled program below, which has more gates in it — so the model is usually the optimistic one, and the gap between it and the third column is largely what the transpilation cost."
+  },
+  "device": {
+    "heading": "Where this came from",
+    "lead": "A result from real hardware is a measurement of a physical object at a moment in time. These are that object and that moment.",
+    "backend": "Device",
+    "jobId": "Provider job",
+    "shots": "Shots returned",
+    "submitted": "Submitted",
+    "completed": "Finished",
+    "wait": "Waited",
+    "waiting": "still waiting",
+    "calibration": "Calibration taken",
+    "calibrationAge": "Calibration age at submission",
+    "quantumSeconds": "Quantum processor time",
+    "layout": "Physical qubits",
+    "queuePosition": "Queue position",
+    "unknown": "not reported",
+    "layoutEntry": "qubit {{logical}} → {{physical}}",
+    "queueNote": "How long it waited is measured from this run’s own timestamps. The queue length shown next to a device is today’s, on a machine that has since run everything ahead of this job, so it is not the queue this result waited in.",
+    "calibrationNote": "The qubits above were chosen from that calibration. A device is re-tuned about once a day, so an older calibration means the placement was made against a machine that had already drifted."
+  },
+  "program": {
+    "heading": "What was drawn, and what ran",
+    "lead": "A processor of this family has no Hadamard and no CNOT. Its gates are rz, sx, x, id, cz, rx and rzz, so every drawn gate becomes several — and each one is an opportunity for the state to decay. This is where the third column’s difference comes from.",
+    "drawn": "Drawn",
+    "executed": "Ran on {{backend}}",
+    "gates": "Gates",
+    "measurements": "Measurements",
+    "qubits": "Qubits",
+    "growth_one": "{{drawn}} drawn gate became {{executed}} on the device.",
+    "growth_other": "{{drawn}} drawn gates became {{executed}} on the device.",
+    "growthFactor": "{{factor}}× as many operations.",
+    "growthNone": "The device ran no more gates than were drawn, which happens when the circuit was already written in the machine’s own basis.",
+    "cost": {
+      "heading": "Not all of them cost the same",
+      "frame": "Frame changes",
+      "pulse": "Pulses",
+      "entangling": "Entangling",
+      "other": "Other",
+      "note": "A frame change is a relabelling in the control electronics: no pulse is played, so it takes no time and adds no error. A pulse is real microwave drive with a real error rate. An entangling gate is one to two orders of magnitude worse than a pulse, and on almost every circuit it is where the fidelity actually goes."
+    },
+    "notFlat": "The stored program contains gate definitions, which a submitted program never does. The counts above are calls rather than the operations behind them, and are therefore understated.",
+    "source": "The program that was submitted",
+    "sourceNote": "OpenQASM 3 over the device’s own qubits — $53 is physical qubit 53, not a wire in the drawing. This is the stored text, exactly as it was sent.",
+    "sourceLabel": "The submitted OpenQASM 3, scrollable"
+  }
+}

@@ -41,7 +41,11 @@
  * malformed payload is dropped rather than thrown.
  */
 
-import { parseRunEvent, runEventChannel } from '@qsim/jobs'
+import {
+  hardwareEventChannel,
+  parseRunEvent,
+  runEventChannel,
+} from '@qsim/jobs'
 import type { RunEvent } from '@qsim/jobs'
 import fp from 'fastify-plugin'
 import type { FastifyInstance } from 'fastify'
@@ -51,16 +55,32 @@ import type { ApiEnv } from '../env.js'
 /** What a socket does with an event. Never throws; the bus swallows if it does. */
 export type RunEventListener = (event: RunEvent) => void
 
+/**
+ * Which channel namespace an id belongs to.
+ *
+ * Two namespaces rather than one keyed by a different id, even though both ids
+ * are cuid2 and a collision is not a practical worry. The reason is what a
+ * collision would *do*: the session's delivery guard compares ids, so two
+ * different things sharing one channel would pass that check and a subscriber
+ * would receive frames about somebody else's job under its own id. Namespacing
+ * makes that unreachable rather than unlikely.
+ */
+export type EventKind = 'run' | 'hardware'
+
 export interface RunEventBus {
   /**
-   * Starts delivering one run's events to `listener`.
+   * Starts delivering one watchable's events to `listener`.
    *
    * Resolves with the release function. Rejects only when the subscription
    * could not be established at all, which the caller turns into
    * `SIMULATION_UNAVAILABLE` on the socket rather than into a closed
    * connection.
    */
-  subscribe(runId: string, listener: RunEventListener): Promise<() => void>
+  subscribe(
+    id: string,
+    kind: EventKind,
+    listener: RunEventListener
+  ): Promise<() => void>
   close(): Promise<void>
 }
 
@@ -173,9 +193,12 @@ export function redisRunEventBus(env: ApiEnv): RunEventBus {
   }
 
   return {
-    async subscribe(runId, listener) {
+    async subscribe(id, kind, listener) {
       if (closed) throw new Error('the run event bus is closed')
-      const channel = runEventChannel(env.queue.prefix, runId)
+      const channel =
+        kind === 'hardware'
+          ? hardwareEventChannel(env.queue.prefix, id)
+          : runEventChannel(env.queue.prefix, id)
       const client = connect()
       const existing = channels.get(channel)
 

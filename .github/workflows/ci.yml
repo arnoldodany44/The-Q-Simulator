@@ -71,3 +71,76 @@ jobs:
       # competing for the CPU, and this job runs the engine on its own.
       - name: Performance budgets
         run: pnpm --filter @qsim/core test:perf
+
+  wasm-kernel:
+    # The Rust/WASM accelerator (§5.6 phase 2) is compiled HERE AND ONLY HERE.
+    #
+    # It is deliberately not part of `verify`: that job runs on every change
+    # and most contributors have no Rust toolchain, so wiring `cargo` into it
+    # would turn "clone and install" into "clone, install a compiler, and
+    # install". The TypeScript half of @qsim/wasm builds and tests without it,
+    # against the linear-memory stand-in in src/testing/ — which is why this
+    # job is allowed to be the only place the crate is ever compiled.
+    #
+    # What this job exists to catch is the half of the package that stand-in
+    # cannot reach: that the Rust compiles at all, that its own unit tests
+    # pass, and — the one that matters — that the compiled kernel reproduces
+    # `apply.ts` to 1e-12 over the whole gate catalogue. A silently wrong
+    # amplitude from a real artifact is the failure this whole package is
+    # organised to prevent, and this is where it would be caught.
+    name: Rust/WASM kernel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # The toolchain is pinned in crate/rust-toolchain.toml. Floating it
+      # would undermine the claim this job makes: the kernel has to agree with
+      # TypeScript bit for bit, and "whatever rustc the runner had that day"
+      # is not a basis for asserting that.
+      - name: Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+        working-directory: packages/qsim-wasm/crate
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/qsim-wasm/crate
+
+      - name: Format and lint the crate
+        working-directory: packages/qsim-wasm/crate
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+
+      # Native, not wasm32: the kernel module is plain Rust over `&mut [f64]`
+      # with no WebAssembly in it, so its arithmetic can be tested on the host
+      # in seconds. The wasm32 build below is what proves it still links as a
+      # module.
+      - name: Crate unit tests
+        working-directory: packages/qsim-wasm/crate
+        run: cargo test
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build both artifacts
+        run: pnpm --filter @qsim/wasm build:wasm
+
+      # THE GATE. The suite skips the WASM comparison when pkg/ is empty, so
+      # this asserts the artifact is actually there before running it —
+      # otherwise a build that silently produced nothing would show up as a
+      # green performance run that measured only TypeScript.
+      - name: The artifact exists
+        run: test -f packages/qsim-wasm/pkg/kernel.wasm
+
+      - name: Equivalence against the TypeScript reference
+        run: pnpm --filter @qsim/wasm test
+
+      - name: Measured speedup
+        run: pnpm --filter @qsim/wasm test:perf

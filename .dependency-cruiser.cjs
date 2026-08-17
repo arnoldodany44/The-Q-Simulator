@@ -85,6 +85,57 @@ module.exports = {
       to: { dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer'] },
     },
     {
+      name: 'qsim-never-depends-on-the-accelerator',
+      severity: 'error',
+      comment:
+        'THE ARROW POINTS ONE WAY. packages/qsim-wasm is an optional ' +
+        'accelerator that attaches to the engine through the ' +
+        '`StatevectorKernel` seam in qsim/src/kernel.ts; the engine must ' +
+        'never reach back. If it did, "zero runtime dependencies" (§12.3) ' +
+        'would be false, the engine would stop running where WebAssembly is ' +
+        'absent — a locked-down browser, an old one, any runtime with the ' +
+        'feature switched off — and the reference implementation would ' +
+        'depend on the thing whose correctness is defined by comparison ' +
+        'against it. The seam is an interface and a module-scoped variable ' +
+        'precisely so that this import never has to exist.',
+      from: { path: '^packages/qsim/src/' },
+      to: { path: '^packages/qsim-wasm/' },
+    },
+    {
+      name: 'qsim-wasm-depends-only-on-the-engine',
+      severity: 'error',
+      comment:
+        'The accelerator reaches packages/qsim and nothing else in the ' +
+        'workspace. It exists to compute exactly what that package computes, ' +
+        'faster, so the engine’s gate matrices and its `apply.ts` reference ' +
+        'are the only things it needs — the reference is what ' +
+        '`verifyEquivalence` compares against, and importing a second source ' +
+        'of gate definitions would be a second opinion on what a gate is. ' +
+        'Not packages/schema either: a circuit document never reaches this ' +
+        'layer, only pointers and matrices do.',
+      from: { path: '^packages/qsim-wasm/src/' },
+      to: { path: '^packages/(?!qsim-wasm/|qsim/)' },
+    },
+    {
+      name: 'qsim-wasm-touches-no-node-builtins',
+      severity: 'error',
+      comment:
+        'The artifact bytes are a *parameter* — `loadKernel` takes a loader ' +
+        'function — so this package needs `WebAssembly` and nothing else ' +
+        'from the platform. That is what lets the identical code run in a ' +
+        'browser Web Worker, in the API and in a Vitest process, which is ' +
+        'the same portability rule the engine follows (§12.3 rule 2). A ' +
+        '`node:fs` import here would be the point where the browser build ' +
+        'broke. The test files are exempt: they read pkg/kernel.wasm off ' +
+        'disk, which is exactly the caller-supplied loading this rule keeps ' +
+        'out of the library.',
+      from: {
+        path: '^packages/qsim-wasm/src/',
+        pathNot: ['\\.test\\.ts$', '\\.perf\\.test\\.ts$'],
+      },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
       name: 'landing-carries-no-editor',
       severity: 'error',
       comment:
@@ -352,6 +403,134 @@ module.exports = {
         'while everything that is pure text lives here.',
       from: { path: '^packages/qasm/src/' },
       to: { dependencyTypes: ['core'] },
+    },
+    {
+      name: 'transpile-depends-only-on-schema-engine-and-qasm',
+      severity: 'error',
+      comment:
+        'packages/transpile may reach packages/schema (it consumes and ' +
+        'produces circuit documents), packages/qsim (every decomposition is ' +
+        'proved against the engine’s own gate matrices, and `matrixFor` is ' +
+        'where they live) and packages/qasm (the emitted program is that ' +
+        'serialiser’s output, because a format understood in one place ' +
+        'cannot disagree with itself). Nothing else in the workspace, and in ' +
+        'particular not packages/db: a transpiler that could read a row would ' +
+        'be one that could cache a device, and a cached calibration is hours ' +
+        'stale by construction — which is the one thing `testing/heron.ts` ' +
+        'exists to keep out of production.',
+      from: { path: '^packages/transpile/src/' },
+      to: { path: '^packages/(?!transpile/|schema/|qsim/|qasm/)' },
+    },
+    {
+      name: 'transpile-touches-no-environment',
+      severity: 'error',
+      comment:
+        'A device is a *value* the caller fetched, never something this ' +
+        'package goes and gets. That is what lets it run identically in a ' +
+        'browser worker, in the API and in a test holding a hand-written ' +
+        'five-qubit lattice — and it is what keeps the IBM bearer token and ' +
+        'the instance CRN (§11) in apps/api, where the credential store is. ' +
+        'A Node builtin here would be the first step towards a fetch. Its ' +
+        'tsconfig sets "types": [] to catch the same thing at compile time.',
+      from: { path: '^packages/transpile/src/' },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
+      name: 'transpile-has-no-runtime-dependencies',
+      severity: 'error',
+      comment:
+        'Three workspace packages and nothing from npm. The decomposition is ' +
+        'arithmetic and the placement is a graph search: neither needs a ' +
+        'library, and both are things a reader has to be able to check line ' +
+        'by line, because a wrong decomposition produces a circuit that ' +
+        'simulates plausibly and computes something else. `src/testing/` is ' +
+        'exempt alongside the tests it exists for — it holds the vendored ' +
+        'Heron snapshot and a random-circuit generator, imports `vitest` ' +
+        'nowhere but is excluded from the build all the same.',
+      from: {
+        path: '^packages/transpile/src/',
+        pathNot: ['\\.test\\.ts$', '^packages/transpile/src/testing/'],
+      },
+      to: { dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer'] },
+    },
+    {
+      name: 'ibm-depends-only-on-transpile',
+      severity: 'error',
+      comment:
+        'packages/ibm may reach packages/transpile — it turns a backend’s ' +
+        'configuration and calibration into a `DeviceTarget`, which is that ' +
+        'package’s type — and nothing else in the workspace. In particular ' +
+        'not packages/db: a protocol client that could read a row would be ' +
+        'one that could decrypt a credential, and the whole arrangement in ' +
+        '§11 depends on the plaintext existing for exactly one function call ' +
+        'inside apps/api and apps/worker. Not packages/jobs either: what a ' +
+        'poll schedule looks like is a decision about *this* system rather ' +
+        'than about IBM’s.',
+      from: { path: '^packages/ibm/src/' },
+      to: { path: '^packages/(?!ibm/|transpile/|schema/|qsim/|qasm/)' },
+    },
+    {
+      name: 'ibm-touches-no-node-builtins',
+      severity: 'error',
+      comment:
+        'The transport is a *parameter*, so this package needs `fetch` and ' +
+        '`AbortController` — platform globals a browser has too — and no ' +
+        '`node:` module whatsoever. That is what keeps every test in the ' +
+        'workspace hermetic, which is not a matter of taste here: the Open ' +
+        'Plan grants ten minutes of QPU time per twenty-eight days, and a ' +
+        'suite that could reach the network is a suite that spends it on ' +
+        'every push. Its tsconfig sets "types": ["node"] for the globals ' +
+        'alone; this rule is what a types list cannot express.',
+      from: { path: '^packages/ibm/src/' },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
+      name: 'ibm-recordings-stay-in-tests',
+      severity: 'error',
+      comment:
+        'packages/ibm/src/testing/transport.ts holds answers copied from the ' +
+        'live service, including a calibration. Those numbers were stale the ' +
+        'moment they were written down, and a device chosen from a stale ' +
+        'calibration is a device chosen from a lie — the same argument the ' +
+        'transpiler’s Heron snapshot carries. Production code reaches none ' +
+        'of it; `tsconfig.build.json` excludes the directory as well.',
+      from: {
+        path: '^packages/ibm/src/',
+        pathNot: '(^packages/ibm/src/testing/|\.test\.ts$)',
+      },
+      to: { path: '^packages/ibm/src/testing/' },
+    },
+    {
+      name: 'web-holds-no-provider-credential',
+      severity: 'error',
+      comment:
+        'apps/web never imports packages/ibm. §3.7 is explicit that the ' +
+        'token is encrypted at rest, is *never* exposed to the frontend, and ' +
+        'that the backend acts as a proxy — so a browser bundle that could ' +
+        'speak the provider’s protocol would be a browser one step from ' +
+        'holding somebody’s IBM Cloud API key. The same rule, for the same ' +
+        'reason, as web-no-db and web-no-queue-client.',
+      from: { path: '^apps/web/' },
+      to: { path: '^packages/ibm/' },
+    },
+    {
+      name: 'transpile-snapshot-stays-in-tests',
+      severity: 'error',
+      comment:
+        'packages/transpile/src/testing/heron.ts is a *snapshot* of a real ' +
+        'backend’s calibration, and half of it was already wrong when it was ' +
+        'written: the topology is stable, the error rates are one ' +
+        'calibration pass old and a backend recalibrates daily. Importing it ' +
+        'from production code would put a stale device inside the deployed ' +
+        'image, and the placement search would then choose qubits for reasons ' +
+        'that stopped being true — silently, because the answer would still ' +
+        'be a placement. Live properties cost one metadata request and no QPU ' +
+        'time; there is no reason to guess.',
+      from: {
+        path: '^packages/transpile/src/',
+        pathNot: '(^packages/transpile/src/testing/|\\.test\\.ts$)',
+      },
+      to: { path: '^packages/transpile/src/testing/' },
     },
     {
       name: 'slugs-are-minted-where-rows-are-written',

@@ -90,6 +90,27 @@ export const ERROR_DEFINITIONS = {
     message: 'The authenticated user may not perform this action.',
   },
   /**
+   * A verified API key without the scope this route declared (§3.5).
+   *
+   * Distinct from FORBIDDEN because the fix is a different one: this is about
+   * the *key*, not about the account behind it, and it is answered by minting
+   * one with the missing scope. The `details` name the scope that was needed,
+   * which is the only thing a caller has to know to act.
+   */
+  API_KEY_SCOPE_REQUIRED: {
+    status: 403,
+    message: 'This API key does not carry the scope this endpoint requires.',
+  },
+  /**
+   * A verified API key on a route no key may reach: key management, and
+   * hardware. See the contract for why those two are outside the public API
+   * however the key is scoped.
+   */
+  API_KEY_NOT_ACCEPTED: {
+    status: 403,
+    message: 'This endpoint requires a user session; an API key cannot use it.',
+  },
+  /**
    * Also the answer for a resource that exists but the caller may not see —
    * a PRIVATE circuit answers 404, not 403, because 403 would confirm that
    * the slug exists (§11).
@@ -170,6 +191,15 @@ export const ERROR_DEFINITIONS = {
     message: 'This collection already holds the maximum number of circuits.',
   },
   /**
+   * The account already holds the maximum number of unrevoked API keys. A 409
+   * for the same reason COLLECTION_FULL is one: the request was fine, the
+   * resource is full, and the caller's move is to revoke something.
+   */
+  API_KEY_LIMIT_REACHED: {
+    status: 409,
+    message: 'This account already holds the maximum number of API keys.',
+  },
+  /**
    * The circuit is past a §11 resource limit for a *server run*.
    *
    * Distinct from CIRCUIT_TOO_LARGE, and the distinction is what the caller
@@ -194,6 +224,49 @@ export const ERROR_DEFINITIONS = {
   SIMULATION_UNAVAILABLE: {
     status: 503,
     message: 'Server-side simulation is temporarily unavailable.',
+  },
+  /**
+   * The circuit cannot be placed on this device — §3.7, Phase 4.
+   *
+   * 422 rather than 400: the request is well-formed and the answer is still
+   * no. A Heron processor has no H and no CNOT and couples 1.46 % of the pairs
+   * a drawn circuit assumes, so the ordinary refusal is that no placement
+   * exists in which every interacting pair is genuinely wired together. The
+   * caller fixes it by drawing a shallower circuit or choosing another device,
+   * never by correcting the request — which is exactly the distinction between
+   * this and VALIDATION_FAILED.
+   */
+  HARDWARE_UNRUNNABLE: {
+    status: 422,
+    message: 'The circuit cannot be run on the chosen device.',
+  },
+  /**
+   * The provider refused this user's credential.
+   *
+   * The one hardware failure with a user-facing fix. Kept apart from
+   * HARDWARE_UNAVAILABLE because "re-enter your key" and "try again later" are
+   * different instructions and a client that showed the wrong one would send
+   * somebody to fix a thing that is not broken.
+   */
+  HARDWARE_CREDENTIAL_REJECTED: {
+    status: 502,
+    message: 'The hardware provider rejected the stored credential.',
+  },
+  /** The provider could not be reached, or answered unintelligibly. */
+  HARDWARE_UNAVAILABLE: {
+    status: 502,
+    message: 'The hardware provider is not reachable.',
+  },
+  /**
+   * The plan's QPU allowance is spent.
+   *
+   * 402 is the honest status: nothing is broken, nobody is forbidden, and the
+   * thing that fixes it is a new billing period. The Open Plan grants ten
+   * minutes per twenty-eight days and does not refill on request (risk 4).
+   */
+  HARDWARE_QUOTA_EXHAUSTED: {
+    status: 402,
+    message: 'The hardware plan has no quantum time left for this period.',
   },
   /** Every generated username candidate was taken. Retryable. */
   USERNAME_UNAVAILABLE: {
@@ -314,11 +387,43 @@ const DOMAIN_ERROR_CODES: Record<string, ErrorCode> = {
   USERNAME_TAKEN: 'USERNAME_TAKEN',
   COLLECTION_FULL: 'COLLECTION_FULL',
   /*
+   * `ApiKeyLimitError` from @qsim/db. Raised by the insert rather than by a
+   * prior count, so two simultaneous mints cannot both slip past the ceiling.
+   */
+  API_KEY_LIMIT_REACHED: 'API_KEY_LIMIT_REACHED',
+  /*
    * `QueueUnavailableError` from `plugins/queue.ts`, covering "not
    * configured", "cannot connect", "timed out" and "Redis replied with an
    * error" alike. They are one fact to a client and one code here.
    */
   SIMULATION_UNAVAILABLE: 'SIMULATION_UNAVAILABLE',
+  /*
+   * `@qsim/ibm`'s eight failure codes, folded onto the four a client can act
+   * on differently. The folding is the point: `IBM_NOT_FOUND` and
+   * `IBM_MALFORMED_RESPONSE` are genuinely different incidents to an operator
+   * reading a log — one is a wrong backend name, the other is a version drift
+   * in this build — and are the same instruction to a person looking at a
+   * screen, which is "this did not work and it is not your key".
+   */
+  IBM_CREDENTIAL_INVALID: 'HARDWARE_CREDENTIAL_REJECTED',
+  IBM_QUOTA_EXHAUSTED: 'HARDWARE_QUOTA_EXHAUSTED',
+  IBM_FORBIDDEN: 'HARDWARE_CREDENTIAL_REJECTED',
+  IBM_NOT_FOUND: 'HARDWARE_UNAVAILABLE',
+  IBM_RATE_LIMITED: 'HARDWARE_UNAVAILABLE',
+  IBM_UNAVAILABLE: 'HARDWARE_UNAVAILABLE',
+  IBM_MALFORMED_RESPONSE: 'HARDWARE_UNAVAILABLE',
+  IBM_REFUSED: 'HARDWARE_UNAVAILABLE',
+  /*
+   * `InvalidCrnError` uses the same `IBM_CREDENTIAL_INVALID` code above, so it
+   * needs no entry: a CRN that addresses no host is a credential that cannot be
+   * used, and "re-enter it" is the same instruction.
+   *
+   * The stored ciphertext failing to authenticate, or carrying a document from
+   * a version this build cannot read, means the same thing to the person
+   * holding the credential — it must be entered again.
+   */
+  CREDENTIAL_CIPHER_FAILED: 'HARDWARE_CREDENTIAL_REJECTED',
+  CREDENTIAL_UNREADABLE: 'HARDWARE_CREDENTIAL_REJECTED',
   /*
    * `addCollectionItem` matched no collection for this owner. Unreachable
    * through the routes, which resolve the collection and check ownership

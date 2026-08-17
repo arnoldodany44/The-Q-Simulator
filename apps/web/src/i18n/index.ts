@@ -92,6 +92,7 @@ export const NAMESPACES = [
   'export',
   'gallery',
   'gates',
+  'hardware',
   'import',
   'landing',
   'lessons',
@@ -393,6 +394,32 @@ export const LESSON_NAMESPACES = ['lessons', ...EDITOR_NAMESPACES] as const
 export const CHALLENGE_NAMESPACES = [
   'challenges',
   ...EDITOR_NAMESPACES,
+] as const
+
+/**
+ * The stored hardware run (§3.7), and the one namespace list on this page that
+ * is worth reading twice.
+ *
+ * `hardware` is its own prose. `analysis` is the interesting one and is not
+ * optional: the comparison view mounts the **real** `ProbabilityHistogram` and
+ * the **real** `NoisePanel`, so the chart's caption, its accessible table, the
+ * phasor note and every one of the noise controls' eight datasheet fields are
+ * on this page in `analysis`'s words. A route that fetched only its own catalog
+ * would render three paragraphs of careful prose beside a chart labelled in raw
+ * keys — the exact defect `e2e/no-raw-keys.spec.ts` exists for.
+ *
+ * `simulation` comes with it because the worker's failures are rendered through
+ * that catalog, `circuits` because the link back to the document uses it, and
+ * `errors` because an API failure on this page is described by
+ * `useApiErrorMessage`. The editor's own namespaces are deliberately absent:
+ * this page draws no canvas and no palette.
+ */
+export const HARDWARE_NAMESPACES = [
+  'hardware',
+  'analysis',
+  'simulation',
+  'circuits',
+  'errors',
 ] as const
 
 /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EnvValidationError, configurationWarnings, loadEnv } from './env.js'
-import { testEnvSource } from './testing/app.js'
+import { TEST_ENCRYPTION_KEY, testEnvSource } from './testing/app.js'
 
 /**
  * Two things are asserted here over and over, and they are the reasons this
@@ -225,14 +225,22 @@ describe('loadEnv', () => {
 })
 
 describe('configurationWarnings', () => {
+  /**
+   * A complete deployment: pooler, queue and hardware master key.
+   *
+   * Spelled out here rather than folded into `testEnvSource`, because the
+   * warnings are exactly what a *partial* deployment produces and a default
+   * that silenced them would make this whole suite assert nothing.
+   */
+  const CONFIGURED = {
+    DATABASE_URL:
+      'postgresql://postgres@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1',
+    REDIS_URL: 'redis://localhost:6379',
+    ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
+  }
+
   it('is silent about the database for a correctly configured pooler URL', () => {
-    const env = loadEnv(
-      testEnvSource({
-        DATABASE_URL:
-          'postgresql://postgres@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1',
-        REDIS_URL: 'redis://localhost:6379',
-      })
-    )
+    const env = loadEnv(testEnvSource(CONFIGURED))
 
     expect(configurationWarnings(env)).toEqual([])
   })
@@ -243,12 +251,42 @@ describe('configurationWarnings', () => {
      * an API that would not start without it would take the gallery, the
      * editor's persistence and every sign-in down with a queue outage.
      */
-    const env = loadEnv(testEnvSource({ REDIS_URL: undefined }))
+    const env = loadEnv(testEnvSource({ ...CONFIGURED, REDIS_URL: undefined }))
     const warnings = configurationWarnings(env)
 
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('REDIS_URL')
     expect(warnings[0]).toContain('SIMULATION_UNAVAILABLE')
+  })
+
+  /*
+   * The same shape, one level stricter in what it implies: §11 has no weaker
+   * mode for hardware credentials, so an absent key is a feature that is off
+   * rather than a feature that stores secrets unencrypted.
+   */
+  it('warns that hardware is off when no ENCRYPTION_KEY is set', () => {
+    const env = loadEnv(
+      testEnvSource({ ...CONFIGURED, ENCRYPTION_KEY: undefined })
+    )
+    const warnings = configurationWarnings(env)
+
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('ENCRYPTION_KEY')
+    expect(warnings[0]).toContain('503')
+  })
+
+  /*
+   * Node's base64 decoder ignores characters outside the alphabet, so a key
+   * with a typo silently becomes a *different, shorter* key — and every
+   * credential sealed under it would be unopenable the moment the typo was
+   * fixed. Refusing at boot costs thirty seconds.
+   */
+  it('refuses to boot on an ENCRYPTION_KEY that is not exactly 32 bytes', () => {
+    for (const bad of ['nonsense', Buffer.alloc(16).toString('base64')]) {
+      expect(() =>
+        loadEnv(testEnvSource({ ...CONFIGURED, ENCRYPTION_KEY: bad }))
+      ).toThrow(/ENCRYPTION_KEY/)
+    }
   })
 
   it('warns about the missing pgbouncer and connection_limit parameters', () => {
@@ -300,8 +338,8 @@ describe('configurationWarnings', () => {
     // A developer pointed at localhost needs neither parameter.
     const env = loadEnv(
       testEnvSource({
+        ...CONFIGURED,
         DATABASE_URL: 'postgresql://postgres@localhost:5432/qsim',
-        REDIS_URL: 'redis://localhost:6379',
       })
     )
 

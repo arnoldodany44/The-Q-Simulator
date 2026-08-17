@@ -73,6 +73,7 @@ import { MAX_DISPLAY_NAME_LENGTH, USERNAME_PATTERN } from '@qsim/contract'
 import type { AvatarSource } from '@qsim/contract'
 
 import { LanguagePicker } from '../components/LanguagePicker'
+import { ApiKeysSection } from '../features/api-keys'
 import {
   AccountMenu,
   RequireSession,
@@ -165,6 +166,13 @@ function SettingsScreen({
             email={session.user?.email ?? null}
           />
           <PrivacySection optedOut={account.data.leaderboardOptOut} />
+          {/*
+           * §3.5. `enabled` is threaded from the session state for the reason
+           * `useAccount` above takes it: the listing must not be requested
+           * before supabase-js has finished reading storage, or the 401 is
+           * cached under the key the signed-in view then reads.
+           */}
+          <ApiKeysSection enabled={session.status === 'authenticated'} />
           <LanguageSection />
           <DangerSection
             username={account.data.user.username}

@@ -96,6 +96,12 @@ import {
   CHALLENGES_PATH,
   CHALLENGE_ROUTE_PATH,
 } from './features/challenges/paths'
+/*
+ * Same reason again (M0.9b): this module imports nothing, so the entry chunk
+ * takes one path template without acquiring the comparison view, the histogram
+ * and the noise controls behind it.
+ */
+import { HARDWARE_RUN_ROUTE_PATH } from './features/hardware/paths'
 import {
   AUTH_NAMESPACES,
   CHALLENGE_NAMESPACES,
@@ -103,6 +109,7 @@ import {
   COLLECTIONS_NAMESPACES,
   EDITOR_NAMESPACES,
   GALLERY_NAMESPACES,
+  HARDWARE_NAMESPACES,
   LESSON_NAMESPACES,
   SETTINGS_NAMESPACES,
   loadNamespaces,
@@ -297,6 +304,20 @@ const ChallengeRoute = lazy(async () => {
   return { default: module.ChallengeRoute }
 })
 
+/**
+ * The stored hardware run (§3.7), lazy like every route but the landing — and
+ * one of the ones that most needs to be: it carries the histogram, the noise
+ * controls, the schema expander and React Query, for a page most readers never
+ * open because it needs an IBM Quantum account to have produced anything.
+ */
+const HardwareRunRoute = lazy(async () => {
+  const [module] = await Promise.all([
+    import('./routes/hardware-run'),
+    loadNamespaces(HARDWARE_NAMESPACES),
+  ])
+  return { default: module.HardwareRunRoute }
+})
+
 const CollectionRoute = lazy(async () => {
   const [module] = await Promise.all([
     import('./routes/collection'),
@@ -410,6 +431,19 @@ export function AppRoutes() {
            */}
           <Route path={CHALLENGES_PATH} element={<ChallengesRoute />} />
           <Route path={CHALLENGE_ROUTE_PATH} element={<ChallengeRoute />} />
+
+          {/*
+           * §3.7's comparison view. Not behind `RequireSession`, and that is a
+           * decision rather than an omission: `GET /hardware/jobs/:id` answers
+           * 404 to anyone who does not own the row, so a guard here would add
+           * nothing the server is not already doing and would replace the
+           * server's "no such run" — the sentence that does not confirm
+           * somebody else's run exists — with a login screen that does.
+           */}
+          <Route
+            path={HARDWARE_RUN_ROUTE_PATH}
+            element={<HardwareRunRoute />}
+          />
 
           {/*
            * Three of the four account screens are behind the mirror guard: a

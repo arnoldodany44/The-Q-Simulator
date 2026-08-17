@@ -291,6 +291,20 @@ model SimulationRun {
 /// AES-256-GCM ciphertext and nonce. The plaintext token never lands in a
 /// column and is never returned by the API — the read endpoint answers with
 /// provider, label and date only (§11).
+///
+/// **Ajuste M4.1**: `encryptedToken` seals a small JSON document rather than a
+/// bare token, because an IBM Cloud credential is now *two* values — the API
+/// key and the instance CRN — and both are the user's. §7 gives one ciphertext
+/// column, and putting the CRN beside it in plaintext would publish which
+/// account and which instance a person holds to anybody who can read the table.
+/// One sealed document keeps the schema exactly as §7 wrote it and leaks
+/// neither half. The shape is versioned inside the plaintext (`secrets.ts`), so
+/// a provider whose credential has a third field is a version bump and not a
+/// migration.
+///
+/// There is deliberately no unique constraint on `[userId, provider]`: a person
+/// may legitimately hold a personal key and an employer's, and §3.7's whole
+/// point is that the cost of a run falls on whoever's allowance was named.
 model HardwareCredential {
   id             String   @id @default(cuid(2))
   userId         String   @db.Uuid
@@ -300,27 +314,75 @@ model HardwareCredential {
   label          String?
   createdAt      DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs HardwareJob[]
+
+  @@index([userId, provider])
 }
 
+/// A run on somebody else's machine, which is the thing that makes this table
+/// unlike `SimulationRun`: it can take **hours**.
+///
+/// **Ajuste M4.1**, four columns and one index, each of which exists because a
+/// job outlives the process that submitted it:
+///
+/// - `credentialId` — whose allowance this job is spending. A worker that
+///   resumes a job it did not submit has to know which key to poll with, and
+///   "the user's credential for this provider" is not an answer when a person
+///   holds two. `SetNull` rather than `Cascade`: deleting a credential must not
+///   delete the record of what was run with it, and a job whose credential is
+///   gone is a job that can no longer be polled — which is a *state*, reported
+///   as such, not a row that should vanish.
+/// - `program` — the transpiled OpenQASM 3, the layout it was placed on, and
+///   the classical register it measures into. It is stored rather than
+///   re-derived because re-transpiling would place the circuit against
+///   *today's* calibration, and the answer coming back was measured on the
+///   qubits chosen yesterday. A layout that disagrees with the job is the
+///   silent-wrongness this milestone exists to avoid.
+/// - `pollCount` — how many times this job has been asked about. It bounds a
+///   poll loop that would otherwise run for ever against a device that never
+///   answers, and it makes each poll's queue job id deterministic and unique,
+///   which is what stops two workers scheduling the same tick.
+/// - `lastPolledAt` — what the resume sweep orders by. Null means "never
+///   polled", which sorts first: a job that was submitted and then lost is more
+///   urgent than one that is merely slow.
+///
+/// `queuePosition` stays nullable and is usually null, which is honest rather
+/// than unfinished: the current Quantum API's job document carries no per-job
+/// position at all. What a person is shown instead is the *device's* queue
+/// length, which the backend listing does report and which is the number that
+/// decides whether a result arrives today — see `GET /hardware/backends`.
 model HardwareJob {
   id            String    @id @default(cuid(2))
   circuitId     String
   userId        String    @db.Uuid
+  credentialId  String?
   provider      String
   backendName   String
   providerJobId String?
   shots         Int
   status        JobStatus @default(SUBMITTED)
   queuePosition Int?
+  program       Json?
+  pollCount     Int       @default(0)
+  lastPolledAt  DateTime?
   result        Json?
   errorMessage  String?
   submittedAt   DateTime  @default(now())
   completedAt   DateTime?
 
-  circuit Circuit @relation(fields: [circuitId], references: [id], onDelete: Cascade)
+  circuit    Circuit             @relation(fields: [circuitId], references: [id], onDelete: Cascade)
+  credential HardwareCredential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
+  // The resume sweep's index. It reads "non-terminal, least recently polled
+  // first" on a timer, and without this it is a sequential scan of every
+  // hardware job this system has ever run — on a pooler whose budget is one
+  // connection.
+  @@index([status, lastPolledAt])
+  // How a poll finds the row from the provider's own id, which is the only
+  // identifier a webhook or an operator has in hand.
+  @@index([providerJobId])
 }
 
 // ─── Challenges (Fase 3) ───────────────────────────────────────────────────
@@ -534,16 +596,46 @@ model CircuitTag {
 /// Only the hash is stored, and it is unique so a lookup by presented key is
 /// a single indexed read. Revocation is a timestamp, not a delete, so an
 /// audit trail survives.
+///
+/// Three columns are added by M4.2 (§3.5), and each one is load-bearing:
+///
+/// `keyPrefix` is the first ten characters of the key in the clear — `qsk_`
+/// plus six — and it is the only part of the secret that is ever stored
+/// readable. It is what makes a listing usable: a person with six keys and
+/// stale labels can otherwise not tell which row is the one in their CI job,
+/// and a revocation nobody dares perform is a leak nobody closes. Six base64url
+/// characters of a 256-bit secret leave 222 bits, which is not a number that
+/// gets smaller in any way that matters. The full argument is in
+/// `@qsim/contract`'s `api-keys.ts`.
+///
+/// `scopes` is `TEXT[]` and not an enum, deliberately. A Postgres enum cannot
+/// gain a value without `ALTER TYPE`, which is a migration in the one column
+/// most likely to grow — and an unknown string read back from this array is
+/// *dropped* by `isApiKeyScope` rather than trusted, so the widest thing a
+/// future value can do here is grant nothing. Deny-by-default survives the
+/// looser column type; it would not survive a client that had to be taught
+/// every value before it could parse a row.
+///
+/// The index is `[userId, revokedAt]`, which is the shape of both questions
+/// this table is asked outside the hash lookup: list one account's keys, and
+/// count the live ones before minting another.
 model ApiKey {
   id         String    @id @default(cuid(2))
   userId     String    @db.Uuid
   name       String
   keyHash    String    @unique
+  /// The displayable head of the key. Never enough of it to be a credential.
+  keyPrefix  String    @default("")
+  /// What this key may do. Empty grants nothing, which is the safe default for
+  /// any row written before this column existed.
+  scopes     String[]  @default([])
   lastUsedAt DateTime?
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
 }
 
 // ─── Enums ─────────────────────────────────────────────────────────────────

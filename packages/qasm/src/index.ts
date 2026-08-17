@@ -41,10 +41,14 @@ export { toOpenQasm3 } from './qasm3.js'
 export { toQiskit } from './qiskit.js'
 export { toCircuitJson } from './json.js'
 
+export { tallyQasm3 } from './tally.js'
+export type { QasmGateTally, QasmTally } from './tally.js'
+
 export {
   CircuitExportError,
   commentText,
   describeExport,
+  finalClassicalRegister,
   orderedCustomGates,
   orderedOperations,
 } from './program.js'

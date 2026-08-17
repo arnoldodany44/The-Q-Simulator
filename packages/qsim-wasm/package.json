@@ -1,0 +1,38 @@
+{
+  "name": "@qsim/wasm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional Rust/WebAssembly accelerator for the statevector kernel (§5.6 phase 2). @qsim/core never depends on this — it attaches through the StatevectorKernel seam and is proven equivalent before it is installed",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "development": "./src/testing/reference-exports.ts",
+      "default": "./src/testing/reference-exports.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:wasm": "node scripts/build-wasm.js",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:perf": "vitest run --config vitest.perf.config.ts"
+  },
+  "dependencies": {
+    "@qsim/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

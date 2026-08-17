@@ -147,7 +147,7 @@ const plugin: FastifyPluginCallback<UserRoutesOptions> = (
     USER_ROUTES.profile,
     {
       // Anonymous by design: a profile is a page you send somebody.
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: {
         params: UsernameParams,
         response: { 200: ProfileResponse },
@@ -185,7 +185,7 @@ const plugin: FastifyPluginCallback<UserRoutesOptions> = (
   app.get(
     USER_ROUTES.collections,
     {
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: {
         params: UsernameParams,
         querystring: PaginationQuery,

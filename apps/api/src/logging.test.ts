@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { pino } from 'pino'
+import { mintApiKey } from './api-keys/secret.js'
 import {
   buildLoggerOptions,
   sanitizeUrl,
@@ -55,6 +56,36 @@ describe('scrubSecrets', () => {
     expect(scrubSecrets('key sb_secret_abc123XYZ used')).not.toContain(
       'abc123XYZ'
     )
+  })
+
+  /*
+   * This product's own API keys (§3.5). The whole point of giving the format
+   * a fixed prefix and a fixed length is that one rule can find every one of
+   * them, and a log is where an `Authorization` header goes to be read by
+   * more people than can read the database.
+   *
+   * Minted rather than hand-written, so this exercises the real format: a
+   * literal in a test is a literal that keeps passing after the format
+   * changes.
+   */
+  it('removes one of this API’s own keys, wherever it appears', () => {
+    const key = mintApiKey().key
+
+    expect(scrubSecrets(`Bearer ${key}`)).not.toContain(key)
+    expect(scrubSecrets(`rejected key ${key} from 10.0.0.1`)).toContain(
+      '[REDACTED]'
+    )
+    // Inside a JSON fragment, which is the shape a serialised body arrives in.
+    expect(scrubSecrets(`{"key":"${key}"}`)).not.toContain(key)
+  })
+
+  it('redacts the whole key and not a prefix of it', () => {
+    const key = mintApiKey().key
+    const scrubbed = scrubSecrets(`used ${key} here`)
+    // A rule whose length was one short would leave the final character —
+    // harmless on its own, and evidence that the rule is not what it claims.
+    expect(scrubbed).toBe('used [REDACTED] here')
+    expect(scrubbed).not.toContain(key.slice(-8))
   })
 
   it('leaves ordinary text alone', () => {

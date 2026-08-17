@@ -1,0 +1,8 @@
+# Pinned so that the artifact CI publishes is reproducible: the kernel is
+# compiled floating-point arithmetic that has to agree with TypeScript to the
+# last bit, and "whatever rustc the runner had that day" is not a basis for
+# that claim. Bump deliberately, and re-run the equivalence suite when you do.
+[toolchain]
+channel = "1.84.0"
+targets = ["wasm32-unknown-unknown"]
+components = ["rustfmt", "clippy"]

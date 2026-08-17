@@ -25,6 +25,50 @@
     "listMe": "Afficher mon nom dans les classements des défis",
     "note": "En décochant cette case, votre nom disparaît du tableau que lisent les autres. Vos résultats, eux, restent : votre place est toujours comptée, personne ne remonte parce que vous vous cachez, et votre propre page continue de vous dire où vous en êtes. Vos circuits, dans tous les cas, ne sont jamais publiés par un classement : une solution est une réponse toute faite."
   },
+  "apiKeys": {
+    "heading": "Clés d’API",
+    "lead": "Créez des circuits, lancez des simulations et lisez les résultats depuis l’extérieur de cette application. Une clé agit en tant que votre compte et ne peut pas en faire plus que vous.",
+    "loading": "Chargement de vos clés…",
+    "empty": "Vous n’avez pas encore de clé d’API.",
+    "nameLabel": "Nom",
+    "nameHint": "Ce qui détient cette clé : « CI », « mon portable », « le carnet de tracés ». Il vous servira à savoir laquelle révoquer.",
+    "scopesLabel": "Ce que cette clé peut faire",
+    "scopesNote": "Donnez à chaque clé le strict minimum. Aucune clé ne peut gérer des clés ni soumettre des travaux à du matériel quantique réel, quoi que vous cochiez ici.",
+    "scope": {
+      "read": "Lecture",
+      "write": "Écriture",
+      "simulate": "Simulation"
+    },
+    "scopeHint": {
+      "read": "Vos circuits, leurs versions, la galerie et le résultat d’une exécution.",
+      "write": "Créer, modifier et supprimer circuits, versions et collections.",
+      "simulate": "Lancer des simulations, sans pouvoir rien modifier."
+    },
+    "create": "Créer la clé",
+    "creating": "Création…",
+    "created": {
+      "heading": "Voici votre clé",
+      "body": "C’est la seule fois que « {{name}} » sera affichée. Copiez-la en lieu sûr avant de continuer.",
+      "label": "Votre nouvelle clé d’API",
+      "copy": "Copier la clé",
+      "copied": "Copiée dans le presse-papiers.",
+      "copyFailed": "Le presse-papiers n’est pas disponible ici. Sélectionnez le champ ci-dessus et copiez-la vous-même.",
+      "warning": "Une fois cet encart fermé, personne ne pourra réafficher la clé, nous compris. Si vous la perdez, révoquez-la et créez-en une autre.",
+      "dismiss": "Je l’ai enregistrée — masquer"
+    },
+    "row": {
+      "created": "Créée le {{date}}",
+      "lastUsed": "dernière utilisation le {{date}}",
+      "neverUsed": "jamais utilisée",
+      "noScopes": "Aucune permission.",
+      "revoke": "Révoquer…",
+      "confirm": "Révoquer définitivement",
+      "confirmBody": "Révoquer « {{name}} » prend effet immédiatement et ne peut pas être annulé. Tout ce qui l’utilise cessera de fonctionner dès sa prochaine requête.",
+      "revoking": "Révocation…",
+      "cancel": "La conserver",
+      "revoked": "Révoquée le {{date}}"
+    }
+  },
   "language": {
     "heading": "Langue",
     "note": "La langue est mémorisée dans ce navigateur plutôt que sur votre compte : elle reste donc celle que vous avez choisie ici, que vous soyez connecté ou non."

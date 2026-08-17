@@ -219,6 +219,46 @@ function withinColumn(column: readonly Operation[]): readonly Operation[] {
  * independent gates keep the document's own order — an export has to be
  * byte-stable across runs or every diff of one is noise.
  */
+/**
+ * Which qubit each classical bit holds when the emitted program ends.
+ *
+ * ── WHY THIS IS HERE AND NOT WHEREVER IT IS NEEDED ───────────────────────
+ *
+ * Because "the register the device sends home" is a property of the *emitted
+ * program*, and this file is what decides the program's order. Two things read
+ * that register and they must not have two definitions of it: the API freezes
+ * the mapping into the job row at submission, and the browser uses it to key a
+ * device's counts onto the chart's basis states (D1). A mapping computed twice
+ * is a mapping that can differ once.
+ *
+ * The subtlety, and the reason a second implementation got it wrong: "later
+ * measurements overwrite earlier ones" is a statement about **program order**,
+ * which `orderedOperations` above defines as ascending `column` — not about the
+ * order the operations happen to sit in the document's array. A document
+ * listing `measure q0 → c0` at column 3 before `measure q1 → c0` at column 1 is
+ * perfectly valid, and its final `c0` holds q0. Walking the array would answer
+ * q1: a bijection, plausible, and the wrong bar on the histogram.
+ *
+ * `undefined` for a classical bit no measurement ever writes. The caller
+ * decides what that means — a hole makes the register something other than a
+ * relabelling of the qubit register, which is a refusal rather than a value.
+ */
+export function finalClassicalRegister(
+  operations: readonly Operation[],
+  clbits: number
+): readonly (number | undefined)[] {
+  const qubitOfClbit = new Array<number | undefined>(clbits).fill(undefined)
+  for (const operation of orderedOperations(operations)) {
+    if (operation.gate !== 'measure') continue
+    const qubit = operation.targets[0]
+    const clbit = operation.clbitTargets?.[0]
+    if (qubit === undefined || clbit === undefined) continue
+    if (clbit < 0 || clbit >= clbits) continue
+    qubitOfClbit[clbit] = qubit
+  }
+  return qubitOfClbit
+}
+
 export function orderedCustomGates(
   circuit: Circuit
 ): readonly (readonly [string, CustomGate])[] {

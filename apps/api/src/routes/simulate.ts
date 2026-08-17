@@ -295,7 +295,11 @@ const plugin: FastifyPluginCallback<SimulateRoutesOptions> = (
        * is the one endpoint where a single request can cost a minute of a
        * dedicated process.
        */
-      config: { auth: 'optional', rateLimit: strictRateLimit(env) },
+      config: {
+        auth: 'optional',
+        rateLimit: strictRateLimit(env),
+        scope: 'simulate',
+      },
       schema: {
         body: SimulateBody,
         response: { 200: RunEnvelope, 201: RunEnvelope, 202: RunEnvelope },
@@ -493,7 +497,7 @@ const plugin: FastifyPluginCallback<SimulateRoutesOptions> = (
        * route a client polls, and a poll that trips the same limit as a
        * submission would make the queued path unusable.
        */
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: { params: RunParams, response: { 200: RunEnvelope } },
     },
     async (request) => {

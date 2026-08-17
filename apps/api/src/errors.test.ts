@@ -165,6 +165,9 @@ describe('the error vocabulary', () => {
      * something concrete to check the catalogs against.
      */
     expect(Object.keys(ERROR_DEFINITIONS).sort()).toEqual([
+      'API_KEY_LIMIT_REACHED',
+      'API_KEY_NOT_ACCEPTED',
+      'API_KEY_SCOPE_REQUIRED',
       'AUTH_INVALID_TOKEN',
       'AUTH_KEY_UNAVAILABLE',
       'AUTH_REQUIRED',
@@ -173,6 +176,10 @@ describe('the error vocabulary', () => {
       'COLLECTION_FULL',
       'DATABASE_UNAVAILABLE',
       'FORBIDDEN',
+      'HARDWARE_CREDENTIAL_REJECTED',
+      'HARDWARE_QUOTA_EXHAUSTED',
+      'HARDWARE_UNAVAILABLE',
+      'HARDWARE_UNRUNNABLE',
       'INTERNAL_ERROR',
       'MALFORMED_JSON',
       'NOT_FOUND',

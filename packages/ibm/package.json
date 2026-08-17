@@ -1,0 +1,37 @@
+{
+  "name": "@qsim/ibm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The IBM Quantum protocol — IAM token exchange, backend metadata, job submission and the hexadecimal results that come back. Consumed by apps/api and apps/worker only",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "development": "./src/testing/transport.ts",
+      "default": "./src/testing/transport.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@qsim/transpile": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@qsim/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

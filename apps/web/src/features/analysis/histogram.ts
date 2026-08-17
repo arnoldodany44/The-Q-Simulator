@@ -104,41 +104,58 @@ export interface HistogramModel {
 }
 
 /**
- * A second reading of the same basis states, drawn on the same rows — §3.3's
- * ideal-against-noisy comparison, and the reason this chart is extended rather
- * than a second one drawn beside it.
+ * A further reading of the same basis states, drawn on the same rows — §3.3's
+ * ideal-against-noisy comparison and §3.7's ideal-against-noisy-against-real
+ * one, and the reason this chart is extended rather than copies of it drawn
+ * beside each other.
  *
- * TWO ADJACENT CHARTS LEAVE THE READER DOING THE SUBTRACTION. The question
- * §3.3 asks is not "what do these two distributions look like" but "which
- * outcomes gained probability and which lost it", and that is a quantity no
- * pair of charts states: it is the difference between a bar here and a bar over
- * there, held in the reader's head across a gap. On one track it is a mark —
- * the bar is still the ideal probability, with its phasor and its hue, and the
- * second reading is a tick with a coloured sliver between the two. A gain grows
- * out of the end of the bar; a loss is eaten out of it.
+ * ADJACENT CHARTS LEAVE THE READER DOING THE SUBTRACTION. The question §3.3
+ * asks is not "what do these distributions look like" but "which outcomes
+ * gained probability and which lost it", and that is a quantity no set of
+ * charts states: it is the difference between a bar here and a bar over there,
+ * held in the reader's head across a gap. On one track it is a mark — the bar
+ * is still the ideal probability, with its phasor and its hue, and each further
+ * reading is a tick with a coloured sliver between the two. A gain grows out of
+ * the end of the bar; a loss is eaten out of it.
  *
  * This is the same ruling the shots control makes ("one track, two marks",
- * §3.2) applied to a second question, and it is one chart rather than two for
- * the same reason: what closes, or opens, is a *gap*.
+ * §3.2) applied to a second question, and it is one chart rather than several
+ * for the same reason: what closes, or opens, is a *gap*.
  *
  * THE BAR STAYS THE IDEAL ONE, and that is not arbitrary. The row's hue and its
- * phasor are the phase of an *amplitude*, and a noisy state has no single
- * amplitude per basis state — painting the noisy probability in the ideal
- * state's phase colour would be a claim about the mixed state that nothing
- * supports.
+ * phasor are the phase of an *amplitude*, and neither a noisy state nor a
+ * device has a single amplitude per basis state — painting either probability
+ * in the ideal state's phase colour would be a claim about a mixed state that
+ * nothing supports.
  *
- * The two labels arrive already translated because this module has no i18next
- * and never will (see the header); the caller that knows what the second
- * reading is called is the one that asked for it.
+ * ── WHY SEVERAL READINGS ARE LANES AND NOT LAYERS (M4.4) ─────────────────
+ *
+ * §3.7 puts three distributions on one track, which means two overlays, and two
+ * slivers drawn on the same rectangle would overlap: where the noisy run lost
+ * three percent and the device lost five, the reader sees one sliver whose
+ * length is neither number and cannot tell which reading it belongs to. Colour
+ * could not rescue it either — it is already carrying the *direction* of the
+ * move, and §10 forbids making it carry a second meaning alone.
+ *
+ * So each overlay gets a horizontal band of the bar's height, in the order the
+ * overlays are passed: reading one on top, reading two below it. Position is a
+ * channel nothing else is using, it survives greyscale, and it survives a
+ * screen reader because the table below has a labelled column pair per reading.
+ * With a single overlay the band is the whole bar, so §3.3's chart is drawn
+ * exactly as it was.
+ *
+ * The labels arrive already translated because this module has no i18next and
+ * never will (see the header); the caller that knows what a reading is called
+ * is the one that asked for it.
  */
 export interface HistogramOverlay {
-  /** The second reading of each drawn basis state, by statevector index. */
+  /** This reading of each drawn basis state, by statevector index. */
   readonly probabilities: ReadonlyMap<number, number>
-  /** The second reading's share of everything the cap left out. */
+  /** This reading's share of everything the cap left out. */
   readonly remainder: number
-  /** What the second reading is called. Already translated. */
+  /** What this reading is called. Already translated. */
   readonly label: string
-  /** Header for the signed-difference column. Already translated. */
+  /** Header for its signed-difference column. Already translated. */
   readonly deltaLabel: string
 }
 
@@ -276,6 +293,14 @@ export interface HistogramLayout {
   readonly height: number
   readonly rowHeight: number
   readonly barHeight: number
+  /**
+   * How many overlay readings this layout reserved room for, and therefore how
+   * many horizontal bands the bar is divided into. Zero for a plain chart,
+   * whose bar is undivided.
+   */
+  readonly lanes: number
+  /** Height of one band. Equals `barHeight` when there is at most one lane. */
+  readonly laneHeight: number
   /** Centre of the ket label column. */
   readonly labelX: number
   /** Left edge of the track, and the origin of every bar. */
@@ -288,12 +313,25 @@ export interface HistogramLayout {
   readonly hubRadius: number
   /** Centre of the numeric-angle column. Only meaningful when frozen. */
   readonly angleX: number
-  /** Centre of the signed-difference column. Only meaningful with an overlay. */
-  readonly deltaX: number
+  /**
+   * Centre of each overlay's signed-difference column, in the overlays' own
+   * order. Empty for a chart with no overlay.
+   */
+  readonly deltaX: readonly number[]
 }
 
 const ROW_HEIGHT = 24
 const BAR_HEIGHT = 12
+/**
+ * The shortest a lane may be and still read as a band rather than a line.
+ *
+ * A bar carrying two readings is therefore taller than one carrying none —
+ * twelve pixels split in two is six each, which is thinner than the tick that
+ * marks the reading and would make the two bands look like one striped bar.
+ * Growing the bar instead keeps every mark on the chart at a size the eye can
+ * separate, and costs a chart that only ever exists on a page of its own.
+ */
+const MIN_LANE_HEIGHT = 8
 const TRACK_WIDTH = 220
 const VALUE_WIDTH = 62
 const ANGLE_WIDTH = 54
@@ -318,8 +356,14 @@ export interface HistogramLayoutOptions {
   readonly angles?: boolean
   /** The phasor hub. Off for a chart of a state with nothing to say about phase. */
   readonly phasors?: boolean
-  /** The signed-difference column, printed when an overlay is drawn (§3.3). */
-  readonly comparison?: boolean
+  /**
+   * How many overlay readings are drawn (§3.3 passes one, §3.7 passes two).
+   *
+   * A count rather than the boolean this used to be, because each reading needs
+   * a signed-difference column of its own and a lane of its own. Zero is the
+   * plain chart and is the default.
+   */
+  readonly comparisons?: number
 }
 
 export function histogramLayout(
@@ -327,7 +371,13 @@ export function histogramLayout(
   rows: number,
   options: HistogramLayoutOptions = {}
 ): HistogramLayout {
-  const { angles = false, phasors = true, comparison = false } = options
+  const { angles = false, phasors = true, comparisons = 0 } = options
+  const lanes = Math.max(0, Math.floor(comparisons))
+  // At most one reading leaves the bar undivided, so §3.3's chart keeps the
+  // exact geometry it had before this became a count.
+  const barHeight = Math.max(BAR_HEIGHT, lanes * MIN_LANE_HEIGHT)
+  const laneHeight = lanes <= 1 ? barHeight : barHeight / lanes
+  const rowHeight = ROW_HEIGHT + (barHeight - BAR_HEIGHT)
   // `|` + one digit per qubit + `⟩`. The closing bracket comes from a system
   // fallback font (§10: no Latin subset carries U+27E9), so it is budgeted a
   // full monospace advance it may well exceed — hence the extra padding.
@@ -345,14 +395,25 @@ export function histogramLayout(
     : angles
       ? angleX + ANGLE_WIDTH / 2
       : hubX + HUB_RADIUS
-  const deltaX = beforeDelta + GAP + DELTA_WIDTH / 2
-  const right = comparison ? deltaX + DELTA_WIDTH / 2 : beforeDelta
+  // One column per reading, left to right in the order they were passed — the
+  // same order as the lanes, so the column a number is in and the band it was
+  // measured from are read in the same direction.
+  const deltaX = Array.from(
+    { length: lanes },
+    (_unused, lane) =>
+      beforeDelta + GAP + DELTA_WIDTH / 2 + lane * (GAP + DELTA_WIDTH)
+  )
+  const lastDelta = deltaX[lanes - 1]
+  const right =
+    lastDelta === undefined ? beforeDelta : lastDelta + DELTA_WIDTH / 2
 
   return {
     width: right + PAD,
-    height: PAD * 2 + Math.max(1, rows) * ROW_HEIGHT,
-    rowHeight: ROW_HEIGHT,
-    barHeight: BAR_HEIGHT,
+    height: PAD * 2 + Math.max(1, rows) * rowHeight,
+    rowHeight,
+    barHeight,
+    lanes,
+    laneHeight,
     labelX: PAD + labelWidth / 2,
     trackX,
     trackWidth: TRACK_WIDTH,

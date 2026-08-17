@@ -5285,6 +5285,49 @@ td.histogram__delta--loss {
   background: hsl(0 85% 66% / 0.12);
 }
 
+/* ---- API keys (§3.5) ---- */
+
+.api-key-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.api-key {
+  padding: 0.75rem;
+  border: 1px solid var(--wire);
+  border-radius: 0.4rem;
+}
+
+.api-key code {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+/*
+ * A revoked key stays in the list — "which one did I turn off, and when" is
+ * asked after the fact — so it has to read as inert without relying on the
+ * dimming alone (§10: colour carries nothing on its own). The row still says
+ * "Revoked <date>" in words, and this only reinforces it.
+ */
+.api-key--revoked {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+/*
+ * The minted key, once. Monospace because every character matters when
+ * somebody is checking a paste, and `width: 100%` because a 47-character
+ * secret scrolled out of view is the one that gets copied half.
+ */
+.api-key-value {
+  width: 100%;
+  font-family: var(--font-mono);
+}
+
 /* ------------------------------------------------------------------ *
  * Guided lessons (Phase 3)
  *
@@ -6163,4 +6206,315 @@ td.histogram__delta--loss {
   min-height: 1.25rem;
   font-size: var(--text-caption);
   color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * The stored hardware run (§3.7) — ideal, modelled, real
+ *
+ * Three sections down one column, in the order a reader needs them: the
+ * comparison, then why it looks like that, then where it came from. The page
+ * is deliberately *not* a three-column layout despite §3.7's name for it — the
+ * three columns are the three readings on one chart, and putting the prose
+ * into columns as well would leave the reader comparing the layout.
+ * ------------------------------------------------------------------ */
+
+.hardware-result {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.hardware-result__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+}
+
+.hardware-result__subtitle,
+.hardware-comparison__lead,
+.executed-program__lead,
+.device-provenance__lead {
+  margin: 0.35rem 0 0;
+  max-width: 62ch;
+  color: var(--text-muted);
+}
+
+.hardware-comparison,
+.executed-program,
+.device-provenance {
+  padding-top: 1rem;
+  border-top: 1px solid var(--chart-grid);
+}
+
+.hardware-comparison__heading,
+.executed-program__heading,
+.device-provenance__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+.executed-program__subheading {
+  margin: 1.25rem 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+/*
+ * The notes are the argument, not decoration: the sampling error, the scope of
+ * the noise model and the two provenance caveats are what keep the figures
+ * above them from being read as more precise than they are. They are the same
+ * size as a caption and full-contrast enough to be read rather than skipped.
+ */
+.hardware-comparison__note,
+.executed-program__note,
+.device-provenance__note {
+  margin: 0.5rem 0 0;
+  max-width: 62ch;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.hardware-comparison__summary {
+  margin: 0.75rem 0 0;
+  max-width: 62ch;
+}
+
+.hardware-comparison__figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+}
+
+.hardware-comparison__figure {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--chart-grid);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+
+.hardware-comparison__figure dt {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.hardware-comparison__figure dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lead);
+  color: var(--text);
+}
+
+/* The counts, when nothing can be laid over them. Its own table because it is
+   keyed by the *classical register* rather than by a basis state — which is
+   exactly the distinction that made the overlay impossible. */
+.hardware-counts {
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+  font-size: var(--text-data);
+}
+
+.hardware-counts caption {
+  padding-bottom: 0.35rem;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.hardware-counts th,
+.hardware-counts td {
+  padding: 0.2rem 0.75rem 0.2rem 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.hardware-counts thead th {
+  border-bottom: 1px solid var(--chart-grid);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.hardware-result__pending {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--chart-grid);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+
+.hardware-result__pending-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+}
+
+.hardware-result__pending-body {
+  margin: 0.35rem 0 0;
+  max-width: 62ch;
+  color: var(--text-muted);
+}
+
+/* ---- drawn against executed ---- */
+
+/*
+ * Side by side where there is room, stacked where there is not. This is the
+ * one place on the page where two columns are right: the whole point is that
+ * two counts of the same thing differ, and putting them level makes the
+ * difference a glance rather than a scroll.
+ */
+.executed-program__sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.executed-program__side {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--chart-grid);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+
+.executed-program__side-title {
+  margin: 0 0 0.4rem;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.executed-program__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.executed-program__counts dt {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.executed-program__counts dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lead);
+}
+
+.executed-program__tally,
+.executed-program__layout {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.executed-program__tally li,
+.executed-program__layout li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--chart-grid);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.executed-program__gate {
+  color: var(--accent);
+}
+
+.executed-program__growth {
+  margin: 0.75rem 0 0;
+  max-width: 62ch;
+  font-size: var(--text-lead);
+}
+
+/* Phase zero's hue, the palette's red. Never the only signal: the sentence
+   says what is understated and by what. */
+.executed-program__warning {
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0.6rem;
+  max-width: 62ch;
+  border-left: 3px solid hsl(0 85% 66%);
+  font-size: var(--text-caption);
+}
+
+.executed-program__costs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+}
+
+.executed-program__cost {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--chart-grid);
+  border-radius: 6px;
+}
+
+.executed-program__cost dt {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.executed-program__cost dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lead);
+}
+
+/*
+ * The submitted program, in full. It scrolls inside its own box rather than
+ * wrapping: a wrapped OpenQASM statement reads as two statements, and this is
+ * the one artefact on the page that is exactly what the machine received.
+ */
+.executed-program__source {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  max-height: 24rem;
+  overflow: auto;
+  background: var(--bg-deep);
+  border: 1px solid var(--chart-grid);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  white-space: pre;
+}
+
+/* ---- where it came from ---- */
+
+.device-provenance__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+}
+
+.device-provenance__fact {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--chart-grid);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+
+.device-provenance__fact dt {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.device-provenance__fact dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+  overflow-wrap: anywhere;
 }

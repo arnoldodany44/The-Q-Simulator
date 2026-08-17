@@ -36,6 +36,10 @@
  *   - `accounts.ts`           the settings write, the username race, and what
  *                             deleting an account has to clean up that no
  *                             foreign key will
+ *   - `api-keys.ts`           the public API's credentials: why the plaintext
+ *                             never reaches this package, why revocation is a
+ *                             `where` clause rather than a check, and why
+ *                             `lastUsedAt` is written coarsely
  *   - `lessons.ts`            a reader's bookmark in a guided lesson, and why
  *                             it is a bookmark rather than a score
  *   - `challenges.ts`         the opposite table: a judged submission, the two
@@ -98,6 +102,7 @@ export type {
 
 export {
   accountSelect,
+  apiKeyMetaSelect,
   circuitCardSelect,
   circuitDetailSelect,
   circuitVersionSummarySelect,
@@ -135,6 +140,18 @@ export type {
   UpdateCollectionInput,
 } from './collections.js'
 
+export {
+  ApiKeyLimitError,
+  MAX_ACTIVE_API_KEYS,
+  prismaApiKeyRepository,
+} from './api-keys.js'
+export type {
+  ApiKeyIdentity,
+  ApiKeyMeta,
+  ApiKeyRepository,
+  CreateApiKeyInput,
+} from './api-keys.js'
+
 export { prismaAccountRepository, UsernameTakenError } from './accounts.js'
 export type {
   AccountDeletionReport,
@@ -157,6 +174,44 @@ export type {
   RecordSubmissionInput,
   SubmissionRecord,
 } from './challenges.js'
+
+export {
+  CREDENTIAL_DOCUMENT_VERSION,
+  CredentialUnreadableError,
+  NON_TERMINAL_JOB_STATUSES,
+  TERMINAL_JOB_STATUSES,
+  hardwareJobSelect,
+  hardwarePollSelect,
+  hardwarePredecessorsOf,
+  isTerminalJobStatus,
+  parseStoredProgram,
+  prismaHardwareRepository,
+} from './hardware.js'
+export type {
+  CompleteHardwareJobInput,
+  CreateCredentialInput,
+  CreateHardwareJobInput,
+  CredentialDocument,
+  FailHardwareJobInput,
+  HardwareProgram,
+  HardwareRepository,
+  PollObservationInput,
+  PollableHardwareJob,
+  RecordProviderJobInput,
+  StoredHardwareJob,
+} from './hardware.js'
+
+export {
+  CredentialCipherError,
+  IV_BYTES,
+  KEY_BYTES,
+  MAX_SECRET_BYTES,
+  TAG_BYTES,
+  createCredentialCipher,
+  decodeEncryptionKey,
+  isEncryptionKey,
+} from './secrets.js'
+export type { CredentialCipher, SealedSecret } from './secrets.js'
 
 export { prismaLessonRepository } from './lessons.js'
 export type {

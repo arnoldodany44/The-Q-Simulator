@@ -53,7 +53,11 @@ import type { FastifyInstance, FastifyPluginCallback } from 'fastify'
 import type { FastifyRequest } from 'fastify'
 import type { ApiEnv } from '../env.js'
 import { ApiError } from '../errors.js'
-import { requireViewerId, viewerIdOf } from '../plugins/auth.js'
+import {
+  establishedOwnerId,
+  requireViewerId,
+  viewerIdOf,
+} from '../plugins/auth.js'
 import { strictRateLimit } from '../plugins/rate-limit.js'
 import type { ZodTypeProvider } from '../plugins/validation.js'
 import { CircuitHandleParams, toPage } from './circuits.schemas.js'
@@ -95,6 +99,29 @@ function assertOwner(collection: { ownerId: string }, viewerId: string): void {
   }
 }
 
+/**
+ * The `public.User` row for a session, created on first use.
+ *
+ * `Collection.ownerId` is a foreign key onto `public.User`, and a caller who
+ * has never saved a circuit has no row there yet — curating somebody else's
+ * work is a perfectly ordinary first thing to do with an account.
+ */
+async function sessionOwnerId(
+  app: FastifyInstance,
+  request: FastifyRequest
+): Promise<string> {
+  const identity = request.auth
+  if (identity === null) throw new ApiError('AUTH_REQUIRED')
+  if (identity.email === null) throw new ApiError('USER_EMAIL_REQUIRED')
+  const owner = await app.circuits.ensureOwner({
+    id: identity.userId,
+    email: identity.email,
+    displayName: identity.displayName,
+    avatarUrl: identity.avatarUrl,
+  })
+  return owner.id
+}
+
 const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
   instance,
   options,
@@ -111,7 +138,7 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
   app.get(
     COLLECTION_ROUTES.collection,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'read' },
       schema: {
         querystring: PaginationQuery,
         response: { 200: CollectionPageResponse },
@@ -139,7 +166,7 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
   app.post(
     COLLECTION_ROUTES.collection,
     {
-      config: { auth: 'required', rateLimit: createLimit },
+      config: { auth: 'required', rateLimit: createLimit, scope: 'write' },
       schema: {
         body: CreateCollectionBody,
         response: { 201: CollectionEnvelope },
@@ -147,23 +174,18 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
     },
     async (request, reply) => {
       /*
-       * `Collection.ownerId` is a foreign key onto `public.User`, and a caller
-       * who has never saved a circuit has no row there yet — curating
-       * somebody else's work is a perfectly ordinary first thing to do with an
-       * account.
+       * A session may be creating its very first row, so `sessionOwnerId`
+       * brings the `public.User` row into existence. An API key cannot be in
+       * that position — its `userId` is a foreign key onto a row that
+       * therefore exists — and it carries no `email` claim for `ensureOwner`
+       * to write, so it takes the short circuit `ensureOwnerId` in
+       * `circuits.ts` takes, for the same reason.
        */
-      const identity = request.auth
-      if (identity === null) throw new ApiError('AUTH_REQUIRED')
-      if (identity.email === null) throw new ApiError('USER_EMAIL_REQUIRED')
-      const owner = await app.circuits.ensureOwner({
-        id: identity.userId,
-        email: identity.email,
-        displayName: identity.displayName,
-        avatarUrl: identity.avatarUrl,
-      })
+      const established = establishedOwnerId(request)
+      const ownerId = established ?? (await sessionOwnerId(app, request))
 
       const collection = await app.circuits.createCollection({
-        ownerId: owner.id,
+        ownerId,
         title: request.body.title,
         description: request.body.description ?? null,
         visibility: request.body.visibility,
@@ -183,7 +205,7 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
        * twice over — once whether the collection may be opened, and once,
        * inside `readCollectionItems`, which of its circuits may be shown.
        */
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: {
         params: CollectionIdParams,
         response: { 200: CollectionViewResponse },
@@ -229,7 +251,7 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
   app.patch(
     COLLECTION_ROUTES.item,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: {
         params: CollectionIdParams,
         body: UpdateCollectionBody,
@@ -259,7 +281,7 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
   app.delete(
     COLLECTION_ROUTES.item,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: { params: CollectionIdParams },
     },
     async (request, reply) => {
@@ -289,7 +311,7 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
   app.post(
     COLLECTION_ROUTES.items,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: {
         params: CollectionIdParams,
         body: AddCollectionItemBody,
@@ -330,7 +352,7 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
   app.delete(
     COLLECTION_ROUTES.member,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: {
         params: CollectionMemberParams,
         response: { 200: CollectionEnvelope },
@@ -378,7 +400,7 @@ const plugin: FastifyPluginCallback<CollectionRoutesOptions> = (
   app.get(
     COLLECTION_ROUTES.membership,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'read' },
       schema: {
         params: CircuitHandleParams,
         response: { 200: CollectionMembershipResponse },

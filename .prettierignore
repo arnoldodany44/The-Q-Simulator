@@ -4,3 +4,10 @@ coverage
 .turbo
 pnpm-lock.yaml
 packages/db/src/generated
+
+# Generated from the Zod schemas in @qsim/contract by `openapi.test.ts`, which
+# asserts the committed file is byte-for-byte what the renderer produces.
+# Prettier reflowing it would break that test on the next format run, and the
+# document is not hand-edited, so there is nothing here for a formatter to help
+# with.
+docs/api.md

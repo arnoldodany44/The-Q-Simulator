@@ -111,12 +111,16 @@ export {
   updateCollection,
 } from './collections.js'
 
+export { getHardwareJob } from './hardware.js'
+export { useHardwareJob } from './useHardware.js'
+
 export {
   accountKeys,
   challengeKeys,
   circuitKeys,
   collectionKeys,
   galleryKeys,
+  hardwareKeys,
   lessonKeys,
 } from './queryKeys.js'
 export {
@@ -172,6 +176,9 @@ export type {
   CollectionItemVariables,
   UpdateCollectionVariables,
 } from './useCollections.js'
+
+export { createApiKey, listApiKeys, revokeApiKey } from './api-keys.js'
+export { useApiKeys, useCreateApiKey, useRevokeApiKey } from './useApiKeys.js'
 
 export { useApiErrorMessage } from './useApiErrorMessage.js'
 export type { ApiErrorMessage } from './useApiErrorMessage.js'

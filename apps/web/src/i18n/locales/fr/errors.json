@@ -25,5 +25,12 @@
   "COLLECTION_FULL": "Cette collection est pleine. Retirez un circuit avant d’en ajouter un autre.",
   "SIMULATION_TOO_LARGE": "Ce circuit est trop grand pour être simulé par le serveur. Réduisez les qubits, les portes ou les tirs.",
   "SIMULATION_UNAVAILABLE": "La simulation sur le serveur est momentanément indisponible. Tout le reste fonctionne, et vous pouvez exécuter ceci dans votre navigateur.",
-  "API_NOT_CONFIGURED": "Cette version n’a pas de serveur : les comptes, la galerie et la simulation côté serveur sont indisponibles. Les circuits s’exécutent toujours dans cet onglet et voyagent dans leur lien."
+  "HARDWARE_UNRUNNABLE": "Ce circuit ne peut pas s’exécuter sur cet appareil. Un processeur réel ne relie qu’un faible pourcentage des paires de qubits qu’un circuit dessiné suppose : essayez un circuit moins profond ou un autre backend.",
+  "HARDWARE_CREDENTIAL_REJECTED": "Le fournisseur a rejeté votre clé d’API. Vérifiez-la dans votre compte IBM Quantum et enregistrez-la de nouveau.",
+  "HARDWARE_UNAVAILABLE": "Le fournisseur quantique est injoignable. Votre identifiant est valide ; réessayez sous peu.",
+  "HARDWARE_QUOTA_EXHAUSTED": "Votre forfait n’a plus de temps quantique pour cette période. Il revient au début de la suivante.",
+  "API_NOT_CONFIGURED": "Cette version n’a pas de serveur : les comptes, la galerie et la simulation côté serveur sont indisponibles. Les circuits s’exécutent toujours dans cet onglet et voyagent dans leur lien.",
+  "API_KEY_SCOPE_REQUIRED": "Cette clé d’API n’a pas la permission dont ce point d’accès a besoin. Créez une nouvelle clé avec la portée manquante.",
+  "API_KEY_NOT_ACCEPTED": "Ce point d’accès ne peut pas être utilisé avec une clé d’API. Connectez-vous pour l’utiliser.",
+  "API_KEY_LIMIT_REACHED": "Vous avez déjà le nombre maximal de clés d’API. Révoquez-en une que vous n’utilisez plus."
 }

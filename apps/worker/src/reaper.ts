@@ -39,8 +39,12 @@
  * one of it: two API replicas would run two sweeps.
  */
 
-import { DEFAULT_JOB_TIMEOUT_MS, MAX_QUEUE_DEPTH } from '@qsim/jobs'
-import type { SimulationRunRepository } from '@qsim/db'
+import {
+  DEFAULT_JOB_TIMEOUT_MS,
+  HARDWARE_STALE_AFTER_MS,
+  MAX_QUEUE_DEPTH,
+} from '@qsim/jobs'
+import type { HardwareRepository, SimulationRunRepository } from '@qsim/db'
 
 /**
  * How long a run may be non-terminal before it is presumed lost.
@@ -70,6 +74,14 @@ export const REAPER_BATCH = 100
 
 export interface ReaperPorts {
   readonly runs: SimulationRunRepository
+  /**
+   * The hardware rows, when this deployment has the key to poll them.
+   *
+   * Optional in the same first-class way the whole hardware half is: a worker
+   * with no `ENCRYPTION_KEY` consumes no hardware jobs and has no business
+   * failing their rows either.
+   */
+  readonly hardware?: HardwareRepository
   readonly log: (
     level: 'info' | 'warn' | 'error',
     fields: Record<string, unknown>,
@@ -116,17 +128,77 @@ export async function reapStaleRuns(ports: ReaperPorts): Promise<number> {
   }
 }
 
+/**
+ * Fails every hardware job that has been non-terminal since before
+ * `HARDWARE_STALE_AFTER_MS`.
+ *
+ * ── WHY THIS EXISTS AND WHY IT WAS MISSING ───────────────────────────────
+ *
+ * `@qsim/jobs` calls the forty-eight-hour horizon "the last line of defence",
+ * `packages/db` implements `failStaleJobs` for it, and nothing called either:
+ * both were dead code, so a non-terminal hardware row had no horizon at all.
+ * That is what turned a job whose submission was lost from a two-day incident
+ * into an unbounded one — the resume sweep kept finding it and nothing was ever
+ * going to stop.
+ *
+ * The horizon is much longer than the simulation one because a hardware job
+ * legitimately takes hours: `ibm_fez` sat behind 24 862 queued jobs on one
+ * morning. Two days is past every schedule this system can explain — longer
+ * than `MAX_POLL_ATTEMPTS`' twenty-six hours — so a row this touches is one no
+ * poll was ever going to move.
+ */
+export async function reapStaleHardwareJobs(
+  ports: ReaperPorts
+): Promise<number> {
+  const hardware = ports.hardware
+  if (hardware === undefined) return 0
+  const now = ports.now ?? Date.now
+  try {
+    const moved = await hardware.failStaleJobs({
+      before: new Date(now() - HARDWARE_STALE_AFTER_MS),
+      /*
+       * The vocabulary already has the word for "this system has stopped
+       * asking; the job may still exist at the provider". It is deliberately
+       * not a failure of the *device*: the response carries `providerJobId`, so
+       * a person can go and read what actually happened.
+       */
+      code: 'POLL_ABANDONED',
+      limit: REAPER_BATCH,
+    })
+    if (moved > 0) {
+      ports.log(
+        'warn',
+        { moved },
+        'abandoned hardware jobs that nothing could move'
+      )
+    }
+    return moved
+  } catch (error) {
+    // Swallowed for the reason above: a sweep is maintenance and runs again.
+    ports.log('error', { err: error }, 'the stale-hardware sweep failed')
+    return 0
+  }
+}
+
 /** Starts the sweep on a timer. The first one runs after the first interval. */
 export function startReaper(ports: ReaperPorts): Reaper {
+  const sweep = async (): Promise<number> => {
+    const [runs, hardware] = await Promise.all([
+      reapStaleRuns(ports),
+      reapStaleHardwareJobs(ports),
+    ])
+    return runs + hardware
+  }
+
   const timer = setInterval(() => {
-    void reapStaleRuns(ports)
+    void sweep()
   }, REAPER_INTERVAL_MS)
   // Nothing should be held open by this: a process whose only remaining
   // business is a maintenance timer has no business remaining.
   timer.unref()
 
   return {
-    sweep: () => reapStaleRuns(ports),
+    sweep,
     stop: () => {
       clearInterval(timer)
     },

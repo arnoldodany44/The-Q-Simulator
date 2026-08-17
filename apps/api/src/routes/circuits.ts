@@ -49,7 +49,11 @@ import type {
 } from 'fastify'
 import type { ApiEnv } from '../env.js'
 import { ApiError } from '../errors.js'
-import { requireViewerId, viewerIdOf } from '../plugins/auth.js'
+import {
+  establishedOwnerId,
+  requireViewerId,
+  viewerIdOf,
+} from '../plugins/auth.js'
 import { strictRateLimit } from '../plugins/rate-limit.js'
 import {
   MAX_ERROR_DETAILS,
@@ -169,6 +173,17 @@ async function ensureOwnerId(
   app: FastifyInstance,
   request: FastifyRequest
 ): Promise<string> {
+  /*
+   * An API key names a row that provably exists: `ApiKey.userId` is a foreign
+   * key onto `User.id`, so the key could not have been minted — nor survive
+   * the account's deletion, which cascades — without it. Falling through would
+   * be worse than redundant: a key carries no `email` claim and never will, so
+   * the check below would turn every write by a key into a 403 about a missing
+   * address.
+   */
+  const established = establishedOwnerId(request)
+  if (established !== null) return established
+
   const identity = request.auth
   // Unreachable on a route declaring `auth: 'required'`; throwing rather than
   // asserting keeps a policy mistake a 401 instead of a 500.
@@ -230,7 +245,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.get(
     CIRCUIT_ROUTES.collection,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'read' },
       schema: {
         querystring: PaginationQuery,
         response: { 200: CircuitPageResponse },
@@ -257,7 +272,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.post(
     CIRCUIT_ROUTES.collection,
     {
-      config: { auth: 'required', rateLimit: createLimit },
+      config: { auth: 'required', rateLimit: createLimit, scope: 'write' },
       schema: {
         body: CreateCircuitBody,
         response: { 201: CircuitWithVersionResponse },
@@ -295,7 +310,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
       // Anonymous is allowed: this is how a PUBLIC circuit is read and how an
       // UNLISTED link works at all. The viewer id — `null` or a verified
       // `sub` — is what decides which of the three it may be.
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: {
         params: CircuitHandleParams,
         response: { 200: CircuitViewResponse },
@@ -336,7 +351,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.patch(
     CIRCUIT_ROUTES.item,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: {
         params: CircuitHandleParams,
         body: UpdateCircuitBody,
@@ -370,7 +385,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.delete(
     CIRCUIT_ROUTES.item,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: { params: CircuitHandleParams },
     },
     async (request, reply) => {
@@ -392,7 +407,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.post(
     CIRCUIT_ROUTES.fork,
     {
-      config: { auth: 'required', rateLimit: createLimit },
+      config: { auth: 'required', rateLimit: createLimit, scope: 'write' },
       schema: {
         params: CircuitHandleParams,
         body: ForkCircuitBody,
@@ -441,7 +456,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.post(
     CIRCUIT_ROUTES.star,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: {
         params: CircuitHandleParams,
         response: { 200: StarStateResponse },
@@ -460,7 +475,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.delete(
     CIRCUIT_ROUTES.star,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: {
         params: CircuitHandleParams,
         response: { 200: StarStateResponse },
@@ -485,7 +500,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
        * more: `readableCircuit` decides, and it is the same call the page
        * itself makes.
        */
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: {
         params: CircuitHandleParams,
         querystring: PaginationQuery,
@@ -507,7 +522,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.post(
     CIRCUIT_ROUTES.versions,
     {
-      config: { auth: 'required' },
+      config: { auth: 'required', scope: 'write' },
       schema: {
         params: CircuitHandleParams,
         body: CreateVersionBody,
@@ -539,7 +554,7 @@ const plugin: FastifyPluginCallback<CircuitRoutesOptions> = (
   app.get(
     CIRCUIT_ROUTES.version,
     {
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: {
         params: VersionParams,
         response: { 200: VersionEnvelope },

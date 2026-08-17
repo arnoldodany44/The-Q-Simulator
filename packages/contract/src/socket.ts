@@ -46,6 +46,7 @@
  */
 
 import { z } from 'zod'
+import { HardwareJobStatusSchema } from './hardware.js'
 import { RunStatusSchema } from './simulate.js'
 
 /**
@@ -288,7 +289,19 @@ export const ServerFrameSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('subscribed'),
     runId: RunIdSchema,
-    status: RunStatusSchema,
+    /**
+     * The union of both lifecycles, because one `subscribe` frame watches
+     * either.
+     *
+     * A client subscribes to an *id*; what kind of thing that id names is
+     * decided by the server when it authorises the subscription, and is then
+     * evident from the status it comes back with — `SUBMITTED` and `CANCELLED`
+     * exist only for hardware. A second frame type would have meant a second
+     * `subscribe`, a second ceiling, a second authorisation path and a second
+     * ordering guard, all to carry the same sentence: "you are now watching
+     * this, and here is where it had got to".
+     */
+    status: z.union([RunStatusSchema, HardwareJobStatusSchema]),
   }),
   z.object({
     type: z.literal('unsubscribed'),
@@ -320,6 +333,46 @@ export const ServerFrameSchema = z.discriminatedUnion('type', [
     runId: RunIdSchema,
     status: z.enum(['DONE', 'FAILED']),
     durationMs: z.number().int().min(0).nullable(),
+    error: z.string().max(64).nullable(),
+  }),
+  /**
+   * A hardware job moved — §3.7, Phase 4.
+   *
+   * Separate from `job:status` rather than folded into it, and the reason is
+   * that the two vocabularies are genuinely different: a hardware job has
+   * SUBMITTED (the row exists, nothing has been sent) and CANCELLED (a person
+   * stopped it), neither of which a simulation run can be. Widening
+   * `job:status` would have made those two statuses reachable in a frame about
+   * a run, where they mean nothing.
+   *
+   * `queuePosition` is where a job sits in the device's queue, when the
+   * provider says — which, on the current Quantum API, it does not. The number
+   * a person actually gets is the device's queue *length*, from
+   * `GET /hardware/backends`, and it is shown beside every device before they
+   * choose one rather than after.
+   */
+  z.object({
+    type: z.literal('hardware:status'),
+    runId: RunIdSchema,
+    status: HardwareJobStatusSchema,
+    queuePosition: z.number().int().min(0).nullable(),
+  }),
+  /**
+   * A hardware job finished. Read it with `GET /hardware/jobs/:id`.
+   *
+   * Carries no result, for the same reason `run:complete` does not: the answer
+   * lives in Postgres and the route that serves it re-applies §11 with no
+   * cache, while this frame's authorisation was decided up to
+   * `AUTHORISATION_TTL_MS` ago.
+   *
+   * Three statuses and not two. CANCELLED is a real third outcome: somebody who
+   * stopped a job to protect their ten-minute allowance has not had a failure,
+   * and reporting one would tell them something went wrong with their circuit.
+   */
+  z.object({
+    type: z.literal('hardware:complete'),
+    runId: RunIdSchema,
+    status: z.enum(['DONE', 'FAILED', 'CANCELLED']),
     error: z.string().max(64).nullable(),
   }),
   z.object({

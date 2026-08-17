@@ -25,5 +25,12 @@
   "COLLECTION_FULL": "This collection is full. Remove a circuit before adding another.",
   "SIMULATION_TOO_LARGE": "This circuit is too large for the server to simulate. Reduce the qubits, the gates or the shots.",
   "SIMULATION_UNAVAILABLE": "Server simulation is temporarily unavailable. Everything else still works, and you can run this in your browser.",
-  "API_NOT_CONFIGURED": "This build has no server, so accounts, the gallery and server simulation are unavailable. Circuits still run in this tab and travel inside their link."
+  "HARDWARE_UNRUNNABLE": "This circuit cannot run on that device. A real processor wires only a few percent of the qubit pairs a drawn circuit assumes — try a shallower circuit or another backend.",
+  "HARDWARE_CREDENTIAL_REJECTED": "The provider rejected your API key. Check it in your IBM Quantum account and register it again.",
+  "HARDWARE_UNAVAILABLE": "The quantum provider could not be reached. Your credential is fine; try again shortly.",
+  "HARDWARE_QUOTA_EXHAUSTED": "Your plan has no quantum time left for this period. It returns when the period rolls over.",
+  "API_NOT_CONFIGURED": "This build has no server, so accounts, the gallery and server simulation are unavailable. Circuits still run in this tab and travel inside their link.",
+  "API_KEY_SCOPE_REQUIRED": "This API key does not have the permission that endpoint needs. Create a new key with the missing scope.",
+  "API_KEY_NOT_ACCEPTED": "That endpoint cannot be used with an API key. Sign in to use it.",
+  "API_KEY_LIMIT_REACHED": "You already have the maximum number of API keys. Revoke one you no longer use."
 }

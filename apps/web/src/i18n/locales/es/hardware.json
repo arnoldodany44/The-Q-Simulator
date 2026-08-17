@@ -1,0 +1,137 @@
+{
+  "job": {
+    "title": "Ideal, modelado y real",
+    "subtitle": "El mismo circuito de tres formas: calculado de forma exacta, predicho bajo un modelo de ruido, y medido en {{backend}}.",
+    "loading": "Cargando la corrida guardada…",
+    "missing": "No existe esa corrida, o no es una que puedas leer.",
+    "unavailable": "Esta compilación no tiene servidor, así que no se puede cargar una corrida guardada de hardware. Todo lo que corre en esta pestaña sigue funcionando.",
+    "circuitMissing": "No se pudo cargar el circuito al que pertenece esta corrida, así que no hay nada contra qué comparar al dispositivo.",
+    "simulating": "Simulando el circuito para construir las dos primeras columnas…",
+    "simulationFailed": "El circuito no se pudo simular en esta pestaña, así que solo están disponibles los conteos del dispositivo.",
+    "backToCircuit": "Abrir el circuito",
+    "circuitChanged": "Este circuito se editó después de enviar este trabajo, así que el dibujo en pantalla no es el programa que corrió el dispositivo. Las columnas ideal y modelada no se muestran: cada cifra en ellas sería una resta entre dos circuitos distintos, impresa donde va una afirmación sobre el hardware. La respuesta propia del dispositivo está abajo, sin tocar."
+  },
+  "status": {
+    "heading": "Todavía no hay nada que comparar",
+    "SUBMITTED": "La corrida se creó y va en camino a {{backend}}.",
+    "QUEUED": "Esperando en la cola de {{backend}}. Los dispositivos reales son compartidos y una cola puede tener horas de profundidad — no se pierde nada por cerrar esta página, y el resultado estará aquí cuando llegue.",
+    "RUNNING": "{{backend}} está corriendo el circuito ahora mismo.",
+    "CANCELLED": "Esta corrida se canceló antes de producir un resultado.",
+    "DONE": "Terminada.",
+    "FAILED": "La corrida no produjo un resultado."
+  },
+  "failure": {
+    "heading": "La corrida no produjo un resultado",
+    "CREDENTIAL_MISSING": "La credencial con la que se estaba pagando esta corrida fue borrada, así que ya no se pudo seguir.",
+    "CREDENTIAL_INVALID": "El proveedor rechazó la clave de API. Puede haber expirado o haber sido revocada, o su instancia ya no ser alcanzable.",
+    "QUOTA_EXHAUSTED": "Se agotó el tiempo cuántico del plan. Vuelve cuando empiece el siguiente periodo.",
+    "PROVIDER_REFUSED": "El proveedor rechazó el programa. Eso es sobre el circuito o el dispositivo, no sobre la clave.",
+    "PROVIDER_FAILED": "El dispositivo corrió el circuito y reportó una falla.",
+    "PROVIDER_UNAVAILABLE": "No se pudo alcanzar al proveedor. Esta puede funcionar si se corre de nuevo.",
+    "RESULT_UNREADABLE": "El dispositivo terminó y su respuesta no se pudo leer. El tiempo cuántico se gastó y los conteos se perdieron.",
+    "POLL_ABANDONED": "Este sistema dejó de preguntar después de esperar mucho más de lo que debería tardar cualquier cola. El trabajo puede seguir existiendo en la consola del proveedor.",
+    "QUEUE_UNAVAILABLE": "La corrida quedó registrada pero no se pudo agendar, así que nada llegó a preguntarle al proveedor por ella.",
+    "unknown": "La corrida falló por una razón para la que esta compilación no tiene nombre: {{code}}.",
+    "SUBMIT_ABANDONED": "Este sistema intentó enviar el circuito y nunca supo si el proveedor lo aceptó, así que se detuvo en vez de mandarlo otra vez — repetirlo compraría una segunda corrida en el dispositivo. Revisa la consola del proveedor antes de enviar otro."
+  },
+  "comparison": {
+    "heading": "Las tres distribuciones",
+    "lead": "Una sola pista, tres lecturas. La barra es la probabilidad ideal, con su fasor y su tono; cada marca es donde una de las otras dos lecturas puso ese resultado, y la astilla entre ellas es la diferencia: por fuera de la barra para un resultado que ganó, recortada de ella para uno que perdió.",
+    "column": {
+      "noisy": "Modelo de ruido",
+      "noisyDelta": "Modelo − ideal",
+      "real": "{{backend}}",
+      "realDelta": "Dispositivo − ideal"
+    },
+    "chart": {
+      "heading": "Ideal, modelado y medido, en un solo gráfico",
+      "summary": "Cada barra es la probabilidad ideal. La banda de arriba de una barra es la lectura del modelo de ruido, la de abajo es la del dispositivo; un gráfico con una sola banda no tiene modelo al lado.",
+      "tableCaption": "Una fila por estado base: su probabilidad ideal, la del modelo de ruido, la del dispositivo, y la diferencia que hace cada uno."
+    },
+    "figure": {
+      "deviceFidelity": "Dispositivo contra ideal",
+      "deviceMoved": "Probabilidad que movió el dispositivo",
+      "modelFidelity": "Modelo contra ideal",
+      "modelMoved": "Probabilidad que movió el modelo",
+      "modelVsDevice": "Modelo contra dispositivo",
+      "shots": "Tiros",
+      "modelVsDeviceMoved": "Probabilidad entre modelo y dispositivo"
+    },
+    "shotNote": "La columna del dispositivo son {{shots}} tiros, así que cada cifra tomada de ella carga un error de muestreo de alrededor de {{typical}}. Una diferencia más chica que eso no es una diferencia.",
+    "modelMissing": "No se corrió ningún modelo de ruido junto a este resultado, así que la lectura de en medio no está y el gráfico lleva dos distribuciones en vez de tres.",
+    "modelVsDeviceMissing": "La corrida ruidosa se muestreó en vez de calcularse de forma exacta, así que produjo un conteo de los resultados que le tocó visitar y no una distribución sobre todos ellos. Modelo contra dispositivo necesita lo segundo, y se deja fuera en vez de reconstruirlo a partir de lo primero.",
+    "modelVsDeviceLead": "Esta es la cifra por la que vale la pena tener la tercera columna: dice qué tan bien predijo el modelo a la máquina, y ninguna de las otras dos puede decirlo.",
+    "modelScopeNote": "El modelo corre el circuito tal como se dibujó, con coherencia y errores de compuerta de tipo transmón. El dispositivo corrió el programa transpilado de abajo, que tiene más compuertas — así que el modelo suele ser el optimista, y la brecha entre él y la tercera columna es en buena medida lo que costó la transpilación.",
+    "movement": {
+      "none": "No se movió nada: el dispositivo reprodujo la distribución ideal exactamente, lo que con cualquier número real de tiros significa que las diferencias son más chicas que el error de muestreo.",
+      "gainOnly": "{{state}} ganó {{gain}} en el dispositivo, y nada perdió.",
+      "lossOnly": "{{state}} perdió {{loss}} en el dispositivo, y nada ganó.",
+      "both": "En el dispositivo, {{lost}} fue el que más perdió, {{loss}}, y {{gained}} el que más ganó, {{gain}}.",
+      "others": "los resultados a los que el circuito nunca llega"
+    },
+    "refused": {
+      "heading": "Estas no se pueden dibujar en un mismo gráfico",
+      "unmeasured-qubit": "Este circuito deja al menos un qubit sin medir, así que el dispositivo reporta un resumen del estado y no el estado mismo. Encimar uno sobre el otro le atribuiría al error de hardware la mitad que falta.",
+      "unwritten-clbit": "Este circuito tiene un bit clásico que ninguna medición llena, así que una columna de la respuesta del dispositivo no es el resultado de nada.",
+      "repeated-qubit": "Este circuito termina con un qubit escrito en dos bits clásicos, así que la cadena de bits del dispositivo no nombra un solo estado base.",
+      "conditioned": "Este circuito tiene una compuerta que solo corre en algunos tiros, así que ningún estado ideal único describe lo que hizo el dispositivo. Los conteos siguen siendo una medición de él; simplemente no hay nada encima de qué ponerlos.",
+      "mid-circuit-measurement": "Este circuito mide un qubit y luego sigue trabajando sobre él. El dispositivo colapsó ese cable y continuó; una simulación ideal con la medición quitada guardaría una superposición que la corrida real nunca tuvo, y la diferencia se vería exactamente como error de hardware.",
+      "note": "Los conteos propios del dispositivo se muestran abajo, sin tocar.",
+      "noCounts": "El dispositivo terminó y no devolvió ningún tiro. No hay nada que comparar y no se midió nada — lo cual vale la pena saber, porque la corrida igual gastó tiempo cuántico.",
+      "circuit-changed": "El circuito se editó después de enviar este trabajo, así que en esta página no hay ningún estado ideal que describa lo que corrió el dispositivo.",
+      "register-mismatch": "Los conteos guardados no están indexados por el registro clásico que declaró el programa de este trabajo, así que no se pueden encimar al gráfico. Pertenecen a otra corrida, o a otra versión de este sistema."
+    },
+    "deviceCounts": {
+      "heading": "Lo que devolvió el dispositivo",
+      "outcome": "Resultado",
+      "count": "Tiros",
+      "share": "Proporción"
+    },
+    "modelScopeNoteNamed": "El modelo corre el circuito tal como se dibujó, bajo el perfil «{{profile}}». El dispositivo corrió el programa transpilado de abajo, que tiene más compuertas — así que el modelo suele ser el optimista, y la brecha entre él y la tercera columna es en buena medida lo que costó la transpilación."
+  },
+  "device": {
+    "heading": "De dónde salió esto",
+    "lead": "Un resultado de hardware real es la medición de un objeto físico en un momento en el tiempo. Estos son ese objeto y ese momento.",
+    "backend": "Dispositivo",
+    "jobId": "Trabajo del proveedor",
+    "shots": "Tiros devueltos",
+    "submitted": "Enviado",
+    "completed": "Terminado",
+    "wait": "Esperó",
+    "waiting": "todavía esperando",
+    "calibration": "Calibración tomada",
+    "calibrationAge": "Edad de la calibración al enviar",
+    "quantumSeconds": "Tiempo de procesador cuántico",
+    "layout": "Qubits físicos",
+    "queuePosition": "Posición en la cola",
+    "unknown": "no reportado",
+    "layoutEntry": "qubit {{logical}} → {{physical}}",
+    "queueNote": "Cuánto esperó se mide con las marcas de tiempo de esta misma corrida. La longitud de cola que aparece junto a un dispositivo es la de hoy, en una máquina que desde entonces ya corrió todo lo que estaba delante de este trabajo, así que no es la cola en la que esperó este resultado.",
+    "calibrationNote": "Los qubits de arriba se eligieron a partir de esa calibración. Un dispositivo se reajusta más o menos una vez al día, así que una calibración más vieja significa que la colocación se hizo contra una máquina que ya había derivado."
+  },
+  "program": {
+    "heading": "Lo que se dibujó, y lo que corrió",
+    "lead": "Un procesador de esta familia no tiene Hadamard ni CNOT. Sus compuertas son rz, sx, x, id, cz, rx y rzz, así que cada compuerta dibujada se vuelve varias — y cada una es una oportunidad para que el estado se degrade. De aquí sale la diferencia de la tercera columna.",
+    "drawn": "Dibujado",
+    "executed": "Corrió en {{backend}}",
+    "gates": "Compuertas",
+    "measurements": "Mediciones",
+    "qubits": "Qubits",
+    "growth_one": "{{drawn}} compuerta dibujada se volvió {{executed}} en el dispositivo.",
+    "growth_other": "{{drawn}} compuertas dibujadas se volvieron {{executed}} en el dispositivo.",
+    "growthFactor": "{{factor}}× más operaciones.",
+    "growthNone": "El dispositivo no corrió más compuertas de las que se dibujaron, lo que pasa cuando el circuito ya estaba escrito en la base propia de la máquina.",
+    "cost": {
+      "heading": "No todas cuestan lo mismo",
+      "frame": "Cambios de marco",
+      "pulse": "Pulsos",
+      "entangling": "De entrelazamiento",
+      "other": "Otras",
+      "note": "Un cambio de marco es un reetiquetado en la electrónica de control: no se toca ningún pulso, así que no toma tiempo ni agrega error. Un pulso es microondas de verdad, con una tasa de error de verdad. Una compuerta de entrelazamiento es uno o dos órdenes de magnitud peor que un pulso, y en casi cualquier circuito es donde se va realmente la fidelidad."
+    },
+    "notFlat": "El programa guardado contiene definiciones de compuertas, cosa que un programa enviado nunca tiene. Los conteos de arriba son llamadas y no las operaciones detrás de ellas, así que están subestimados.",
+    "source": "El programa que se envió",
+    "sourceNote": "OpenQASM 3 sobre los qubits propios del dispositivo — $53 es el qubit físico 53, no un cable del dibujo. Este es el texto guardado, exactamente como se mandó.",
+    "sourceLabel": "El OpenQASM 3 enviado, con desplazamiento"
+  }
+}

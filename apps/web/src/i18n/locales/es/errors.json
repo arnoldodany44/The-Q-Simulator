@@ -25,5 +25,12 @@
   "COLLECTION_FULL": "Esta colección está llena. Quita un circuito antes de añadir otro.",
   "SIMULATION_TOO_LARGE": "Este circuito es demasiado grande para que el servidor lo simule. Reduce los qubits, las compuertas o los shots.",
   "SIMULATION_UNAVAILABLE": "La simulación en el servidor no está disponible por ahora. Todo lo demás sigue funcionando, y puedes ejecutar esto en tu navegador.",
-  "API_NOT_CONFIGURED": "Esta versión no tiene servidor, así que las cuentas, la galería y la simulación en servidor no están disponibles. Los circuitos siguen ejecutándose en esta pestaña y viajan dentro de su enlace."
+  "HARDWARE_UNRUNNABLE": "Este circuito no puede ejecutarse en ese dispositivo. Un procesador real conecta solo un pequeño porcentaje de los pares de qubits que asume un circuito dibujado: prueba con un circuito menos profundo u otro backend.",
+  "HARDWARE_CREDENTIAL_REJECTED": "El proveedor rechazó tu clave de API. Revísala en tu cuenta de IBM Quantum y regístrala de nuevo.",
+  "HARDWARE_UNAVAILABLE": "No se pudo contactar al proveedor cuántico. Tu credencial está bien; inténtalo en breve.",
+  "HARDWARE_QUOTA_EXHAUSTED": "A tu plan no le queda tiempo cuántico en este periodo. Vuelve cuando empiece el siguiente.",
+  "API_NOT_CONFIGURED": "Esta versión no tiene servidor, así que las cuentas, la galería y la simulación en servidor no están disponibles. Los circuitos siguen ejecutándose en esta pestaña y viajan dentro de su enlace.",
+  "API_KEY_SCOPE_REQUIRED": "Esta clave de API no tiene el permiso que ese endpoint necesita. Crea una clave nueva con el alcance que falta.",
+  "API_KEY_NOT_ACCEPTED": "Ese endpoint no se puede usar con una clave de API. Inicia sesión para usarlo.",
+  "API_KEY_LIMIT_REACHED": "Ya tienes el número máximo de claves de API. Revoca alguna que ya no uses."
 }

@@ -139,7 +139,7 @@ const plugin: FastifyPluginCallback = (instance, _options, done) => {
        * or a `sub` this process verified — is what selects which circuits the
        * filter admits, and it is never read from anything a caller sent.
        */
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: {
         querystring: GalleryQuerySchema,
         response: { 200: GalleryPageResponse },
@@ -170,7 +170,7 @@ const plugin: FastifyPluginCallback = (instance, _options, done) => {
   app.get(
     GALLERY_ROUTES.userCircuits,
     {
-      config: { auth: 'optional' },
+      config: { auth: 'optional', scope: 'read' },
       schema: {
         params: UsernameParams,
         querystring: GalleryQuerySchema,

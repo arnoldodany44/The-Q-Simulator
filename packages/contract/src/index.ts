@@ -258,12 +258,87 @@ export type {
 } from './socket.js'
 
 export {
+  DEFAULT_HARDWARE_JOB_SHOTS,
+  HARDWARE_JOB_STATUS_VALUES,
+  HARDWARE_PROVIDERS,
+  CreateHardwareCredentialBody,
+  CreateHardwareJobBody,
+  HardwareBackendListEnvelope,
+  HardwareBackendResponse,
+  HardwareJobStatus,
+  HardwareJobStatusSchema,
+  HardwareProgramResponse,
+  HardwareProviderSchema,
+  HardwareResultResponse,
+  MAX_CREDENTIAL_LABEL,
+  MAX_HARDWARE_JOB_PAGE,
+  MAX_HARDWARE_JOB_SHOTS,
+  MIN_HARDWARE_JOB_SHOTS,
+  serverHardwareResponses,
+  wireHardwareResponses,
+} from './hardware.js'
+export type {
+  HardwareCredential,
+  HardwareJob,
+  HardwareProvider,
+} from './hardware.js'
+
+export {
+  API_KEY_HINT_LENGTH,
+  API_KEY_LENGTH,
+  API_KEY_PATTERN,
+  API_KEY_PREFIX,
+  API_KEY_SCOPES,
+  API_KEY_SECRET_BYTES,
+  API_KEY_SECRET_LENGTH,
+  ApiKeyScopeSchema,
+  CreateApiKeyBody,
+  MAX_ACTIVE_API_KEYS,
+  MAX_API_KEY_NAME_LENGTH,
+  apiKeyHint,
+  isApiKeyFormat,
+  isApiKeyScope,
+  serverApiKeyResponses,
+  wireApiKeyResponses,
+} from './api-keys.js'
+export type {
+  ApiKey,
+  ApiKeyCreated,
+  ApiKeyList,
+  ApiKeyScope,
+  CreateApiKeyRequest,
+} from './api-keys.js'
+
+export {
+  PUBLIC_ROUTES,
+  UNIVERSAL_ERRORS,
+  WORKED_EXAMPLE,
+  buildOpenApiDocument,
+  jsonSchemaOf,
+  openApiPath,
+  pathParamNames,
+} from './openapi.js'
+export type {
+  HttpMethod,
+  JsonSchema,
+  OpenApiOptions,
+  PublicRoute,
+  RouteResponse,
+  WorkedStep,
+} from './openapi.js'
+
+export { renderApiReference } from './reference.js'
+export type { ReferenceOptions } from './reference.js'
+
+export {
+  API_KEY_ROUTES,
   API_PREFIX,
   CHALLENGE_ROUTES,
   CIRCUIT_ROUTES,
   COLLECTION_ROUTES,
   EMBED_ROUTES,
   GALLERY_ROUTES,
+  HARDWARE_ROUTES,
   LESSON_ROUTES,
   SIMULATE_ROUTES,
   USER_ROUTES,
@@ -273,16 +348,20 @@ export {
   embedPath,
   fillRoute,
   galleryPath,
+  apiKeyPath,
+  hardwarePath,
   lessonPath,
   simulatePath,
   userPath,
 } from './paths.js'
 export type {
+  ApiKeyRoute,
   ChallengeRoute,
   CircuitRoute,
   CollectionRoute,
   EmbedRoute,
   GalleryRoute,
+  HardwareRoute,
   LessonRoute,
   SimulateRoute,
   UserRoute,

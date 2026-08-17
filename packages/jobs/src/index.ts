@@ -138,10 +138,44 @@ export {
   RUN_EVENT_TYPES,
   RunEventSchema,
   encodeRunEvent,
+  hardwareEventChannel,
   parseRunEvent,
   runEventChannel,
 } from './events.js'
 export type { RunEvent, RunEventType } from './events.js'
+
+export {
+  DEFAULT_HARDWARE_SHOTS,
+  HARDWARE_FAILURE_CODES,
+  HARDWARE_JOB_NAME,
+  HARDWARE_QUEUE,
+  HARDWARE_STALE_AFTER_MS,
+  HARDWARE_STATUSES,
+  HardwareJobPayloadSchema,
+  HardwareResultSchema,
+  MAX_HARDWARE_SHOTS,
+  MAX_POLL_ATTEMPTS,
+  MAX_SUBMIT_ATTEMPTS,
+  MIN_HARDWARE_SHOTS,
+  POLL_TAIL_MS,
+  RESUME_BATCH,
+  RESUME_IDLE_MS,
+  RESUME_INTERVAL_MS,
+  SUBMIT_CLAIM_MS,
+  hardwareTickId,
+  isHardwareFailureCode,
+  isHardwareStatus,
+  isTerminalHardwareStatus,
+  parseHardwarePayload,
+  parseHardwareResult,
+  pollDelayMs,
+} from './hardware.js'
+export type {
+  HardwareFailureCode,
+  HardwareJobPayload,
+  HardwareResult,
+  HardwareStatus,
+} from './hardware.js'
 
 export {
   COMPLETED_RETENTION,

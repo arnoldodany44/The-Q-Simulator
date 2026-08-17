@@ -357,22 +357,32 @@ export function createMemoryEventBus(): MemoryEventBus {
 
     watched: () => [...channels.keys()],
 
-    subscribe(runId, listener) {
+    /*
+     * `kind` namespaces the channel exactly as the Redis bus does, so a test
+     * that publishes a hardware event to a run subscription finds nobody
+     * listening — which is the behaviour the real bus has and the reason the
+     * two id spaces cannot bleed into each other.
+     */
+    subscribe(id, kind, listener) {
       if (bus.unavailable) {
         return Promise.reject(new Error('the fake event bus is unavailable'))
       }
-      opened.push(runId)
-      const listeners = channels.get(runId) ?? new Set<RunEventListener>()
+      const channel = kind === 'hardware' ? `hw:${id}` : id
+      opened.push(channel)
+      const listeners = channels.get(channel) ?? new Set<RunEventListener>()
       listeners.add(listener)
-      channels.set(runId, listeners)
+      channels.set(channel, listeners)
       return Promise.resolve(() => {
         listeners.delete(listener)
-        if (listeners.size === 0) channels.delete(runId)
+        if (listeners.size === 0) channels.delete(channel)
       })
     },
 
     publish(event) {
-      const listeners = channels.get(event.runId)
+      const hardware =
+        event.type === 'hardware:status' || event.type === 'hardware:complete'
+      const channel = hardware ? `hw:${event.runId}` : event.runId
+      const listeners = channels.get(channel)
       if (listeners === undefined) return
       for (const listener of [...listeners]) listener(event)
     },

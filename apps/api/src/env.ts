@@ -16,16 +16,18 @@
  *     credential and a validation error is the classic way one ends up in a
  *     crash report.
  *   - **Only the variables this service actually reads are declared.**
- *     `ENCRYPTION_KEY` is still absent, because nothing here uses it yet;
- *     requiring it would refuse to boot over something that cannot break.
- *     `REDIS_URL` arrived with the job queue and is declared **optional**,
- *     which is a deliberate exception argued at its schema entry below.
+ *     `REDIS_URL` arrived with the job queue and is declared **optional**, and
+ *     `ENCRYPTION_KEY` arrived with hardware credentials and is optional for
+ *     the same reason; both exceptions are argued at their schema entries
+ *     below.
  *
  * This module and `server.ts` are the only two allowed to touch
  * `process.env` — enforced by a lint rule in `eslint.config.js`. Everything
  * else receives the `ApiEnv` object this file produces.
  */
 
+import { isEncryptionKey } from '@qsim/db'
+import { DEFAULT_TIMEOUT_MS as DEFAULT_HARDWARE_TIMEOUT_MS } from '@qsim/ibm'
 import {
   DEFAULT_JOB_TIMEOUT_MS,
   DEFAULT_SERVER_QUBITS,
@@ -100,6 +102,12 @@ const HINTS: Record<string, string> = {
   SIMULATION_SYNC_WAIT_MS:
     'how long POST /simulate holds a request open for a small run before ' +
     'answering 202 with a run id instead',
+  ENCRYPTION_KEY:
+    'base64 of 32 random bytes; the AES-256-GCM master key for hardware ' +
+    'credentials (§11). Without it /hardware/* answers 503 and every other ' +
+    'route is unaffected',
+  HARDWARE_TIMEOUT_MS:
+    'how long one call to a hardware provider may take before it is abandoned',
 }
 
 const trustProxySchema = z.string().transform((raw, ctx): TrustProxySetting => {
@@ -238,6 +246,50 @@ const EnvSchema = z.object({
     .min(0)
     .max(30_000)
     .optional(),
+
+  /*
+   * OPTIONAL, FOR THE SAME REASON REDIS_URL IS, AND NOT FOR A WEAKER ONE.
+   *
+   * §11 requires this key to exist wherever hardware credentials are stored,
+   * and it is *required* the moment one is. What it backs is five routes under
+   * `/hardware`, and §3.7 is explicit that hardware is the part of this product
+   * a user brings their own account to — which means most deployments, and
+   * every preview deployment, have nobody using it at all. An API that refused
+   * to boot without it would take the gallery, the editor's persistence and
+   * every sign-in down over a feature nobody on that deployment has touched.
+   *
+   * So a missing key is a boot *warning* and a 503 on `/hardware/*`. What it is
+   * emphatically not is a fallback: there is no default key, no key derived
+   * from another secret, and no path that stores a credential unencrypted. A
+   * seal with no key does not happen; the route answers 503 first.
+   *
+   * The `refine` is not decoration either. Node's base64 decoder silently
+   * ignores characters outside the alphabet, so a key with a typo becomes a
+   * *different, shorter* key — and every credential sealed under it would be
+   * unopenable the moment somebody fixed the typo. Refusing it at boot costs
+   * thirty seconds; discovering it later costs everyone's stored credential.
+   */
+  ENCRYPTION_KEY: z
+    .string()
+    .min(1)
+    .refine(isEncryptionKey, {
+      message: 'expected canonical base64 of exactly 32 bytes',
+    })
+    .optional(),
+
+  /*
+   * Bounded above at thirty seconds for the reason SIMULATION_SYNC_WAIT_MS is:
+   * a call held longer than a platform gateway's patience is a failure the
+   * client cannot distinguish from a crash. Every hardware call this service
+   * makes is metadata — a token exchange, a device listing, a submission — and
+   * none of them is the part that takes hours.
+   */
+  HARDWARE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(30_000)
+    .optional(),
 })
 
 /**
@@ -357,6 +409,17 @@ export interface ApiEnv {
     readonly maxQubits: number
     readonly timeoutMs: number
     readonly syncWaitMs: number
+  }
+  /**
+   * Real hardware (§3.7), or `null` when no master key was configured.
+   *
+   * `null` is a first-class state and not a missing value, exactly like
+   * `queue.redisUrl`: `/hardware/*` answers 503 and everything else works.
+   */
+  readonly hardware: {
+    /** Base64 of the AES-256-GCM master key, or null. Never logged. */
+    readonly encryptionKey: string | null
+    readonly timeoutMs: number
   }
 }
 
@@ -480,6 +543,10 @@ export function loadEnv(source: EnvSource): ApiEnv {
       timeoutMs: env.SIMULATION_TIMEOUT_MS ?? DEFAULT_JOB_TIMEOUT_MS,
       syncWaitMs: env.SIMULATION_SYNC_WAIT_MS ?? DEFAULT_SYNC_WAIT_MS,
     },
+    hardware: {
+      encryptionKey: env.ENCRYPTION_KEY ?? null,
+      timeoutMs: env.HARDWARE_TIMEOUT_MS ?? DEFAULT_HARDWARE_TIMEOUT_MS,
+    },
   }
 }
 
@@ -510,6 +577,14 @@ export function configurationWarnings(env: ApiEnv): string[] {
         'SIMULATION_UNAVAILABLE. Every other route is unaffected — see §4: ' +
         'most simulation happens in the browser and never reaches this ' +
         'process.'
+    )
+  }
+
+  if (env.hardware.encryptionKey === null) {
+    warnings.push(
+      'ENCRYPTION_KEY is not set, so every /hardware route will answer 503. ' +
+        'No credential can be stored without it and none is stored without ' +
+        'encryption — §11 has no weaker mode.'
     )
   }
 

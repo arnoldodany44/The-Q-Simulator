@@ -1,0 +1,137 @@
+{
+  "job": {
+    "title": "Idéal, modélisé et réel",
+    "subtitle": "Le même circuit de trois façons : calculé exactement, prédit sous un modèle de bruit, et mesuré sur {{backend}}.",
+    "loading": "Chargement de l’exécution enregistrée…",
+    "missing": "Cette exécution n’existe pas, ou n’est pas une que vous puissiez lire.",
+    "unavailable": "Cette version n’a pas de serveur, une exécution matérielle enregistrée ne peut donc pas être chargée. Tout ce qui tourne dans cet onglet fonctionne toujours.",
+    "circuitMissing": "Le circuit auquel appartient cette exécution n’a pas pu être chargé, il n’y a donc rien à quoi comparer l’appareil.",
+    "simulating": "Simulation du circuit pour construire les deux premières colonnes…",
+    "simulationFailed": "Le circuit n’a pas pu être simulé dans cet onglet ; seuls les comptages de l’appareil sont disponibles.",
+    "backToCircuit": "Ouvrir le circuit",
+    "circuitChanged": "Ce circuit a été modifié après l’envoi de ce travail : le dessin à l’écran n’est donc pas le programme qu’a exécuté l’appareil. Les colonnes idéale et modélisée ne sont pas affichées : chaque chiffre y serait une soustraction entre deux circuits différents, imprimée là où doit figurer une affirmation sur le matériel. La réponse propre de l’appareil est ci-dessous, intacte."
+  },
+  "status": {
+    "heading": "Rien à comparer pour l’instant",
+    "SUBMITTED": "L’exécution a été créée et part vers {{backend}}.",
+    "QUEUED": "En attente dans la file de {{backend}}. Les appareils réels sont partagés et une file peut faire des heures de profondeur — rien n’est perdu si vous fermez cette page, et le résultat sera là quand il arrivera.",
+    "RUNNING": "{{backend}} exécute le circuit en ce moment.",
+    "CANCELLED": "Cette exécution a été annulée avant de produire un résultat.",
+    "DONE": "Terminée.",
+    "FAILED": "L’exécution n’a pas produit de résultat."
+  },
+  "failure": {
+    "heading": "L’exécution n’a pas produit de résultat",
+    "CREDENTIAL_MISSING": "L’identifiant avec lequel cette exécution était payée a été supprimé, elle n’a donc plus pu être suivie.",
+    "CREDENTIAL_INVALID": "Le fournisseur a refusé la clé d’API. Elle a pu expirer ou être révoquée, ou son instance n’est plus joignable.",
+    "QUOTA_EXHAUSTED": "Le temps quantique du forfait est épuisé. Il revient au changement de période.",
+    "PROVIDER_REFUSED": "Le fournisseur a rejeté le programme. Cela concerne le circuit ou l’appareil, pas la clé.",
+    "PROVIDER_FAILED": "L’appareil a exécuté le circuit et a signalé un échec.",
+    "PROVIDER_UNAVAILABLE": "Le fournisseur n’a pas pu être joint. Celle-ci peut fonctionner si elle est relancée.",
+    "RESULT_UNREADABLE": "L’appareil a terminé et sa réponse n’a pas pu être lue. Le temps quantique a été dépensé et les comptages sont perdus.",
+    "POLL_ABANDONED": "Ce système a cessé de demander après avoir attendu bien plus longtemps que ne devrait prendre n’importe quelle file. Le travail existe peut-être encore dans la console du fournisseur.",
+    "QUEUE_UNAVAILABLE": "L’exécution a été enregistrée mais n’a pas pu être planifiée ; rien n’a donc jamais interrogé le fournisseur à son sujet.",
+    "unknown": "L’exécution a échoué pour une raison à laquelle cette version n’a pas de nom : {{code}}.",
+    "SUBMIT_ABANDONED": "Ce système a tenté d’envoyer le circuit sans jamais savoir si le fournisseur l’avait accepté ; il s’est donc arrêté plutôt que de le renvoyer — un nouvel envoi achèterait une seconde exécution sur l’appareil. Vérifiez la console du fournisseur avant d’en soumettre un autre."
+  },
+  "comparison": {
+    "heading": "Les trois distributions",
+    "lead": "Une seule piste, trois lectures. La barre est la probabilité idéale, avec son phaseur et sa teinte ; chaque repère est là où l’une des deux autres lectures a mis ce résultat, et l’éclat entre les deux est la différence : hors de la barre pour un résultat qui a gagné, taillé dedans pour un qui a perdu.",
+    "column": {
+      "noisy": "Modèle de bruit",
+      "noisyDelta": "Modèle − idéal",
+      "real": "{{backend}}",
+      "realDelta": "Appareil − idéal"
+    },
+    "chart": {
+      "heading": "Idéal, modélisé et mesuré, sur un seul graphique",
+      "summary": "Chaque barre est la probabilité idéale. La bande supérieure d’une barre est la lecture du modèle de bruit, l’inférieure celle de l’appareil ; un graphique n’ayant qu’une bande n’a pas de modèle à côté.",
+      "tableCaption": "Une ligne par état de base : sa probabilité idéale, celle du modèle de bruit, celle de l’appareil, et la différence que chacun fait."
+    },
+    "figure": {
+      "deviceFidelity": "Appareil contre idéal",
+      "deviceMoved": "Probabilité déplacée par l’appareil",
+      "modelFidelity": "Modèle contre idéal",
+      "modelMoved": "Probabilité déplacée par le modèle",
+      "modelVsDevice": "Modèle contre appareil",
+      "shots": "Tirs",
+      "modelVsDeviceMoved": "Probabilité entre modèle et appareil"
+    },
+    "shotNote": "La colonne de l’appareil compte {{shots}} tirs ; chaque chiffre qui en est tiré porte donc une erreur d’échantillonnage d’environ {{typical}}. Une différence plus petite que cela n’est pas une différence.",
+    "modelMissing": "Aucun modèle de bruit n’a été exécuté à côté de ce résultat ; la lecture du milieu est donc absente et le graphique porte deux distributions au lieu de trois.",
+    "modelVsDeviceMissing": "L’exécution bruitée a été échantillonnée plutôt que calculée exactement : elle a produit un décompte des résultats qu’elle a visités et non une distribution sur tous. Modèle contre appareil a besoin de la seconde, et est laissé de côté plutôt que reconstruit à partir du premier.",
+    "modelVsDeviceLead": "C’est le chiffre pour lequel la troisième colonne vaut la peine : il dit à quel point le modèle a prédit la machine, ce qu’aucun des deux autres ne peut faire.",
+    "modelScopeNote": "Le modèle exécute le circuit tel qu’il a été dessiné, avec une cohérence et des erreurs de porte de type transmon. L’appareil a exécuté le programme transpilé ci-dessous, qui compte davantage de portes — le modèle est donc en général l’optimiste, et l’écart entre lui et la troisième colonne est en grande partie ce qu’a coûté la transpilation.",
+    "movement": {
+      "none": "Rien n’a bougé : l’appareil a reproduit exactement la distribution idéale, ce qui, à tout nombre réel de tirs, signifie que les différences sont plus petites que l’erreur d’échantillonnage.",
+      "gainOnly": "{{state}} a gagné {{gain}} sur l’appareil, et rien n’a perdu.",
+      "lossOnly": "{{state}} a perdu {{loss}} sur l’appareil, et rien n’a gagné.",
+      "both": "Sur l’appareil, {{lost}} a le plus perdu, {{loss}}, et {{gained}} a le plus gagné, {{gain}}.",
+      "others": "les résultats que le circuit n’atteint jamais"
+    },
+    "refused": {
+      "heading": "Celles-ci ne peuvent pas être dessinées sur un même graphique",
+      "unmeasured-qubit": "Ce circuit laisse au moins un qubit non mesuré : l’appareil rapporte donc un résumé de l’état et non l’état lui-même. Superposer l’un à l’autre attribuerait à l’erreur matérielle la moitié qui manque.",
+      "unwritten-clbit": "Ce circuit a un bit classique qu’aucune mesure ne remplit : une colonne de la réponse de l’appareil n’est donc le résultat de rien.",
+      "repeated-qubit": "Ce circuit se termine avec un qubit écrit dans deux bits classiques : une chaîne de bits de l’appareil ne nomme donc pas un seul état de base.",
+      "conditioned": "Ce circuit a une porte qui ne s’exécute que pour certains tirs : aucun état idéal unique ne décrit ce qu’a fait l’appareil. Les comptages en restent une mesure ; il n’y a simplement rien à quoi les superposer.",
+      "mid-circuit-measurement": "Ce circuit mesure un qubit puis continue à travailler dessus. L’appareil a effondré ce fil et a poursuivi ; une simulation idéale privée de la mesure garderait une superposition que l’exécution réelle n’a jamais eue, et la différence ressemblerait exactement à une erreur matérielle.",
+      "note": "Les comptages propres de l’appareil sont montrés ci-dessous, intacts.",
+      "noCounts": "L’appareil a terminé et n’a renvoyé aucun tir. Il n’y a rien à comparer et rien n’a été mesuré — ce qui vaut la peine d’être su, car l’exécution a tout de même dépensé du temps quantique.",
+      "circuit-changed": "Le circuit a été modifié après l’envoi de ce travail : aucun état idéal de cette page ne décrit donc ce qu’a exécuté l’appareil.",
+      "register-mismatch": "Les comptages enregistrés ne sont pas indexés par le registre classique déclaré par le programme de ce travail : ils ne peuvent donc pas être superposés au graphique. Ils appartiennent à une autre exécution, ou à une autre version de ce système."
+    },
+    "deviceCounts": {
+      "heading": "Ce que l’appareil a renvoyé",
+      "outcome": "Résultat",
+      "count": "Tirs",
+      "share": "Part"
+    },
+    "modelScopeNoteNamed": "Le modèle exécute le circuit tel qu’il a été dessiné, sous le profil « {{profile}} ». L’appareil a exécuté le programme transpilé ci-dessous, qui compte davantage de portes — le modèle est donc en général l’optimiste, et l’écart entre lui et la troisième colonne est en grande partie ce qu’a coûté la transpilation."
+  },
+  "device": {
+    "heading": "D’où cela vient",
+    "lead": "Un résultat de matériel réel est la mesure d’un objet physique à un instant donné. Voici cet objet et cet instant.",
+    "backend": "Appareil",
+    "jobId": "Travail chez le fournisseur",
+    "shots": "Tirs renvoyés",
+    "submitted": "Soumis",
+    "completed": "Terminé",
+    "wait": "A attendu",
+    "waiting": "attend encore",
+    "calibration": "Étalonnage relevé",
+    "calibrationAge": "Âge de l’étalonnage à la soumission",
+    "quantumSeconds": "Temps de processeur quantique",
+    "layout": "Qubits physiques",
+    "queuePosition": "Position dans la file",
+    "unknown": "non communiqué",
+    "layoutEntry": "qubit {{logical}} → {{physical}}",
+    "queueNote": "La durée d’attente est mesurée à partir des horodatages de cette exécution même. La longueur de file affichée à côté d’un appareil est celle d’aujourd’hui, sur une machine qui a depuis exécuté tout ce qui précédait ce travail : ce n’est donc pas la file dans laquelle ce résultat a attendu.",
+    "calibrationNote": "Les qubits ci-dessus ont été choisis à partir de cet étalonnage. Un appareil est réajusté environ une fois par jour : un étalonnage plus ancien signifie que le placement s’est fait contre une machine qui avait déjà dérivé."
+  },
+  "program": {
+    "heading": "Ce qui a été dessiné, et ce qui a été exécuté",
+    "lead": "Un processeur de cette famille n’a ni Hadamard ni CNOT. Ses portes sont rz, sx, x, id, cz, rx et rzz : chaque porte dessinée en devient donc plusieurs — et chacune est une occasion pour l’état de se dégrader. C’est de là que vient la différence de la troisième colonne.",
+    "drawn": "Dessiné",
+    "executed": "Exécuté sur {{backend}}",
+    "gates": "Portes",
+    "measurements": "Mesures",
+    "qubits": "Qubits",
+    "growth_one": "{{drawn}} porte dessinée en est devenue {{executed}} sur l’appareil.",
+    "growth_other": "{{drawn}} portes dessinées en sont devenues {{executed}} sur l’appareil.",
+    "growthFactor": "{{factor}}× plus d’opérations.",
+    "growthNone": "L’appareil n’a pas exécuté plus de portes qu’il n’en a été dessiné, ce qui arrive quand le circuit était déjà écrit dans la base propre de la machine.",
+    "cost": {
+      "heading": "Elles ne coûtent pas toutes la même chose",
+      "frame": "Changements de repère",
+      "pulse": "Impulsions",
+      "entangling": "Intricantes",
+      "other": "Autres",
+      "note": "Un changement de repère est un réétiquetage dans l’électronique de commande : aucune impulsion n’est jouée, cela ne prend donc pas de temps et n’ajoute pas d’erreur. Une impulsion est une vraie excitation micro-onde, avec un vrai taux d’erreur. Une porte intricante est un à deux ordres de grandeur pire qu’une impulsion, et sur presque tout circuit c’est là que part réellement la fidélité."
+    },
+    "notFlat": "Le programme enregistré contient des définitions de portes, ce qu’un programme soumis n’a jamais. Les comptages ci-dessus sont des appels et non les opérations qui se trouvent derrière : ils sont donc sous-estimés.",
+    "source": "Le programme qui a été soumis",
+    "sourceNote": "OpenQASM 3 sur les qubits propres de l’appareil — $53 est le qubit physique 53, pas un fil du dessin. Voici le texte enregistré, exactement tel qu’il a été envoyé.",
+    "sourceLabel": "L’OpenQASM 3 envoyé, défilant"
+  }
+}

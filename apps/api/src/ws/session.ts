@@ -99,8 +99,8 @@ import type {
   SocketCloseCode,
   SocketErrorCode,
 } from '@qsim/contract'
-import { isTerminalStatus } from '@qsim/jobs'
-import type { RunEvent, RunStatus } from '@qsim/jobs'
+import { isTerminalHardwareStatus, isTerminalStatus } from '@qsim/jobs'
+import type { HardwareStatus, RunEvent, RunStatus } from '@qsim/jobs'
 
 /**
  * How long an authorisation decision is trusted before it is asked again.
@@ -135,13 +135,31 @@ export const IDLE_TIMEOUT_MS = 120_000
  */
 export const MAX_PROTOCOL_VIOLATIONS = 5
 
-/** A run as this session needs to see it: its status, and nothing else. */
+/**
+ * What a socket may watch.
+ *
+ * Two kinds, one subscription mechanism. A client subscribes to an **id**; what
+ * kind of thing that id names is decided *here*, when the subscription is
+ * authorised, and is then evident to the client from the status that comes back
+ * — SUBMITTED and CANCELLED exist only for hardware.
+ *
+ * That is deliberately not a second `subscribe` frame. A second frame would
+ * have meant a second ceiling, a second authorisation path, a second ordering
+ * guard and a second delivery chain, all to carry the same sentence: "you are
+ * now watching this, and here is where it had got to". The two lifecycles
+ * differ in their *statuses*, not in what watching one means.
+ */
+export type WatchKind = 'run' | 'hardware'
+
+/** A watchable as this session needs it: its kind, its status, nothing else. */
 export interface ReadableRun {
-  readonly status: RunStatus
+  readonly kind: WatchKind
+  readonly status: RunStatus | HardwareStatus
 }
 
 export type SubscribePort = (
-  runId: string,
+  id: string,
+  kind: WatchKind,
   listener: (event: RunEvent) => void
 ) => Promise<() => void>
 
@@ -178,6 +196,24 @@ export interface SocketSessionPorts {
     viewerId: string | null
   ) => Promise<ReadableRun | null>
   /**
+   * The hardware job this id names, if this viewer may read it — §11 applied in
+   * the query, exactly as `GET /hardware/jobs/:id` applies it.
+   *
+   * Asked only when `readRun` answered null, so an id is a run first and a
+   * hardware job second. The order costs one extra read on a hardware
+   * subscription and keeps the far commoner case at one query; it is safe in
+   * either order because both reads are scoped to the same viewer, and the two
+   * id spaces are separate tables — a value in one is never a value in the
+   * other.
+   *
+   * `null` when no hardware is configured on this deployment, which is a
+   * supported state (see `plugins/hardware.ts`) and produces the same
+   * `NOT_FOUND` a stranger's job would.
+   */
+  readonly readHardwareJob:
+    | ((jobId: string, viewerId: string | null) => Promise<ReadableRun | null>)
+    | null
+  /**
    * Starts delivering a run's events, or `null` when no queue is configured.
    *
    * `null` is a supported state and not a missing port: it is the
@@ -210,6 +246,7 @@ export interface SocketSession {
 
 interface Subscription {
   readonly runId: string
+  readonly kind: WatchKind
   release: () => void
   /** When authorisation was last confirmed, in this process's clock. */
   checkedAt: number
@@ -334,10 +371,29 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
     // be cached for two more seconds, it is the end of this socket's authority.
     if (credentialExpired()) return false
     if (now - subscription.checkedAt < AUTHORISATION_TTL_MS) return true
-    const run = await ports.readRun(subscription.runId, viewerId)
-    if (run === null) return false
+    /*
+     * Re-checked against the table the subscription was authorised on, and not
+     * against both. Falling back to the other one would let a subscription
+     * survive by matching a *different* row that happened to share the id —
+     * where the whole point of the re-check is that this exact row is still
+     * readable by this viewer.
+     */
+    const still =
+      subscription.kind === 'run'
+        ? await ports.readRun(subscription.runId, viewerId)
+        : ports.readHardwareJob === null
+          ? null
+          : await ports.readHardwareJob(subscription.runId, viewerId)
+    if (still === null) return false
     subscription.checkedAt = now
     return true
+  }
+
+  /** Whether a status of either lifecycle is one nothing leaves. */
+  function terminal(status: RunStatus | HardwareStatus): boolean {
+    return status === 'SUBMITTED' || status === 'CANCELLED'
+      ? isTerminalHardwareStatus(status)
+      : isTerminalStatus(status)
   }
 
   function frameFor(event: RunEvent): ServerFrame | null {
@@ -362,6 +418,20 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
           runId: event.runId,
           status: event.status,
           durationMs: event.durationMs,
+          error: event.error,
+        }
+      case 'hardware:status':
+        return {
+          type: 'hardware:status',
+          runId: event.runId,
+          status: event.status,
+          queuePosition: event.queuePosition,
+        }
+      case 'hardware:complete':
+        return {
+          type: 'hardware:complete',
+          runId: event.runId,
+          status: event.status,
           error: event.error,
         }
       default:
@@ -409,6 +479,24 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
     // itself, which is the one comparison it is valid for.
     if (event.at < subscription.deliveredAt) return
 
+    /*
+     * A hardware event on a run's subscription, or the reverse. The channels
+     * are separately namespaced so this is unreachable through Redis routing;
+     * it is checked anyway because the *authorisation* was decided about one
+     * row, and a frame of the other kind would be a frame about something this
+     * socket was never granted.
+     */
+    const hardwareEvent =
+      event.type === 'hardware:status' || event.type === 'hardware:complete'
+    if (hardwareEvent !== (subscription.kind === 'hardware')) {
+      ports.log(
+        'warn',
+        { runId: subscription.runId, published: event.type },
+        'an event of the wrong kind arrived on a subscription'
+      )
+      return
+    }
+
     if (!(await stillAllowed(subscription))) {
       ports.log(
         'info',
@@ -425,7 +513,7 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
     subscription.deliveredAt = event.at
     ports.send(frame)
 
-    if (event.type === 'run:complete') {
+    if (event.type === 'run:complete' || event.type === 'hardware:complete') {
       // Nothing more will ever be published on this channel, so the Redis
       // subscription is released here rather than waiting for a client that
       // may simply close the tab.
@@ -463,7 +551,16 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
       return
     }
 
-    const run = await ports.readRun(runId, viewerId)
+    /*
+     * A run first, a hardware job second. The order is the common case first
+     * and nothing more: both reads apply §11 in the query against the same
+     * viewer, so neither can answer for a row the other should have refused.
+     */
+    const run =
+      (await ports.readRun(runId, viewerId)) ??
+      (ports.readHardwareJob === null
+        ? null
+        : await ports.readHardwareJob(runId, viewerId))
     if (run === null) {
       // 404 and never 403, for the reason every read in this API does it: 403
       // would confirm that the run exists.
@@ -484,7 +581,7 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
       return
     }
 
-    if (isTerminalStatus(run.status)) {
+    if (terminal(run.status)) {
       /*
        * Nothing will ever be published for a finished run, so no channel is
        * opened. The `subscribed` frame still goes out carrying the terminal
@@ -504,6 +601,7 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
 
     const subscription: Subscription = {
       runId,
+      kind: run.kind,
       release: () => undefined,
       checkedAt: ports.now(),
       deliveredAt: 0,
@@ -517,7 +615,7 @@ export function createSocketSession(ports: SocketSessionPorts): SocketSession {
 
     let release: () => void
     try {
-      release = await open(runId, (event) => {
+      release = await open(runId, run.kind, (event) => {
         subscription.queued += 1
         subscription.chain = subscription.chain.then(() =>
           deliver(subscription, event)

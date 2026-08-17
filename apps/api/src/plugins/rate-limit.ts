@@ -1,12 +1,19 @@
 /**
- * Rate limiting per IP *and* per user (§11).
+ * Rate limiting per IP, per user *and* per API key (§11, §3.5).
  *
  * The key is the whole design. Limiting by IP alone punishes everyone behind
  * a university NAT and does nothing about one account driving a script.
  * Limiting by user alone leaves anonymous traffic — the gallery, the landing
  * page, every unauthenticated probe — unbounded. So an authenticated request
  * is counted against its `sub` and an anonymous one against its address, and
- * the two namespaces are prefixed so they can never collide.
+ * the namespaces are prefixed so they can never collide.
+ *
+ * A request authenticated by an API key is counted against **the key** rather
+ * than against the account that owns it, because a key *is* an identity: it is
+ * one script, on one machine, doing one thing, and it is the unit somebody can
+ * actually revoke. Folding it into the owner's budget would let a looping cron
+ * job lock its author out of their own browser session, and would make a 429
+ * name an account instead of the row that caused it.
  *
  * `request.auth` is populated by the auth plugin's `onRequest` hook, which
  * is why this plugin must be registered *after* it and why enforcement comes
@@ -60,6 +67,22 @@ export function strictRateLimit(env: ApiEnv): {
 }
 
 function keyFor(request: FastifyRequest): string {
+  /*
+   * An API key is its own identity and gets its own budget (§3.5) — keyed on
+   * the key's id and not on the account behind it. That is the whole point of
+   * the field: a script holding one key must not be able to exhaust the
+   * allowance of the person's browser session, and two scripts holding two
+   * keys must not throttle each other. It is also what makes a runaway job
+   * diagnosable: the 429s name a row somebody can revoke, rather than an
+   * account with six keys and no way to tell which one is looping.
+   *
+   * Checked before `auth` because the two are mutually exclusive and this one
+   * is the more specific fact. Prefixed like the others so the three
+   * namespaces can never collide.
+   */
+  const key = request.apiKey
+  if (key !== null) return `key:${key.keyId}`
+
   const identity = request.auth
   // Prefixed so that a user id can never be mistaken for an address, and so
   // a signed-in user carries their budget across networks instead of

@@ -119,6 +119,26 @@ export const accountKeys = {
     [...accountKeys.all, 'profile', username] as const,
 } as const
 
+/**
+ * The caller's API keys (§3.5), under their own root rather than beneath
+ * `account`.
+ *
+ * They are not part of the account row and they change for different reasons:
+ * renaming yourself invalidates `account` and every byline in the gallery, and
+ * has nothing whatever to say about which credentials exist. Nesting them
+ * would make every profile save refetch a list of credentials, which is both
+ * pointless and the sort of request that looks alarming in a log.
+ *
+ * There is deliberately no `detail(id)`. A single key is never fetched: no
+ * route returns one on its own, the listing carries everything there is, and a
+ * key-shaped cache entry would be the first place somebody tried to keep a
+ * secret that must not survive its own response.
+ */
+export const apiKeyKeys = {
+  all: ['api-keys'] as const,
+  list: () => [...apiKeyKeys.all, 'list'] as const,
+} as const
+
 export const collectionKeys = {
   all: ['collections'] as const,
 
@@ -180,6 +200,30 @@ export const lessonKeys = {
  * different answers to different questions, and serving one under the other's
  * address would silently truncate a page the reader asked to expand.
  */
+/**
+ * Hardware jobs (§3.7), under a root of their own.
+ *
+ *     ['hardware','job',id]    one stored job, with its program and its result
+ *
+ * Separate from `circuits` even though a job belongs to a circuit, and the
+ * reason is what invalidation would cost in the other direction: every save of
+ * a circuit fires `invalidateQueries({ queryKey: circuitKeys.detail(handle) })`,
+ * and a job nested beneath that key would be refetched by an edit — while the
+ * job itself is **immutable once it is DONE**. Editing the document cannot
+ * change what a device measured yesterday, and a page that refetched the
+ * measurement because somebody moved a gate would be claiming otherwise.
+ *
+ * There is no listing key here, because this milestone's route reads one job by
+ * id. A `['hardware','jobs',…]` sits naturally beneath `all` when a listing
+ * arrives.
+ */
+export const hardwareKeys = {
+  all: ['hardware'] as const,
+
+  jobs: () => [...hardwareKeys.all, 'job'] as const,
+  job: (id: string) => [...hardwareKeys.jobs(), id] as const,
+} as const
+
 export const challengeKeys = {
   all: ['challenges'] as const,
 

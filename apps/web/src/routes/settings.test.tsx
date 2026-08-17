@@ -99,8 +99,32 @@ function accountPayload(overrides: Record<string, unknown> = {}) {
   }
 }
 
+/**
+ * Requests this file is not about, filtered out of the ledger.
+ *
+ * The screen also lists the account's API keys (§3.5), which is a second
+ * request on mount and would otherwise shift every positional assertion below
+ * by one — and, worse, would make "one request, and it is the one that loaded
+ * the account" quietly mean something else. Filtering by URL keeps each
+ * assertion about the thing its test names.
+ */
+function accountCalls<Call extends { url: string }>(transport: {
+  calls: readonly Call[]
+}): readonly Call[] {
+  return transport.calls.filter((call) => !call.url.includes('/api-keys'))
+}
+
+/**
+ * `responses` is the queue for the *account* requests, in order.
+ *
+ * The empty key listing is spliced in behind the first entry because that is
+ * where it lands: `ApiKeysSection` only mounts once `GET /me` has resolved, so
+ * the order is deterministic and every test can go on describing the requests
+ * it actually cares about.
+ */
 function mount(responses: readonly unknown[]) {
-  const transport = stubFetch(responses)
+  const [account, ...rest] = responses
+  const transport = stubFetch([account, jsonResponse({ apiKeys: [] }), ...rest])
   const client = createApiClient({
     baseUrl: TEST_BASE_URL,
     fetch: transport.fetch,
@@ -158,7 +182,7 @@ describe('the settings screen', () => {
     // One request, and it is the one that loaded the account. Typing must not
     // become a lookup — see the header.
     await waitFor(() => {
-      expect(transport.calls).toHaveLength(1)
+      expect(accountCalls(transport)).toHaveLength(1)
     })
   })
 
@@ -295,9 +319,9 @@ describe('the settings screen', () => {
     fireEvent.click(destroy)
 
     await waitFor(() => {
-      expect(transport.calls).toHaveLength(1)
+      expect(accountCalls(transport)).toHaveLength(1)
     })
-    expect(transport.calls[0]?.init?.method).toBe('GET')
+    expect(accountCalls(transport)[0]?.init?.method).toBe('GET')
   })
 
   it('reports what a deletion actually destroyed', async () => {
@@ -332,7 +356,7 @@ describe('the settings screen', () => {
     expect(
       await screen.findByText('Removed 12 circuits and 2 collections.')
     ).toBeTruthy()
-    expect(transport.calls[1]?.init?.method).toBe('DELETE')
+    expect(accountCalls(transport)[1]?.init?.method).toBe('DELETE')
   })
 
   it('keeps the confirmation on screen after the sign-out it causes', async () => {

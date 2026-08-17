@@ -80,9 +80,14 @@
  * and `runNoisyDensity()` accepts every circuit analytic mode accepts.
  */
 
-import { apply1q, applyControlled, applyISwap, applySwap } from './apply.js'
+import { apply1q } from './apply.js'
 import type { ControlSpec } from './apply.js'
 import { formatKet } from './conventions.js'
+import {
+  acceleratedApplyControlled,
+  acceleratedApplyISwap,
+  acceleratedApplySwap,
+} from './kernel.js'
 import {
   alloc as densityAlloc,
   applyControlled as densityApplyControlled,
@@ -1075,10 +1080,20 @@ interface GateBackend<S> {
   readonly applyISwap: (state: S, q0: number, q1: number) => void
 }
 
+/*
+ * The statevector backend goes through `kernel.ts` rather than straight at
+ * `apply.ts`, so that the optional WASM accelerator of §5.6 has somewhere to
+ * attach. With nothing installed — the default everywhere — each of these is
+ * one `undefined` check in front of the same call this object used to hold.
+ *
+ * The density backend does not: ρ is 4ⁿ entries and the noise mode is capped
+ * far below where an accelerator would pay for itself, so there is no WASM
+ * path for it to consult and a seam would be dead weight on the hot loop.
+ */
 const STATEVECTOR_GATES: GateBackend<Statevector> = {
-  applyControlled,
-  applySwap,
-  applyISwap,
+  applyControlled: acceleratedApplyControlled,
+  applySwap: acceleratedApplySwap,
+  applyISwap: acceleratedApplyISwap,
 }
 
 const DENSITY_GATES: GateBackend<DensityMatrix> = {

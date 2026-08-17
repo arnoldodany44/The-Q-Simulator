@@ -1,0 +1,29 @@
+{
+  "extends": "@qsim/config/tsconfig/lib.json",
+  "compilerOptions": {
+    /*
+     * `DOM` is in scope here and deliberately not in `@qsim/core`'s.
+     *
+     * This package is the one that touches `WebAssembly`, whose type
+     * declarations live in TypeScript's DOM library even though the API is a
+     * host primitive rather than a browser one — it exists identically in
+     * Node. Nothing else from `DOM` is used, and the boundary that matters is
+     * unchanged: `@qsim/core` still compiles with `"types": []` and no DOM at
+     * all, which is what keeps the engine portable (§12.3). Widening it here
+     * cannot widen it there, because a consumer resolves `@qsim/core` through
+     * its own declarations.
+     */
+    "lib": ["ES2022", "DOM"],
+
+    /*
+     * Same relaxation as `@qsim/core`, for the same reason and with the same
+     * containment: `reference-exports.ts` walks Float64Array in 2ⁿ loops
+     * where every index is in range by construction, and a non-null assertion
+     * on each line would add noise rather than safety. Consumers resolve this
+     * package through the declarations emitted by tsconfig.build.json and
+     * keep the check on for their own code.
+     */
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*", "vitest.config.ts", "vitest.perf.config.ts"]
+}

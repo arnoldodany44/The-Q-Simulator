@@ -224,12 +224,24 @@ importers:
       '@qsim/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@qsim/ibm':
+        specifier: workspace:*
+        version: link:../../packages/ibm
       '@qsim/jobs':
         specifier: workspace:*
         version: link:../../packages/jobs
+      '@qsim/logging':
+        specifier: workspace:*
+        version: link:../../packages/logging
+      '@qsim/qasm':
+        specifier: workspace:*
+        version: link:../../packages/qasm
       '@qsim/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@qsim/transpile':
+        specifier: workspace:*
+        version: link:../../packages/transpile
       bullmq:
         specifier: 'catalog:'
         version: 6.1.1(ioredis@5.11.1(supports-color@7.2.0))(pg@8.23.0)
@@ -406,12 +418,24 @@ importers:
       '@qsim/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@qsim/ibm':
+        specifier: workspace:*
+        version: link:../../packages/ibm
       '@qsim/jobs':
         specifier: workspace:*
         version: link:../../packages/jobs
+      '@qsim/logging':
+        specifier: workspace:*
+        version: link:../../packages/logging
+      '@qsim/qasm':
+        specifier: workspace:*
+        version: link:../../packages/qasm
       '@qsim/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@qsim/transpile':
+        specifier: workspace:*
+        version: link:../../packages/transpile
       bullmq:
         specifier: 'catalog:'
         version: 6.1.1(ioredis@5.11.1(supports-color@7.2.0))(pg@8.23.0)
@@ -533,6 +557,31 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0))
 
+  packages/ibm:
+    dependencies:
+      '@qsim/transpile':
+        specifier: workspace:*
+        version: link:../transpile
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@qsim/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      eslint:
+        specifier: 'catalog:'
+        version: 10.8.1(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0))
+
   packages/jobs:
     dependencies:
       '@qsim/core':
@@ -544,6 +593,21 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.4.3
+    devDependencies:
+      '@qsim/config':
+        specifier: workspace:*
+        version: link:../config
+      eslint:
+        specifier: 'catalog:'
+        version: 10.8.1(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0))
+
+  packages/logging:
     devDependencies:
       '@qsim/config':
         specifier: workspace:*
@@ -598,11 +662,58 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0))
 
+  packages/qsim-wasm:
+    dependencies:
+      '@qsim/core':
+        specifier: workspace:*
+        version: link:../qsim
+    devDependencies:
+      '@qsim/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      eslint:
+        specifier: 'catalog:'
+        version: 10.8.1(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0))
+
   packages/schema:
     dependencies:
       zod:
         specifier: 'catalog:'
         version: 4.4.3
+    devDependencies:
+      '@qsim/config':
+        specifier: workspace:*
+        version: link:../config
+      eslint:
+        specifier: 'catalog:'
+        version: 10.8.1(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0))
+
+  packages/transpile:
+    dependencies:
+      '@qsim/core':
+        specifier: workspace:*
+        version: link:../qsim
+      '@qsim/qasm':
+        specifier: workspace:*
+        version: link:../qasm
+      '@qsim/schema':
+        specifier: workspace:*
+        version: link:../schema
     devDependencies:
       '@qsim/config':
         specifier: workspace:*

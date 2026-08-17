@@ -40,6 +40,29 @@ export const API_ERROR_CODES = [
   // 403 — we know who you are, and no
   'FORBIDDEN',
   'USER_EMAIL_REQUIRED',
+  /*
+   * 403 — the API key verified, and it does not carry the scope this route
+   * asked for (§3.5).
+   *
+   * Its own code because the fix is specific and cheap: mint a key with the
+   * missing scope. `FORBIDDEN` would send the same holder looking for a
+   * permission problem on their *account*, which is never what this is — a key
+   * can do no more than its user and this says it is doing less on purpose.
+   * The `details` name the scope that was required.
+   */
+  'API_KEY_SCOPE_REQUIRED',
+  /*
+   * 403 — a valid API key on a route no key may ever reach.
+   *
+   * Kept apart from the code above, and the distinction is the whole reason
+   * both exist: that one is answered by minting a better key, and this one is
+   * answered by *not using a key at all*. Key management and hardware are the
+   * two surfaces behind it — a key that could mint keys would outlive its own
+   * revocation, and a key that could submit a hardware job would spend an
+   * allowance that does not refill (risk 4). Telling a caller to widen their
+   * scopes here would send them round a loop with no exit.
+   */
+  'API_KEY_NOT_ACCEPTED',
   // 404 — including "exists, but not yours to see"
   'NOT_FOUND',
   // 4xx — the request itself
@@ -60,6 +83,15 @@ export const API_ERROR_CODES = [
   /** 409 — the collection already holds `MAX_COLLECTION_ITEMS` circuits. */
   'COLLECTION_FULL',
   /*
+   * 409 — the account already holds `MAX_ACTIVE_API_KEYS` unrevoked keys.
+   *
+   * A 409 and not a 403: nothing about the request was wrong and nobody is
+   * forbidden anything — the resource is in a state that refuses another one,
+   * and the move is to revoke a key that is no longer in use. The same shape
+   * as `COLLECTION_FULL`, for the same reason.
+   */
+  'API_KEY_LIMIT_REACHED',
+  /*
    * 413 — the circuit is past a §11 resource limit for a *server run*: the
    * qubit ceiling, the operation count, the shot count, or the work budget the
    * wall-clock bound implies.
@@ -72,6 +104,46 @@ export const API_ERROR_CODES = [
    * text describes it.
    */
   'SIMULATION_TOO_LARGE',
+  /*
+   * 422 — the circuit cannot be run on this device at all. §3.7, Phase 4.
+   *
+   * Its own code and not VALIDATION_FAILED, because the request was perfectly
+   * valid: the circuit is real, the backend exists, and the answer is still no.
+   * A Heron processor couples 1.46 % of the pairs a drawn circuit assumes, so
+   * the ordinary refusal is "no placement exists in which every interacting
+   * pair is genuinely wired together" — which is a fact about the machine and
+   * is answered by drawing a shallower circuit or choosing another device,
+   * never by fixing the request. The `details` carry what the circuit needed
+   * and what the device has.
+   */
+  'HARDWARE_UNRUNNABLE',
+  /*
+   * 502 — the provider refused, and it is about the credential.
+   *
+   * The one hardware failure the *user* can act on: their IBM Cloud API key
+   * expired, was revoked, or the CRN names an instance it cannot reach. Kept
+   * apart from every other provider failure precisely because the response is
+   * different — this one says "go and re-enter your key", and the others say
+   * "wait".
+   */
+  'HARDWARE_CREDENTIAL_REJECTED',
+  /*
+   * 502 — the provider could not be reached, or answered with something this
+   * build does not understand. Retryable, and about them rather than about the
+   * caller.
+   */
+  'HARDWARE_UNAVAILABLE',
+  /*
+   * 402 — the plan's QPU allowance is spent.
+   *
+   * Its own code because it is neither a permission problem nor a rate limit,
+   * and telling somebody "you are not allowed" when the truth is "your ten
+   * minutes are gone until the period rolls over" sends them to fix a thing
+   * that is not broken. The Open Plan grants ten minutes per twenty-eight days
+   * and does not refill on request (risk 4), so this is a state a real user
+   * reaches.
+   */
+  'HARDWARE_QUOTA_EXHAUSTED',
   'RATE_LIMITED',
   // 5xx — us
   'USERNAME_UNAVAILABLE',

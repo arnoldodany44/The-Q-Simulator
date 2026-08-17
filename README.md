@@ -49,9 +49,26 @@ packages/schema     @qsim/schema   — circuit JSON contract, Zod validators
 packages/contract   @qsim/contract — REST wire contract, shared by web and api
 packages/jobs       @qsim/jobs     — queue contract, shared by api and worker
 packages/qasm       @qsim/qasm     — OpenQASM 3, Qiskit and JSON serialisers
+packages/transpile  @qsim/transpile— circuit → device: native basis, placement
 packages/db         @qsim/db       — Prisma schema, migrations, client singleton
 packages/config     @qsim/config   — shared ESLint and TypeScript config
+packages/qsim-wasm  @qsim/wasm     — optional Rust/WASM accelerator (§5.6 ph. 2)
 ```
+
+`packages/qsim-wasm` is an **accelerator, not a dependency**. The arrow points
+one way: it imports `@qsim/core` and attaches through the `StatevectorKernel`
+seam in `qsim/src/kernel.ts`; the engine never reaches back, and CI enforces
+that. Delete the package and nothing changes but speed. The statevector lives
+in WebAssembly linear memory and JavaScript holds views onto it — at 20 qubits
+copying the state across the boundary per gate would cost more than the gate —
+and a kernel is proved to reproduce `apply.ts` before it is ever installed. If
+it ever disagrees, `apply.ts` is right by definition and the kernel is disabled.
+
+Building the `.wasm` needs a Rust toolchain and is **opt-in**
+(`pnpm --filter @qsim/wasm build:wasm`); the artifact is compiled in CI. A
+checkout without Rust builds, tests and runs everything — the engine simply
+uses the TypeScript kernel, which is phase 1 of the performance plan and
+complete on its own.
 
 `packages/qsim` and `packages/schema` are consumed by both the client and (from
 Phase 1) the server, and must stay a single implementation: the client
@@ -109,6 +126,26 @@ is namespaced by `QUEUE_PREFIX` and the live-instance suite is behind
 `QSIM_QUEUE_INTEGRATION=1` — it writes under a unique prefix, deletes exactly
 what it wrote, and there is no `FLUSHALL` anywhere in this repository.
 
+`packages/transpile` is what stands between a circuit somebody drew and the
+machine that exists. A Heron processor has no H and no CNOT — its basis is
+`cz, id, rx, rz, rzz, sx, x` — and it couples 176 pairs of its 156 qubits,
+1.46 % of the wiring a drawn circuit assumes. So the package does two things.
+It **decomposes**: every gate in the catalog rewritten into `rz, sx, x, id, cz`,
+each construction derived in a comment and multiplied out against `@qsim/core`
+up to global phase, exhaustively over the catalog rather than over a sample.
+And it **places**: logical qubits mapped onto physical ones that are genuinely
+adjacent, preferring the pairs the live calibration says are quiet — a real
+difference, because on that chip the best two-qubit pair is three and a half
+times better than the median and seven pairs report an error of exactly 1.
+
+When a circuit does not fit, it **refuses and says why**, rather than inserting
+SWAPs. A SWAP is three CNOTs, each the noisiest instruction the device has, so
+a router that needs a handful of them turns a demonstration into a histogram of
+noise and tells nobody. A Toffoli makes its three qubits interact pairwise; the
+shortest cycle anywhere on a heavy-hex lattice is twelve qubits long. That is a
+true and useful thing to learn about the NISQ era, and it is what the refusal
+says, with both numbers in it.
+
 `packages/db` is server-only and the browser never imports it. Its client is
 generated from `prisma/schema.prisma` into `src/generated/`, which is
 gitignored: `pnpm install` regenerates it, and so does any turbo task that
@@ -154,6 +191,13 @@ production ones and only the signing key is local.
 | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | [`docs/especificacion.md`](docs/especificacion.md)   | Full technical specification — scope, architecture, simulation engine, data model, API, design system |
 | [`docs/plan-de-trabajo.md`](docs/plan-de-trabajo.md) | Execution plan — milestones, dependency graph, definitions of done, blockers                          |
+| [`docs/api.md`](docs/api.md)                         | The public REST API (§3.5) — **generated** from the Zod schemas in `@qsim/contract`; do not hand-edit |
+
+`docs/api.md` is rendered by `packages/contract/src/reference.ts` and held to
+the schemas by a file snapshot in `openapi.test.ts`, so changing a request or a
+response fails the suite until the reference is regenerated with
+`pnpm --filter @qsim/contract test -u`. The same schemas are served live as
+OpenAPI 3.1 at `GET /api/v1/openapi.json`.
 
 ## Frozen conventions
 
@@ -178,6 +222,8 @@ Internal design documents under `docs/` are in **Spanish**.
 - Node.js 22.12+ (developed on 24.19)
 - pnpm 11 (via `corepack enable pnpm`)
 - Docker (from Phase 2, for local Redis)
+- Rust 1.84 + wasm-pack — **optional**, only to build `@qsim/wasm`'s artifact
+  yourself. Nothing in `pnpm verify` needs it.
 
 Dependency versions live in the pnpm catalog in `pnpm-workspace.yaml`, not in
 individual `package.json` files. Upgrade in one place.

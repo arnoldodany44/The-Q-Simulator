@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  /*
+   * `src/testing/` holds recorded answers from the live service. They are
+   * fixtures for this package's own suites and for the API's, never something
+   * production code may reach: a recorded calibration is stale the moment it is
+   * written down, and a device chosen from one would be chosen from a lie.
+   */
+  "exclude": ["src/**/*.test.ts", "src/testing/**"]
+}
