@@ -7330,3 +7330,21 @@ td.histogram__delta--loss {
 .density__grid-table td.density__number {
   text-align: right;
 }
+
+/*
+ * The confirmation an import leaves behind, which is announced and not shown:
+ * what a sighted reader wants is the circuit on the canvas, and the dialog
+ * closing is what reveals it. This is the same visually-hidden recipe as
+ * `.circuit-editor__status` uses while empty, and for the same reason — the
+ * element has to stay in the accessibility tree to be announced at all.
+ */
+.toolbar-overflow__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

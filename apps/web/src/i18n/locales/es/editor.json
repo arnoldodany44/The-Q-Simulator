@@ -100,7 +100,8 @@
       "paste": "Coloca en el cursor las compuertas copiadas.",
       "remove": "Elimina las compuertas seleccionadas.",
       "compact": "Empuja cada compuerta lo más a la izquierda que pueda ir y cierra las columnas vacías."
-    }
+    },
+    "imported": "El circuito se leyó y ya está en el lienzo."
   },
   "placement": {
     "pickTarget": "necesita otro qubit objetivo en esta columna. Mueve el cursor y pulsa Intro.",

@@ -103,6 +103,48 @@ describe('the toolbar overflow', () => {
   })
 })
 
+describe('a successful read gets out of the way', () => {
+  it('closes the dialog, because it was covering the circuit it just loaded', () => {
+    // The defect this asserts against was reported twice as "the button does
+    // nothing": the import worked every time and the dialog stayed in front of
+    // the canvas, which is the only evidence a reader has that it worked.
+    const store = openDialog()
+    const dialog = screen.getByRole('dialog')
+    const box = dialog.querySelector('textarea')
+    fireEvent.change(box as HTMLTextAreaElement, { target: { value: BELL } })
+    fireEvent.click(screen.getByRole('button', { name: enImport.action }))
+
+    expect(store.getState().circuit.operations).toHaveLength(2)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('leaves the dialog open when the read failed', () => {
+    // The sentence naming the line and the box holding that line are only
+    // useful together.
+    openDialog()
+    const dialog = screen.getByRole('dialog')
+    const box = dialog.querySelector('textarea')
+    fireEvent.change(box as HTMLTextAreaElement, {
+      target: { value: 'this is not a circuit in any format' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: enImport.action }))
+
+    expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  it('announces the import outside the dialog, which is now gone', () => {
+    openDialog()
+    const dialog = screen.getByRole('dialog')
+    const box = dialog.querySelector('textarea')
+    fireEvent.change(box as HTMLTextAreaElement, { target: { value: BELL } })
+    fireEvent.click(screen.getByRole('button', { name: enImport.action }))
+
+    // The panel's own live region left with the dialog, so a reader who cannot
+    // see the canvas would otherwise be told nothing.
+    expect(screen.getByText(enEditor.toolbar.imported)).toBeTruthy()
+  })
+})
+
 describe('the dialog is wired to the document it was given', () => {
   it('loads a pasted program into the store the menu was handed', () => {
     // The assertion that would have caught a dialog rendering its own store, or

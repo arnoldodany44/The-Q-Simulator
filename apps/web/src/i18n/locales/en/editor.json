@@ -100,7 +100,8 @@
       "paste": "Places the copied gates at the cursor.",
       "remove": "Deletes the selected gates.",
       "compact": "Pulls every gate as far left as it will go, closing the empty columns."
-    }
+    },
+    "imported": "The circuit was read and is now on the canvas."
   },
   "placement": {
     "pickTarget": "needs another target qubit in this column. Move the cursor and press Enter.",

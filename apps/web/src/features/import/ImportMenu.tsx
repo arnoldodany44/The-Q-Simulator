@@ -48,6 +48,17 @@ export function ImportMenu({ store }: ImportMenuProps) {
   const { t } = useTranslation(['editor', 'import'])
   const [menuOpen, setMenuOpen] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  /*
+   * Counts successful imports, so the live region below can announce each one.
+   *
+   * The panel's own status line goes with the dialog when it closes, and a
+   * reader who cannot see the canvas would otherwise be told nothing at all —
+   * the dialog would simply vanish. Keyed on a count rather than a boolean for
+   * the reason `CircuitEditor`'s status line is: two identical announcements in
+   * a row leave the text node untouched, and a live region that did not change
+   * says nothing.
+   */
+  const [announcement, setAnnouncement] = useState(0)
   const container = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
 
@@ -121,6 +132,16 @@ export function ImportMenu({ store }: ImportMenuProps) {
         </div>
       ) : null}
 
+      {/*
+       * Outside the dialog on purpose: this has to survive the close that the
+       * successful import triggers.
+       */}
+      <p className="toolbar-overflow__status" role="status">
+        {announcement === 0 ? null : (
+          <span key={announcement}>{t('editor:toolbar.imported')}</span>
+        )}
+      </p>
+
       <Modal
         open={dialogOpen}
         title={t('import:heading')}
@@ -128,7 +149,25 @@ export function ImportMenu({ store }: ImportMenuProps) {
           setDialogOpen(false)
         }}
       >
-        <ImportPanel store={store} />
+        <ImportPanel
+          store={store}
+          /*
+           * Close on a successful read, and only then.
+           *
+           * Left open, the dialog covers the circuit it just loaded, which is
+           * indistinguishable from a button that did nothing — that is exactly
+           * how this was reported, twice, on a panel whose import was working
+           * the whole time. The evidence a reader wants is the canvas, so the
+           * dialog stops standing in front of it.
+           *
+           * A failure keeps it open: the sentence naming the line, and the box
+           * holding the text with that line in it, are only useful together.
+           */
+          onImported={() => {
+            setDialogOpen(false)
+            setAnnouncement((count) => count + 1)
+          }}
+        />
       </Modal>
     </div>
   )

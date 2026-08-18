@@ -100,7 +100,8 @@
       "paste": "Place les portes copiées au curseur.",
       "remove": "Supprime les portes sélectionnées.",
       "compact": "Pousse chaque porte le plus à gauche possible et ferme les colonnes vides."
-    }
+    },
+    "imported": "Le circuit a été lu et se trouve maintenant sur la toile."
   },
   "placement": {
     "pickTarget": "attend un autre qubit cible dans cette colonne. Déplacez le curseur et appuyez sur Entrée.",

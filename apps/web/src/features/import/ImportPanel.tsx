@@ -66,9 +66,19 @@ type Attempt =
 
 export interface ImportPanelProps {
   readonly store: CircuitStore
+  /**
+   * A circuit was read and is now the document. Called only on success.
+   *
+   * The panel does not know where it is rendered, and the caller does: in a
+   * dialog, the thing to do is get out of the way, because the confirmation a
+   * reader actually wants is the circuit appearing on the canvas behind it.
+   * A failure deliberately does not call this — the sentence naming the line
+   * is only useful next to the box you are about to fix.
+   */
+  readonly onImported?: () => void
 }
 
-export function ImportPanel({ store }: ImportPanelProps) {
+export function ImportPanel({ store, onImported }: ImportPanelProps) {
   const { t, i18n } = useTranslation('import')
   const textId = useId()
   const fileId = useId()
@@ -123,6 +133,7 @@ export function ImportPanel({ store }: ImportPanelProps) {
       return
     }
 
+    onImported?.()
     setAttempt({
       phase: 'imported',
       format: read.format,
