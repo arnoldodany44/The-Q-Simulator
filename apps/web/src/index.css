@@ -853,11 +853,48 @@ body {
  * The status line keeps its height when empty. A message that appeared by
  * pushing the canvas down would move the very cell the user is aiming at.
  */
+/*
+ * The live region that reports what the last command did.
+ *
+ * It is always in the markup and never conditionally rendered, and that is
+ * not an oversight: a live region that is inserted at the same moment as its
+ * text is not reliably announced. It has to be there first, and then change.
+ *
+ * The cost of that used to be visible — an empty paragraph reserving 1.5rem
+ * between the canvas and the parameter editor, plus a second helping of the
+ * column's 0.75rem `gap`, so the space above the parameters was four times
+ * the space between any other pair of cards. The reserved line was there to
+ * stop the layout jumping when a message arrived; the jump is the lesser
+ * problem, because the gap was visible always and the jump only on an action
+ * the reader just took.
+ *
+ * So while it is empty it is moved out of the flow entirely. `position:
+ * absolute` is the part that matters: an absolutely positioned child is not a
+ * flex item, so it costs no height *and* no gap, which `height: 0` alone
+ * cannot achieve. The 1px box and the clip are the standard visually-hidden
+ * recipe rather than `display: none` or `visibility: hidden`, both of which
+ * take the element out of the accessibility tree and would break the very
+ * thing it exists for. A 0×0 box is not used either — some engines drop those.
+ *
+ * `:has(> span:empty)` is the test. The paragraph itself is never empty: it
+ * always holds the keyed `<span>` that makes React replace the text node on a
+ * repeated message (see the comment at the call site).
+ */
 .circuit-editor__status {
   margin: 0;
-  min-height: 1.5rem;
   font-size: 0.875rem;
   color: var(--accent);
+}
+
+.circuit-editor__status:has(> span:empty) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .circuit-editor__drag-chip {
@@ -3586,10 +3623,6 @@ td.histogram__delta--loss {
 }
 
 /* ---- blocks: custom gates and subcircuits (M2.3) ---- */
-
-.custom-gates {
-  margin-top: 0.75rem;
-}
 
 .custom-gates__subheading {
   margin: 0.75rem 0 0;
@@ -7253,4 +7286,47 @@ td.histogram__delta--loss {
   border: 0;
   border-radius: 0;
   padding: 0;
+}
+
+/* ==========================================================================
+   Numeric cells line up under their own headings
+   ==========================================================================
+
+   Every analysis table already declares its numbers right-aligned —
+   `.amplitudes__number`, `.bloch__number`, `.qsphere__number`,
+   `.entanglement__number`, `.histogram__cell`, `.density__number`, each with
+   `tabular-nums` beside it — and every one of those declarations was being
+   thrown away.
+
+   The cause is specificity, not intent. Each table opens with a rule that
+   gives every cell a sensible default:
+
+       .amplitudes__grid th,
+       .amplitudes__grid td { text-align: left }
+
+   That selector is a class *and* an element (0,1,1); the cell classes are a
+   class alone (0,1,0), so the default won every time regardless of source
+   order. Meanwhile `thead th` was right-aligned explicitly and did take
+   effect. The result was the visible defect: a heading over the right edge of
+   its column and the figure under the left edge, in six tables at once.
+
+   Re-stating them scoped to their table makes them (0,2,1), which wins
+   outright rather than by being written later. Right-alignment is the point
+   for figures and not a preference: with `tabular-nums` every digit is the
+   same width, so aligning the right edge aligns the decimal points down the
+   column, and `-0.7071` sits under `0.7071` instead of one character left of
+   it.
+
+   The text columns are untouched: a state label, a wire name and a sentence
+   all read from the left, and their headings already do too.
+   ========================================================================== */
+
+.amplitudes__grid td.amplitudes__number,
+.shot-sampler__grid td.shot-sampler__number,
+.bloch__grid td.bloch__number,
+.histogram__table td.histogram__cell,
+.qsphere__grid td.qsphere__number,
+.entanglement__grid td.entanglement__number,
+.density__grid-table td.density__number {
+  text-align: right;
 }

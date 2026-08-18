@@ -355,7 +355,12 @@ export function ProbabilityHistogram({
                   language={language}
                 />
                 {phasors ? (
-                  <td>
+                  /* `histogram__cell` like the probability beside it: this is a
+                     reading and not prose, so it belongs in the tabular figures
+                     that line up under a right-aligned heading. Without the
+                     class it was the one cell in the table left-aligned under a
+                     right-aligned column title. */
+                  <td className="histogram__cell">
                     <Notation value={formatPhaseReading(bar.phase, language)} />
                   </td>
                 ) : null}
