@@ -92,7 +92,15 @@
     "remove": "Eliminar",
     "compact": "Cerrar huecos",
     "more": "Más acciones",
-    "import": "Importar OpenQASM"
+    "import": "Importar OpenQASM",
+    "describe": {
+      "undo": "Deshace el último cambio del circuito.",
+      "redo": "Repone el cambio que acabas de deshacer.",
+      "copy": "Copia las compuertas seleccionadas.",
+      "paste": "Coloca en el cursor las compuertas copiadas.",
+      "remove": "Elimina las compuertas seleccionadas.",
+      "compact": "Empuja cada compuerta lo más a la izquierda que pueda ir y cierra las columnas vacías."
+    }
   },
   "placement": {
     "pickTarget": "necesita otro qubit objetivo en esta columna. Mueve el cursor y pulsa Intro.",

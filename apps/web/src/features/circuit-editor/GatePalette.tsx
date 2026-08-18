@@ -195,6 +195,20 @@ function PaletteChip({
       aria-pressed={armed}
       aria-roledescription={t('draggable')}
       aria-keyshortcuts={GATE_KEYS[meta.id]}
+      /*
+       * What the gate does, in a sentence, for somebody who does not already
+       * know. The palette shows a one-letter symbol and a keyboard shortcut,
+       * which tells a reader who recognises `H` nothing they did not know and
+       * a reader who does not recognise it nothing at all.
+       *
+       * `title` rather than a tooltip component of our own: it wants no
+       * positioning, no portal and no state, it survives a drag — these chips
+       * are dnd-kit draggables — and it is the affordance a reader already
+       * expects from hovering. It is a *description*, not the name: the
+       * accessible name is still the symbol, so nothing here changes what a
+       * screen reader announces the button as.
+       */
+      title={t(`description.${meta.id}`)}
       disabled={disabled}
       onClick={() => {
         onArm(meta.id)

@@ -92,7 +92,15 @@
     "remove": "Supprimer",
     "compact": "Resserrer les colonnes",
     "more": "Plus d’actions",
-    "import": "Importer OpenQASM"
+    "import": "Importer OpenQASM",
+    "describe": {
+      "undo": "Annule le dernier changement du circuit.",
+      "redo": "Rétablit le changement que vous venez d’annuler.",
+      "copy": "Copie les portes sélectionnées.",
+      "paste": "Place les portes copiées au curseur.",
+      "remove": "Supprime les portes sélectionnées.",
+      "compact": "Pousse chaque porte le plus à gauche possible et ferme les colonnes vides."
+    }
   },
   "placement": {
     "pickTarget": "attend un autre qubit cible dans cette colonne. Déplacez le curseur et appuyez sur Entrée.",

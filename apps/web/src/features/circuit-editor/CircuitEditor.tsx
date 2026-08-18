@@ -620,15 +620,26 @@ function Toolbar({
       role="toolbar"
       aria-label={t('toolbar.label')}
     >
-      <button type="button" disabled={disabled} onClick={onUndo}>
+      <button
+        type="button"
+        disabled={disabled}
+        title={t('toolbar.describe.undo')}
+        onClick={onUndo}
+      >
         {t('toolbar.undo')}
       </button>
-      <button type="button" disabled={disabled} onClick={onRedo}>
+      <button
+        type="button"
+        disabled={disabled}
+        title={t('toolbar.describe.redo')}
+        onClick={onRedo}
+      >
         {t('toolbar.redo')}
       </button>
       <button
         type="button"
         disabled={disabled || selection.length === 0}
+        title={t('toolbar.describe.copy')}
         onClick={onCopy}
       >
         {t('toolbar.copy')}
@@ -636,6 +647,7 @@ function Toolbar({
       <button
         type="button"
         disabled={disabled || clipboard === null}
+        title={t('toolbar.describe.paste')}
         onClick={onPaste}
       >
         {t('toolbar.paste')}
@@ -643,11 +655,17 @@ function Toolbar({
       <button
         type="button"
         disabled={disabled || selection.length === 0}
+        title={t('toolbar.describe.remove')}
         onClick={onRemove}
       >
         {t('toolbar.remove')}
       </button>
-      <button type="button" disabled={disabled} onClick={onCompact}>
+      <button
+        type="button"
+        disabled={disabled}
+        title={t('toolbar.describe.compact')}
+        onClick={onCompact}
+      >
         {t('toolbar.compact')}
       </button>
       {/*

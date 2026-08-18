@@ -8,5 +8,33 @@
     "two": "Two qubits",
     "three": "Three qubits",
     "structural": "Structural"
+  },
+  "description": {
+    "i": "Does nothing to the qubit. A placeholder that keeps the timing of the circuit.",
+    "x": "Turns 0 into 1 and 1 into 0 — the quantum NOT.",
+    "y": "Flips the qubit and turns its phase half a turn at the same time.",
+    "z": "Leaves 0 as it is and reverses the sign of 1. Nothing shows until the qubit interferes.",
+    "h": "Turns a definite 0 or 1 into an even mix of both. Usually the first gate in a circuit.",
+    "s": "Turns the phase of the 1 part by a quarter turn.",
+    "sdg": "Undoes S — a quarter turn of phase the other way.",
+    "t": "Turns the phase of the 1 part by an eighth of a turn.",
+    "tdg": "Undoes T — an eighth of a turn of phase the other way.",
+    "sx": "Half of an X. Applied twice, it flips the qubit.",
+    "rx": "Rotates the qubit about the X axis by an angle you choose.",
+    "ry": "Rotates the qubit about the Y axis by an angle you choose.",
+    "rz": "Rotates the qubit about the Z axis — its phase — by an angle you choose.",
+    "p": "Adds a phase you choose to the 1 part, and leaves 0 as it is.",
+    "u": "The general one-qubit gate. Three angles reach any rotation at all.",
+    "cx": "Flips the target only when the control is 1. The usual way to entangle two qubits.",
+    "cz": "Reverses the sign only when both qubits are 1.",
+    "swap": "Exchanges the states of two qubits.",
+    "iswap": "Exchanges two qubits and adds a quarter turn of phase.",
+    "crz": "Rotates the phase of the target by your angle, only when the control is 1.",
+    "cp": "Adds the phase you choose only when both qubits are 1.",
+    "ccx": "Flips the target only when both controls are 1. Also called Toffoli.",
+    "cswap": "Exchanges two qubits only when the control is 1. Also called Fredkin.",
+    "barrier": "Nothing happens here. It marks a line the optimiser may not move gates across.",
+    "reset": "Returns the qubit to 0, whatever it held before.",
+    "measure": "Looks at the qubit. The mix collapses to a definite 0 or 1, and the answer goes to a classical bit."
   }
 }

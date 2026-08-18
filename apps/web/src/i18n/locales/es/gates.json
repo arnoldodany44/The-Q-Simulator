@@ -8,5 +8,33 @@
     "two": "Dos qubits",
     "three": "Tres qubits",
     "structural": "Estructurales"
+  },
+  "description": {
+    "i": "No le hace nada al qubit. Un hueco que conserva el ritmo del circuito.",
+    "x": "Cambia el 0 por 1 y el 1 por 0 — el NOT cuántico.",
+    "y": "Voltea el qubit y a la vez le gira la fase media vuelta.",
+    "z": "Deja el 0 igual e invierte el signo del 1. No se nota hasta que el qubit interfiere.",
+    "h": "Convierte un 0 o un 1 definido en una mezcla a partes iguales. Suele ser la primera compuerta.",
+    "s": "Gira un cuarto de vuelta la fase de la parte 1.",
+    "sdg": "Deshace la S — un cuarto de vuelta de fase en sentido contrario.",
+    "t": "Gira un octavo de vuelta la fase de la parte 1.",
+    "tdg": "Deshace la T — un octavo de vuelta de fase en sentido contrario.",
+    "sx": "La mitad de una X. Aplicada dos veces, voltea el qubit.",
+    "rx": "Gira el qubit alrededor del eje X el ángulo que elijas.",
+    "ry": "Gira el qubit alrededor del eje Y el ángulo que elijas.",
+    "rz": "Gira el qubit alrededor del eje Z — su fase — el ángulo que elijas.",
+    "p": "Añade a la parte 1 la fase que elijas, y deja el 0 igual.",
+    "u": "La compuerta general de un qubit. Con tres ángulos alcanza cualquier rotación.",
+    "cx": "Voltea el objetivo solo cuando el control vale 1. Es la forma habitual de entrelazar dos qubits.",
+    "cz": "Invierte el signo solo cuando ambos qubits valen 1.",
+    "swap": "Intercambia los estados de dos qubits.",
+    "iswap": "Intercambia dos qubits y añade un cuarto de vuelta de fase.",
+    "crz": "Gira la fase del objetivo el ángulo que elijas, solo cuando el control vale 1.",
+    "cp": "Añade la fase que elijas solo cuando ambos qubits valen 1.",
+    "ccx": "Voltea el objetivo solo cuando los dos controles valen 1. También se llama Toffoli.",
+    "cswap": "Intercambia dos qubits solo cuando el control vale 1. También se llama Fredkin.",
+    "barrier": "Aquí no ocurre nada. Marca una línea que el optimizador no puede cruzar moviendo compuertas.",
+    "reset": "Devuelve el qubit a 0, valiera lo que valiera antes.",
+    "measure": "Mira el qubit. La mezcla se colapsa a un 0 o un 1 definido, y el resultado va a un bit clásico."
   }
 }

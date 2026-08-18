@@ -8,5 +8,33 @@
     "two": "Deux qubits",
     "three": "Trois qubits",
     "structural": "Structurelles"
+  },
+  "description": {
+    "i": "Ne fait rien au qubit. Un emplacement qui préserve le rythme du circuit.",
+    "x": "Change le 0 en 1 et le 1 en 0 — le NON quantique.",
+    "y": "Renverse le qubit et tourne sa phase d’un demi-tour en même temps.",
+    "z": "Laisse le 0 tel quel et inverse le signe du 1. Rien ne paraît avant que le qubit n’interfère.",
+    "h": "Transforme un 0 ou un 1 défini en un mélange à parts égales. Souvent la première porte d’un circuit.",
+    "s": "Tourne d’un quart de tour la phase de la partie 1.",
+    "sdg": "Défait la S — un quart de tour de phase dans l’autre sens.",
+    "t": "Tourne d’un huitième de tour la phase de la partie 1.",
+    "tdg": "Défait la T — un huitième de tour de phase dans l’autre sens.",
+    "sx": "La moitié d’un X. Appliquée deux fois, elle renverse le qubit.",
+    "rx": "Fait tourner le qubit autour de l’axe X de l’angle de votre choix.",
+    "ry": "Fait tourner le qubit autour de l’axe Y de l’angle de votre choix.",
+    "rz": "Fait tourner le qubit autour de l’axe Z — sa phase — de l’angle de votre choix.",
+    "p": "Ajoute à la partie 1 la phase de votre choix, et laisse le 0 tel quel.",
+    "u": "La porte générale à un qubit. Trois angles atteignent n’importe quelle rotation.",
+    "cx": "Renverse la cible seulement quand le contrôle vaut 1. La façon habituelle d’intriquer deux qubits.",
+    "cz": "Inverse le signe seulement quand les deux qubits valent 1.",
+    "swap": "Échange les états de deux qubits.",
+    "iswap": "Échange deux qubits et ajoute un quart de tour de phase.",
+    "crz": "Tourne la phase de la cible de votre angle, seulement quand le contrôle vaut 1.",
+    "cp": "Ajoute la phase de votre choix seulement quand les deux qubits valent 1.",
+    "ccx": "Renverse la cible seulement quand les deux contrôles valent 1. Aussi appelée Toffoli.",
+    "cswap": "Échange deux qubits seulement quand le contrôle vaut 1. Aussi appelée Fredkin.",
+    "barrier": "Rien ne se passe ici. Marque une ligne que l’optimiseur ne peut pas franchir.",
+    "reset": "Ramène le qubit à 0, quelle qu’ait été sa valeur.",
+    "measure": "Regarde le qubit. Le mélange s’effondre sur un 0 ou un 1 défini, et le résultat va dans un bit classique."
   }
 }
