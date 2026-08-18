@@ -68,6 +68,7 @@ import {
   type GridSize,
 } from '../circuit-editor/geometry'
 import { qubitLabel } from '../circuit-editor/operationRoles'
+import { toCircuitJson } from '@qsim/qasm'
 
 /** Renders a React element to markup. `renderToStaticMarkup`, injected. */
 export type RenderToMarkup = (element: ReactElement) => string
@@ -227,6 +228,23 @@ export function circuitToSvg(
       `aria-labelledby="qsim-title qsim-desc">`,
     `<title id="qsim-title">${escapeXml(options.title)}</title>`,
     `<desc id="qsim-desc">${escapeXml(options.description)}</desc>`,
+    /*
+     * The circuit that drew this, inside the drawing.
+     *
+     * An SVG is a picture, and a picture of a circuit is not a circuit —
+     * nothing could recover the operations from the paths. So the exact
+     * document travels alongside them, which makes this export a round
+     * trip rather than a dead end: `features/import` looks for exactly
+     * this element and hands what it finds to `safeParseCircuit`.
+     *
+     * `<metadata>` is the element SVG defines for this and renderers
+     * ignore it, so nothing about the image changes. It is escaped as XML
+     * like the title and the description, and it is the same JSON the
+     * JSON export writes — one serialiser, so the two exports cannot
+     * drift into disagreeing about what this circuit is.
+     */
+    `<metadata id="qsim-circuit" data-qsim-format="application/json">` +
+      `${escapeXml(toCircuitJson(circuit))}</metadata>`,
     `<style>${stylesheet()}</style>`,
     `<rect class="qsim-export__background" x="0" y="0" width="${width}" ` +
       `height="${height}"/>`,

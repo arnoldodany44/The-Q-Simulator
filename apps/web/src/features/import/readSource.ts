@@ -24,7 +24,9 @@ import { MAX_SOURCE_LENGTH } from '@qsim/qasm'
 export { MAX_SOURCE_LENGTH }
 
 /** Extensions the file picker suggests. Not a check — the content is. */
-export const QASM_FILE_ACCEPT = '.qasm,.qasm2,.qasm3,.inc,.txt,text/plain'
+export const CIRCUIT_FILE_ACCEPT =
+  '.qasm,.qasm2,.qasm3,.inc,.txt,.json,.svg,' +
+  'text/plain,application/json,image/svg+xml'
 
 export type ReadResult =
   | { readonly ok: true; readonly text: string }
@@ -36,7 +38,7 @@ export type ReadResult =
  * Never throws: the caller is a click handler, and an exception there is a
  * panel that goes quiet rather than one that says what happened.
  */
-export async function readQasmFile(file: File): Promise<ReadResult> {
+export async function readCircuitFile(file: File): Promise<ReadResult> {
   if (file.size > MAX_SOURCE_LENGTH) return { ok: false, reason: 'too-large' }
   try {
     return { ok: true, text: await file.text() }

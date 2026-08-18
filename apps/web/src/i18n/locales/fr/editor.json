@@ -92,7 +92,7 @@
     "remove": "Supprimer",
     "compact": "Resserrer les colonnes",
     "more": "Plus d’actions",
-    "import": "Importer OpenQASM",
+    "import": "Importer un circuit",
     "describe": {
       "undo": "Annule le dernier changement du circuit.",
       "redo": "Rétablit le changement que vous venez d’annuler.",

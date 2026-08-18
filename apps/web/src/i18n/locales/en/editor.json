@@ -92,7 +92,7 @@
     "remove": "Delete",
     "compact": "Close gaps",
     "more": "More actions",
-    "import": "Import OpenQASM",
+    "import": "Import a circuit",
     "describe": {
       "undo": "Undoes the last change to the circuit.",
       "redo": "Puts back the change you just undid.",

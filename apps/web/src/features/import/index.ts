@@ -26,5 +26,12 @@ export {
 } from './failure'
 export type { ImportFailure, ImportFailureCode } from './failure'
 
-export { QASM_FILE_ACCEPT, readQasmFile, MAX_SOURCE_LENGTH } from './readSource'
+export {
+  CIRCUIT_FILE_ACCEPT,
+  readCircuitFile,
+  MAX_SOURCE_LENGTH,
+} from './readSource'
 export type { ReadResult } from './readSource'
+
+export { readCircuitSource } from './readCircuit'
+export type { Read } from './readCircuit'

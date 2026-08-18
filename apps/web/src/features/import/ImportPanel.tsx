@@ -39,7 +39,6 @@
  * confirmation dialog that a reader importing ten files would learn to dismiss.
  */
 
-import { safeImportOpenQasm } from '@qsim/qasm'
 import { depth, gateCount } from '@qsim/schema'
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -47,18 +46,12 @@ import { useTranslation } from 'react-i18next'
 import { pluralCount } from '../analysis/format'
 import type { CircuitStore } from '../circuit-editor/useCircuitStore'
 import {
-  asImportFailure,
   importFailureKey,
   importFailureValues,
   type ImportFailure,
 } from './failure'
-import { QASM_FILE_ACCEPT, readQasmFile } from './readSource'
-
-/** Dialect names, invariant across locales (D2). */
-const DIALECT_LABELS: Readonly<Record<2 | 3, string>> = {
-  2: 'OpenQASM 2',
-  3: 'OpenQASM 3',
-}
+import { readCircuitSource } from './readCircuit'
+import { CIRCUIT_FILE_ACCEPT, readCircuitFile } from './readSource'
 
 type Attempt =
   | { readonly phase: 'working' }
@@ -107,10 +100,9 @@ export function ImportPanel({ store }: ImportPanelProps) {
     }
     setAttempt({ phase: 'working' })
 
-    const read = safeImportOpenQasm(text)
+    const read = readCircuitSource(text)
     if (!read.ok) {
-      console.error('import: the file was refused', read.error)
-      setAttempt({ phase: 'failed', failure: asImportFailure(read.error) })
+      setAttempt({ phase: 'failed', failure: read.failure })
       return
     }
 
@@ -133,7 +125,7 @@ export function ImportPanel({ store }: ImportPanelProps) {
 
     setAttempt({
       phase: 'imported',
-      format: DIALECT_LABELS[read.version],
+      format: read.format,
       qubits: read.circuit.qubits,
       gates: gateCount(read.circuit),
       depth: depth(read.circuit),
@@ -145,7 +137,7 @@ export function ImportPanel({ store }: ImportPanelProps) {
     setAttempts((count) => count + 1)
     setAttempt({ phase: 'working' })
     void (async () => {
-      const read = await readQasmFile(file)
+      const read = await readCircuitFile(file)
       if (!read.ok) {
         setAttempt({ phase: 'failed', failure: { code: read.reason } })
         return
@@ -169,7 +161,7 @@ export function ImportPanel({ store }: ImportPanelProps) {
         id={fileId}
         className="import-panel__file"
         type="file"
-        accept={QASM_FILE_ACCEPT}
+        accept={CIRCUIT_FILE_ACCEPT}
         aria-describedby={attempt === null ? undefined : statusId}
         aria-invalid={attempt?.phase === 'failed' ? true : undefined}
         onChange={(event) => {

@@ -6,7 +6,7 @@
     "qasm3": "The interchange format. Qiskit and most hardware toolchains read it; a gate with no equivalent there is written out as an exact decomposition, with a comment saying so.",
     "qiskit": "Python for a notebook, with the imports, the registers and a comment naming where it came from.",
     "json": "The native format. The only export that loses nothing, and the one to keep if you want to open this circuit here again.",
-    "svg": "The diagram as vector art. Self-contained: the file carries its own colours and asks for no font it does not have.",
+    "svg": "The diagram as a vector graphic. Self-contained: it carries its own colours and asks for no typeface it does not have — and it carries this circuit inside it, so it can be imported back here.",
     "png": "The diagram as an image, drawn at twice its size on screen so it stays sharp in a slide or an issue."
   },
   "status": {

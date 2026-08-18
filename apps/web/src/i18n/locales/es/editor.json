@@ -92,7 +92,7 @@
     "remove": "Eliminar",
     "compact": "Cerrar huecos",
     "more": "Más acciones",
-    "import": "Importar OpenQASM",
+    "import": "Importar un circuito",
     "describe": {
       "undo": "Deshace el último cambio del circuito.",
       "redo": "Repone el cambio que acabas de deshacer.",

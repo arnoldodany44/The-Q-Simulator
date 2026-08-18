@@ -1,6 +1,6 @@
 {
-  "heading": "Importer de l’OpenQASM",
-  "hint": "OpenQASM 2 et OpenQASM 3 sont lus tous les deux, et lequel vous avez se déduit du fichier lui-même. L’import remplace le circuit à l’écran et efface son historique d’annulation.",
+  "heading": "Importer un circuit",
+  "hint": "Lit le JSON propre à cet éditeur, un SVG exporté d’ici, ainsi qu’OpenQASM 2 et 3. Lequel est déduit du fichier, non demandé. Le circuit à l’écran est remplacé.",
   "file": {
     "label": "Choisir un fichier"
   },
@@ -29,6 +29,8 @@
     "unsupported": "La ligne {{line}}, colonne {{column}} utilise « {{construct}} », qui est bien de l’OpenQASM mais qu’un circuit d’ici ne peut pas représenter. Retirez-le ou écrivez cette partie autrement.",
     "unsupportedUnnamed": "La ligne {{line}}, colonne {{column}} utilise une fonctionnalité d’OpenQASM qu’un circuit d’ici ne peut pas représenter.",
     "limit": "Ce fichier demande plus qu’un circuit d’ici ne peut contenir : trop de qubits, trop de portes, ou une structure imbriquée trop profondément. Il s’arrête à la ligne {{line}}, colonne {{column}}.",
-    "contract": "Le fichier a bien été lu, mais le circuit qu’il décrit n’est pas un circuit que cet éditeur sait ouvrir. Signalez-le, s’il vous plaît : le fichier est valide et l’erreur est de notre côté."
+    "contract": "Le fichier a bien été lu, mais le circuit qu’il décrit n’est pas un circuit que cet éditeur sait ouvrir. Signalez-le, s’il vous plaît : le fichier est valide et l’erreur est de notre côté.",
+    "json-syntax": "Cela ressemble au JSON de cet éditeur mais n’a pas pu être lu — un collage tronqué produit cela. Copiez le fichier entier et réessayez.",
+    "svg-no-circuit": "Ce SVG ne contient aucun circuit. Seuls les diagrammes exportés d’ici en portent un — un dessin de circuit n’est pas un circuit, il n’y a donc rien à lire dans les tracés."
   }
 }

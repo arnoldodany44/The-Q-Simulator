@@ -6,7 +6,7 @@
     "qasm3": "Le format d’échange. Qiskit et la plupart des chaînes d’outils matérielles le lisent ; une porte sans équivalent y est écrite sous forme de décomposition exacte, avec un commentaire qui le précise.",
     "qiskit": "Du Python pour un carnet, avec les imports, les registres et un commentaire nommant sa provenance.",
     "json": "Le format natif. La seule exportation qui ne perd rien, et celle à conserver pour rouvrir ce circuit ici.",
-    "svg": "Le diagramme en image vectorielle. Autonome : le fichier porte ses propres couleurs et ne demande aucune police qu’il n’a pas.",
+    "svg": "Le diagramme en image vectorielle. Autonome : le fichier porte ses propres couleurs et ne demande aucune police qu’il n’a pas — et il porte ce circuit en lui, il peut donc être réimporté ici.",
     "png": "Le diagramme en image, dessiné au double de sa taille à l’écran pour rester net dans une diapositive ou un ticket."
   },
   "status": {

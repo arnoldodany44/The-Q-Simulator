@@ -1,6 +1,6 @@
 {
-  "heading": "Importar OpenQASM",
-  "hint": "Se leen OpenQASM 2 y OpenQASM 3, y cuál de los dos tienes se deduce del propio archivo. Importar reemplaza el circuito en pantalla y borra su historial de deshacer.",
+  "heading": "Importar un circuito",
+  "hint": "Lee el JSON propio de este editor, un SVG exportado desde aquí, y OpenQASM 2 y 3. Cuál de ellos es se deduce del archivo, no se pregunta. El circuito en pantalla se reemplaza.",
   "file": {
     "label": "Elige un archivo"
   },
@@ -29,6 +29,8 @@
     "unsupported": "La línea {{line}}, columna {{column}} usa «{{construct}}», que es OpenQASM real pero no tiene forma posible en un circuito de aquí. Quítalo o escribe esa parte de otra manera.",
     "unsupportedUnnamed": "La línea {{line}}, columna {{column}} usa una función de OpenQASM que no tiene forma posible en un circuito de aquí.",
     "limit": "Este archivo pide más de lo que cabe en un circuito de aquí: demasiados qubits, demasiadas compuertas o una estructura anidada demasiado profundo. Se detiene en la línea {{line}}, columna {{column}}.",
-    "contract": "El archivo se leyó, pero el circuito que describe no es uno que este editor pueda abrir. Repórtalo, por favor: el archivo es válido y el fallo es nuestro."
+    "contract": "El archivo se leyó, pero el circuito que describe no es uno que este editor pueda abrir. Repórtalo, por favor: el archivo es válido y el fallo es nuestro.",
+    "json-syntax": "Eso parece el JSON de este editor pero no se pudo leer — un pegado que se cortó a medias hace esto. Copia el archivo completo e inténtalo otra vez.",
+    "svg-no-circuit": "Ese SVG no lleva ningún circuito dentro. Solo lo llevan los diagramas exportados desde aquí — un dibujo de un circuito no es un circuito, así que no hay nada que leer en los trazos."
   }
 }

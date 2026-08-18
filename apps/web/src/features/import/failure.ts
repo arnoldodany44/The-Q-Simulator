@@ -39,6 +39,19 @@ export type ImportFailureCode =
   | 'too-large'
   /** The browser could not hand over the file's text. */
   | 'unreadable'
+  /**
+   * The text began with `{` — so it was meant as this editor's own JSON —
+   * but `JSON.parse` refused it. Distinct from `contract`, which is JSON
+   * that parsed and then turned out not to describe a circuit: a truncated
+   * paste and a circuit with a bad gate name need different advice.
+   */
+  | 'json-syntax'
+  /**
+   * A valid SVG that is not one of ours — or one exported before the
+   * diagram started carrying its circuit. There is nothing to recover
+   * from the paths, so this is a refusal and not a parse error.
+   */
+  | 'svg-no-circuit'
 
 export interface ImportFailure {
   readonly code: ImportFailureCode
