@@ -125,6 +125,17 @@ export interface CircuitEditorProps {
    */
   readonly canvasOverlay?: ReactNode
   /**
+   * Something at the end of the toolbar, after the editing commands.
+   *
+   * An opaque node for the same two reasons `canvasOverlay` is one. The weight
+   * half is concrete: the page puts the OpenQASM import here, and that node's
+   * graph contains a whole parser — imported from this file it would land in
+   * the editor's chunk and be paid for by everyone who opens `/new`. The seam
+   * half is the usual one: these buttons act on the circuit already open, and
+   * anything that replaces the document belongs to the page.
+   */
+  readonly toolbarOverflow?: ReactNode
+  /**
    * Forces the whole editor read-only, on top of the compact-viewport rule.
    *
    * For a shared session this peer may watch and not write (M5.6). It is a
@@ -150,6 +161,7 @@ export interface CircuitEditorProps {
 export function CircuitEditor({
   store = useCircuitStore,
   canvasOverlay,
+  toolbarOverflow,
   readOnly: forcedReadOnly = false,
   onCursorMove,
 }: CircuitEditorProps) {
@@ -310,6 +322,7 @@ export function CircuitEditor({
             <Toolbar
               store={store}
               disabled={readOnly}
+              overflow={toolbarOverflow}
               // Not `store.getState().undo` and so on for every one of them
               // — a history move can pull the wires out from under a
               // half-finished placement, and every command owes the live
@@ -579,6 +592,7 @@ function wireList(
 function Toolbar({
   store,
   disabled,
+  overflow,
   onUndo,
   onRedo,
   onCopy,
@@ -588,6 +602,7 @@ function Toolbar({
 }: {
   store: CircuitStore
   disabled: boolean
+  overflow?: ReactNode
   onUndo: () => void
   onRedo: () => void
   onCopy: () => void
@@ -635,6 +650,14 @@ function Toolbar({
       <button type="button" disabled={disabled} onClick={onCompact}>
         {t('toolbar.compact')}
       </button>
+      {/*
+       * Last, and pushed to the far end by the stylesheet. It is not an editing
+       * command like the six above it — it is where the commands that are not
+       * used constantly go — so it is separated by space rather than by a rule
+       * or a heading. `role="toolbar"` still covers it: arrow-key navigation
+       * over a toolbar is expected to reach everything in it.
+       */}
+      {overflow === undefined ? null : overflow}
     </div>
   )
 }

@@ -159,8 +159,7 @@ export function ImportPanel({ store }: ImportPanelProps) {
   }
 
   return (
-    <details className="import-panel">
-      <summary className="import-panel__summary">{t('heading')}</summary>
+    <div className="import-panel">
       <p className="import-panel__hint">{t('hint')}</p>
 
       <label className="import-panel__field" htmlFor={fileId}>
@@ -253,6 +252,6 @@ export function ImportPanel({ store }: ImportPanelProps) {
                   })}
         </span>
       </p>
-    </details>
+    </div>
   )
 }

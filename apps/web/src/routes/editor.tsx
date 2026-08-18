@@ -114,7 +114,7 @@ import { useCircuitStore } from '../features/circuit-editor/useCircuitStore'
 import { useCircuitUrl } from '../features/circuit-editor/useCircuitUrl'
 import { useExample } from '../features/circuit-editor/useExample'
 import { ExportPanel } from '../features/export'
-import { ImportPanel } from '../features/import'
+import { ImportMenu } from '../features/import'
 import {
   SaveCircuitPanel,
   VersionHistoryPanel,
@@ -310,7 +310,6 @@ export function EditorRoute() {
         <div className="document-bar__column">
           <PresetPicker store={useCircuitStore} />
           <ShareLink url={url} />
-          <ImportPanel store={useCircuitStore} />
           {/*
            * Beside the share control and the export, because it is the third
            * answer to "how do I get this circuit out of here" — a link, a file,
@@ -470,6 +469,15 @@ export function EditorRoute() {
                   </>
                 ),
               })}
+          /*
+           * The overflow at the end of the toolbar. Mounted by the page, like
+           * everything else here that acts on the document rather than on the
+           * circuit — and, concretely, because its graph carries an OpenQASM
+           * parser that has no business in the editor's chunk. Unconditional:
+           * an import is how a reader gets a circuit *in*, so it is exactly as
+           * useful on `/new` as on a saved document.
+           */
+          toolbarOverflow={<ImportMenu store={useCircuitStore} />}
           /*
            * The relay's answer, drawn. A watcher may look and not write, and the
            * refusal is the relay's on every frame — this only stops the editor

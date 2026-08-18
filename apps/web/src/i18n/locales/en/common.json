@@ -12,7 +12,8 @@
   "actions": {
     "cancel": "Cancel",
     "save": "Save",
-    "reset": "Reset"
+    "reset": "Reset",
+    "close": "Close"
   },
   "nav": {
     "home": "Home",

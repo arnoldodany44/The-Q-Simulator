@@ -798,6 +798,36 @@ body {
   gap: 0.375rem;
 }
 
+/*
+ * Pushed to the far end, which is what separates "commands you use constantly"
+ * from "everything else" without a rule or a heading between them. `position`
+ * is here so the menu below can hang off it.
+ */
+.toolbar-overflow {
+  margin-left: auto;
+  position: relative;
+}
+
+.toolbar-overflow__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 20;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.35);
+}
+
+.toolbar-overflow__item {
+  text-align: left;
+  white-space: nowrap;
+}
+
 .circuit-editor__toolbar button {
   background: var(--bg-elevated);
   color: var(--text);
@@ -3463,23 +3493,17 @@ td.histogram__delta--loss {
 
 /*
  * A disclosure rather than an open panel, and the only one in the document bar
- * that is: it is the control that *replaces* the document, so opening it is a
- * deliberate act rather than a paste box sitting beside the canvas. Its closed
- * contents stay in the DOM, which is also what lets `no-raw-keys.spec.ts` see
- * every string in it without pressing anything.
+ * that is: it is the control that *replaces* the document, so reaching it is a
+ * deliberate act rather than a paste box sitting beside the canvas. It is no
+ * longer a `<details>` above the canvas — it is the body of the dialog behind
+ * the toolbar's overflow, so the card framing below is dropped inside `.modal`,
+ * which already draws one.
  */
 .import-panel {
   background: var(--bg-panel);
   border: 1px solid var(--wire);
   border-radius: 0.5rem;
   padding: 0.75rem;
-}
-
-.import-panel__summary {
-  cursor: pointer;
-  font-family: var(--font-display);
-  font-size: var(--text-data);
-  color: var(--text-muted);
 }
 
 .import-panel__hint {
@@ -7151,4 +7175,82 @@ td.histogram__delta--loss {
   font-family: var(--font-mono);
   font-size: var(--text-data);
   overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Modal dialog
+   ==========================================================================
+
+   Almost nothing, because `<dialog>` with `showModal()` does the work: the top
+   layer means no `z-index` here has to compete with anything, and `::backdrop`
+   is a real pseudo-element rather than a div this stylesheet has to place.
+
+   The element itself is stripped to a positioning box — the browser's default
+   dialog is a white card with a black border, which would sit inside the card
+   drawn below — and `.modal__panel` is the visible surface.
+   ========================================================================== */
+
+.modal {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  width: min(38rem, 92vw);
+  /* The dialog is centred by the browser; without this it grows past the
+     viewport on a short window and the close button leaves the screen. */
+  max-height: 90vh;
+}
+
+.modal::backdrop {
+  background: rgb(2 6 23 / 0.66);
+}
+
+.modal__panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--wire);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.modal__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-data);
+}
+
+.modal__close {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.3rem 0.7rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  flex: none;
+}
+
+.modal__close:hover {
+  border-color: var(--accent, var(--text-muted));
+}
+
+/*
+ * The dialog already draws the card, so the panel inside it drops its own.
+ * Two nested borders read as a box in a box, which is what it would be.
+ */
+.modal .import-panel {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }

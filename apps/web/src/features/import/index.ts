@@ -11,6 +11,14 @@
 export { ImportPanel } from './ImportPanel'
 export type { ImportPanelProps } from './ImportPanel'
 
+/*
+ * The toolbar overflow and the dialog it opens. This is what the editor page
+ * mounts; `ImportPanel` is the form inside the dialog and is exported beside
+ * it because its own tests drive it directly.
+ */
+export { ImportMenu } from './ImportMenu'
+export type { ImportMenuProps } from './ImportMenu'
+
 export {
   asImportFailure,
   importFailureKey,

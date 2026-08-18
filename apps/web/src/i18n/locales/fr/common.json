@@ -12,7 +12,8 @@
   "actions": {
     "cancel": "Annuler",
     "save": "Enregistrer",
-    "reset": "Réinitialiser"
+    "reset": "Réinitialiser",
+    "close": "Fermer"
   },
   "nav": {
     "home": "Accueil",

@@ -12,7 +12,8 @@
   "actions": {
     "cancel": "Cancelar",
     "save": "Guardar",
-    "reset": "Restablecer"
+    "reset": "Restablecer",
+    "close": "Cerrar"
   },
   "nav": {
     "home": "Inicio",

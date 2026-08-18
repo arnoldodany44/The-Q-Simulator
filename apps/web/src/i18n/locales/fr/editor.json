@@ -90,7 +90,9 @@
     "copy": "Copier",
     "paste": "Coller",
     "remove": "Supprimer",
-    "compact": "Resserrer les colonnes"
+    "compact": "Resserrer les colonnes",
+    "more": "Plus d’actions",
+    "import": "Importer OpenQASM"
   },
   "placement": {
     "pickTarget": "attend un autre qubit cible dans cette colonne. Déplacez le curseur et appuyez sur Entrée.",
