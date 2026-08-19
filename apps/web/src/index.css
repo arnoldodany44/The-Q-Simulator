@@ -7348,3 +7348,139 @@ td.histogram__delta--loss {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ==========================================================================
+   The IBM Quantum key, and the panel that spends it
+   ==========================================================================
+
+   A form asking for somebody's credential, so it is built to be read rather
+   than merely filled: every field carries its own hint under it instead of a
+   paragraph above the lot, the two required ones say so beside the button that
+   is disabled, and the stored keys are listed above the form so a reader who
+   came to check does not have to scroll past it.
+   ========================================================================== */
+
+.hardware-keys {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.hardware-keys__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.625rem;
+}
+
+.hardware-keys__name {
+  font-weight: var(--weight-medium);
+}
+
+/* Pushed to the far end so the button lands in one place down the column. */
+.hardware-keys__meta {
+  margin-right: auto;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.hardware-keys__empty {
+  margin: 0.75rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.hardware-form {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--wire);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hardware-form__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-data);
+}
+
+.hardware-form__where,
+.hardware-form__hint {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.hardware-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hardware-form__field label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.hardware-form__field input {
+  background: var(--bg-deep);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: var(--text-body);
+}
+
+/* The CRN and the key are long, opaque strings; a monospace column makes a
+   mistyped one findable instead of a wall. */
+#hardware-api-key,
+#hardware-instance {
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+}
+
+.hardware-form__field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.hardware-form__field input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/*
+ * The button and the reason it is off, on one line — and wrapping rather than
+ * stretching, because a full-width submit in a settings column reads as the
+ * page's primary action when it is one section's.
+ */
+.hardware-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hardware-form__actions .page__cta {
+  flex: none;
+}
+
+.hardware-form__saved {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-caption);
+  color: var(--accent);
+}
+
+.hardware-form__saved:empty {
+  margin: 0;
+}

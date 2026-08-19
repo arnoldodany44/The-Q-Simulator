@@ -237,6 +237,25 @@ export const EDITOR_NAMESPACES = [
   'gates',
   'simulation',
   /*
+   * `hardware` from §3.7's submission panel, which the editor page mounts.
+   *
+   * It is listed here and in `SETTINGS_NAMESPACES` because §3.7 has two halves
+   * on two screens — the key belongs to the account, the run belongs to a
+   * circuit — and both read this one vocabulary.
+   *
+   * Leaving it off either list is invisible to the compiler and to every unit
+   * test: the components render their key names as text and nothing throws. It
+   * shipped that way, and it was found by opening the page.
+   *
+   * `e2e/no-raw-keys.spec.ts` did NOT catch it and could not have. `/settings`
+   * is in that sweep's route list, but the sweep runs signed out and `/settings`
+   * is behind `RequireSession`, so what it reads there is the guard's own screen
+   * — as that file's own header says. The guard for this is
+   * `verification/i18n-coverage/`, which checks the keys these components ask
+   * for against the namespaces their route declares.
+   */
+  'hardware',
+  /*
    * `collab` from M5.3. Its own namespace rather than a block inside `editor`
    * because it is a vocabulary about *people* — who is here, what they are doing,
    * where they are looking, and the three sentences a screen reader is told out
@@ -363,7 +382,7 @@ export const COLLECTIONS_NAMESPACES = ['collections', 'circuits'] as const
  * failures it can show are already covered by `errors`, which the shell
  * carries, so nothing waits on this chunk but the page's own copy.
  */
-export const SETTINGS_NAMESPACES = ['settings'] as const
+export const SETTINGS_NAMESPACES = ['settings', 'hardware'] as const
 
 /**
  * What a lesson needs, fetched alongside its own chunk (Phase 3).
