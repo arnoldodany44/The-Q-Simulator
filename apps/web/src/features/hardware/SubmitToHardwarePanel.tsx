@@ -40,6 +40,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 
 import {
+  isApiRequestError,
   useApiErrorMessage,
   useHardwareBackends,
   useHardwareCredentials,
@@ -49,6 +50,62 @@ import { hardwareRunPath } from './paths'
 
 /** Shots that cost a fraction of a second of QPU time and still show a shape. */
 const DEFAULT_SHOTS = 1_024
+
+/**
+ * Every reason the transpiler will refuse a circuit, as `RefusalCode` spells
+ * them.
+ *
+ * ── WHY THIS LIST IS HERE ────────────────────────────────────────────────
+ *
+ * A refusal arrives as `HARDWARE_UNRUNNABLE` with the real reason in
+ * `details`, and until now the panel rendered only the top-level message. That
+ * message describes *one* of these eleven — connectivity — so a circuit refused
+ * for any other reason was told to "try a shallower circuit or another
+ * backend".
+ *
+ * The Bell example made that concrete: it has no measurement, so a device would
+ * return no bits and `no-measurement` is the refusal. The advice on screen was
+ * about wiring, and neither a shallower circuit nor a different backend would
+ * ever have helped.
+ *
+ * `packages/transpile/src/refusal.ts` says the point of a coded refusal is that
+ * "a fact is what makes a refusal worth reading". This is the client half of
+ * that, which was missing.
+ *
+ * Duplicated rather than imported because `.dependency-cruiser.cjs` keeps
+ * `apps/web` out of the transpiler, and the codes cross the wire as opaque
+ * strings anyway. `verification/refusal-coverage` is what stops the two lists
+ * drifting.
+ */
+const REFUSAL_CODES = new Set([
+  'unsupported-gate',
+  'too-many-controls',
+  'unsupported-parameter',
+  'device-basis-mismatch',
+  'too-many-qubits',
+  'degree-exceeded',
+  'cycle-too-short',
+  'no-placement',
+  'search-exhausted',
+  'too-deep',
+  'no-measurement',
+])
+
+/**
+ * The refusal reason inside an error, or null for anything else.
+ *
+ * The API sends the code as a detail on `body.circuit`, beside `key:value`
+ * details carrying the numbers and one entry per implicated operation. Matching
+ * against the known set rather than taking the first detail is what keeps a
+ * `key:value` pair from being read as a reason.
+ */
+function refusalCodeOf(error: unknown): string | null {
+  if (!isApiRequestError(error)) return null
+  for (const detail of error.details) {
+    if (REFUSAL_CODES.has(detail.code)) return detail.code
+  }
+  return null
+}
 
 export interface SubmitToHardwarePanelProps {
   /** The saved circuit's slug, or null for a draft with no home yet. */
@@ -195,6 +252,13 @@ export function SubmitToHardwarePanel({
             />
           </label>
           <p className="field__hint">{t('submit.shotsHint')}</p>
+          {/*
+             Said before the press rather than after it. A device answers with
+             bits and nothing else, so a circuit with no measurement cannot run
+             on one — and five of the six worked examples have none, because in
+             a simulator measuring collapses the state you came to look at.
+           */}
+          <p className="field__hint">{t('submit.needsMeasurement')}</p>
 
           <button
             type="button"
@@ -215,7 +279,16 @@ export function SubmitToHardwarePanel({
 
           {submit.isError ? (
             <p className="auth-alert" role="alert">
-              {describeError(submit.error)}
+              {/*
+               * The specific reason when the server sent one, and only then the
+               * generic sentence. See `REFUSAL_CODES` for what this replaced.
+               */}
+              {(() => {
+                const code = refusalCodeOf(submit.error)
+                return code === null
+                  ? describeError(submit.error)
+                  : t(`refusal.${code}`)
+              })()}
             </p>
           ) : null}
 

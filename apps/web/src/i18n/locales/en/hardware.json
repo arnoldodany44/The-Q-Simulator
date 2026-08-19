@@ -180,6 +180,20 @@
     "shotsHint": "How many times the device runs the circuit. A thousand is plenty to see the shape and costs a fraction of a second of quantum time.",
     "send": "Send to the device",
     "queued": "Queued.",
-    "openRun": "Open the run"
+    "openRun": "Open the run",
+    "needsMeasurement": "A device answers with bits and nothing else, so the circuit needs at least one measurement."
+  },
+  "refusal": {
+    "unsupported-gate": "One of the gates has no equivalent on this device and no definition to expand. Replace it, or define it as a reusable block first.",
+    "too-many-controls": "A gate carries more controls than can be placed without spare qubits. Split it into smaller controlled steps.",
+    "unsupported-parameter": "An angle is missing or is not a finite number. Give every parameter a value before sending.",
+    "device-basis-mismatch": "This device does not offer the gates this transpiler writes. Choose another backend.",
+    "too-many-qubits": "The circuit uses more qubits than this device has.",
+    "degree-exceeded": "One qubit has to interact with more neighbours than any physical qubit on this device has. Rearrange the two-qubit gates so each qubit talks to fewer partners.",
+    "cycle-too-short": "The two-qubit gates form a shorter loop than this chip’s lattice contains — a real processor has no triangles. Route the interactions through another qubit.",
+    "no-placement": "No way to lay this circuit onto the device’s wiring was found. Fewer two-qubit gates, or another backend, is the way through.",
+    "search-exhausted": "The search for a layout ran out of budget before deciding. A smaller circuit or another backend will settle it.",
+    "too-deep": "Rewritten into this device’s own gates, the circuit becomes longer than a circuit here may be.",
+    "no-measurement": "Nothing is measured, so the device would return no bits at all. Add a measurement to each qubit whose result you want — the worked examples leave it out on purpose, because in a simulator measuring collapses the state you came to look at."
   }
 }

@@ -180,6 +180,20 @@
     "shotsHint": "Cuántas veces ejecuta el dispositivo el circuito. Mil bastan para ver la forma y cuestan una fracción de segundo de tiempo cuántico.",
     "send": "Enviar al dispositivo",
     "queued": "En cola.",
-    "openRun": "Abrir la ejecución"
+    "openRun": "Abrir la ejecución",
+    "needsMeasurement": "Un dispositivo responde con bits y nada más, así que el circuito necesita al menos una medición."
+  },
+  "refusal": {
+    "unsupported-gate": "Una de las compuertas no tiene equivalente en este dispositivo ni definición que expandir. Cámbiala, o defínela primero como un bloque reutilizable.",
+    "too-many-controls": "Una compuerta lleva más controles de los que se pueden colocar sin qubits de sobra. Divídela en pasos controlados más pequeños.",
+    "unsupported-parameter": "Falta un ángulo o no es un número finito. Dale valor a cada parámetro antes de enviar.",
+    "device-basis-mismatch": "Este dispositivo no ofrece las compuertas que escribe este transpilador. Elige otro backend.",
+    "too-many-qubits": "El circuito usa más qubits de los que tiene este dispositivo.",
+    "degree-exceeded": "Un qubit tiene que interactuar con más vecinos de los que tiene cualquier qubit físico de este dispositivo. Reorganiza las compuertas de dos qubits para que cada uno hable con menos parejas.",
+    "cycle-too-short": "Las compuertas de dos qubits forman un ciclo más corto que los que existen en la red de este chip — un procesador real no tiene triángulos. Encamina las interacciones por otro qubit.",
+    "no-placement": "No se encontró forma de acomodar este circuito en el cableado del dispositivo. Menos compuertas de dos qubits, u otro backend, es la salida.",
+    "search-exhausted": "La búsqueda de una disposición se quedó sin presupuesto antes de decidir. Un circuito más pequeño u otro backend lo resuelven.",
+    "too-deep": "Reescrito con las compuertas propias de este dispositivo, el circuito queda más largo de lo que un circuito puede ser aquí.",
+    "no-measurement": "No se mide nada, así que el dispositivo no devolvería ni un bit. Añade una medición a cada qubit cuyo resultado quieras — los ejemplos la omiten a propósito, porque en un simulador medir colapsa el estado que viniste a ver."
   }
 }

@@ -180,6 +180,20 @@
     "shotsHint": "Combien de fois l’appareil exécute le circuit. Mille suffisent pour voir la forme et coûtent une fraction de seconde de temps quantique.",
     "send": "Envoyer à l’appareil",
     "queued": "En file.",
-    "openRun": "Ouvrir l’exécution"
+    "openRun": "Ouvrir l’exécution",
+    "needsMeasurement": "Un appareil répond avec des bits et rien d’autre, le circuit a donc besoin d’au moins une mesure."
+  },
+  "refusal": {
+    "unsupported-gate": "Une des portes n’a pas d’équivalent sur cet appareil ni de définition à développer. Remplacez-la, ou définissez-la d’abord comme un bloc réutilisable.",
+    "too-many-controls": "Une porte porte plus de contrôles qu’on ne peut en placer sans qubits de réserve. Découpez-la en étapes contrôlées plus petites.",
+    "unsupported-parameter": "Un angle manque ou n’est pas un nombre fini. Donnez une valeur à chaque paramètre avant d’envoyer.",
+    "device-basis-mismatch": "Cet appareil n’offre pas les portes que ce transpileur écrit. Choisissez un autre backend.",
+    "too-many-qubits": "Le circuit utilise plus de qubits que cet appareil n’en a.",
+    "degree-exceeded": "Un qubit doit interagir avec plus de voisins qu’aucun qubit physique de cet appareil n’en possède. Réorganisez les portes à deux qubits pour que chacun parle à moins de partenaires.",
+    "cycle-too-short": "Les portes à deux qubits forment une boucle plus courte que celles du réseau de cette puce — un processeur réel n’a pas de triangles. Faites passer les interactions par un autre qubit.",
+    "no-placement": "Aucune façon de poser ce circuit sur le câblage de l’appareil n’a été trouvée. Moins de portes à deux qubits, ou un autre backend, est la voie.",
+    "search-exhausted": "La recherche d’une disposition a épuisé son budget avant de décider. Un circuit plus petit ou un autre backend la règlera.",
+    "too-deep": "Réécrit avec les portes propres à cet appareil, le circuit devient plus long qu’un circuit ne peut l’être ici.",
+    "no-measurement": "Rien n’est mesuré, l’appareil ne renverrait donc aucun bit. Ajoutez une mesure à chaque qubit dont vous voulez le résultat — les exemples l’omettent exprès, car dans un simulateur mesurer effondre l’état que vous venez observer."
   }
 }
