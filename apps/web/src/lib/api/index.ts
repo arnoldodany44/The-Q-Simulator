@@ -129,8 +129,22 @@ export type {
   ThreadResolutionVariables,
 } from './useComments.js'
 
-export { getHardwareJob } from './hardware.js'
-export { useHardwareJob } from './useHardware.js'
+export {
+  createHardwareCredential,
+  createHardwareJob,
+  deleteHardwareCredential,
+  getHardwareJob,
+  listHardwareBackends,
+  listHardwareCredentials,
+} from './hardware.js'
+export {
+  useCreateHardwareCredential,
+  useDeleteHardwareCredential,
+  useHardwareBackends,
+  useHardwareCredentials,
+  useHardwareJob,
+  useSubmitHardwareJob,
+} from './useHardware.js'
 
 export {
   accountKeys,

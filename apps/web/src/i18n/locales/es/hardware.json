@@ -133,5 +133,40 @@
     "source": "El programa que se envió",
     "sourceNote": "OpenQASM 3 sobre los qubits propios del dispositivo — $53 es el qubit físico 53, no un cable del dibujo. Este es el texto guardado, exactamente como se mandó.",
     "sourceLabel": "El OpenQASM 3 enviado, con desplazamiento"
+  },
+  "credentials": {
+    "heading": "IBM Quantum",
+    "note": "La llave se guarda cifrada y no se vuelve a mostrar. Se envía una vez a esta aplicación y se usa desde el servidor; el navegador nunca habla con IBM.",
+    "signedOut": "Inicia sesión para guardar una llave.",
+    "apiKey": "Llave de API",
+    "apiKeyHint": "Del panel de IBM Quantum Platform.",
+    "instance": "CRN de la instancia",
+    "instanceHint": "El identificador largo que empieza por crn:v1.",
+    "label": "Etiqueta (opcional)",
+    "save": "Guardar la llave",
+    "none": "Todavía no hay ninguna llave guardada.",
+    "unlabelled": "Llave sin etiqueta",
+    "remove": "Quitar"
+  },
+  "submit": {
+    "heading": "Ejecutar en hardware real",
+    "signedOut": "Inicia sesión para enviar un circuito a un dispositivo.",
+    "saveFirst": "Guarda primero este circuito. Una ejecución se almacena junto al circuito al que pertenece, así que necesita uno con casa.",
+    "noCredential": "No hay ninguna llave de IBM Quantum guardada. Añade una en tus ajustes.",
+    "loading": "Buscando una llave guardada…",
+    "loadingDevices": "Preguntando a IBM qué dispositivos están libres…",
+    "credential": "Llave",
+    "backend": "Dispositivo",
+    "pickBackend": "Elige un dispositivo…",
+    "device": "{{name}} — {{queue}} en espera, {{qubits}} qubits, {{state}}",
+    "queueUnknown": "cola desconocida",
+    "qubitsUnknown": "qubits desconocidos",
+    "online": "en línea",
+    "offline": "no acepta trabajos",
+    "shots": "Tiros",
+    "shotsHint": "Cuántas veces ejecuta el dispositivo el circuito. Mil bastan para ver la forma y cuestan una fracción de segundo de tiempo cuántico.",
+    "send": "Enviar al dispositivo",
+    "queued": "En cola.",
+    "openRun": "Abrir la ejecución"
   }
 }

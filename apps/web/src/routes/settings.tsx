@@ -74,6 +74,7 @@ import type { AvatarSource } from '@qsim/contract'
 
 import { LanguagePicker } from '../components/LanguagePicker'
 import { ApiKeysSection } from '../features/api-keys'
+import { HardwareCredentialsSection } from '../features/hardware'
 import {
   AccountMenu,
   RequireSession,
@@ -173,6 +174,15 @@ function SettingsScreen({
            * cached under the key the signed-in view then reads.
            */}
           <ApiKeysSection enabled={session.status === 'authenticated'} />
+          {/*
+           * Beside the API keys because it is the same kind of thing: a
+           * secret belonging to the account rather than to any circuit.
+           * The submission itself lives on the editor, where the circuit
+           * is, which is the same split the export and save panels take.
+           */}
+          <HardwareCredentialsSection
+            enabled={session.status === 'authenticated'}
+          />
           <LanguageSection />
           <DangerSection
             username={account.data.user.username}

@@ -51,3 +51,8 @@ export { provenanceOf } from './provenance.js'
 export type { JobProvenance, ProvenanceSource } from './provenance.js'
 
 export { HARDWARE_RUN_ROUTE_PATH, hardwareRunPath } from './paths.js'
+
+export { HardwareCredentialsSection } from './HardwareCredentialsSection.js'
+
+export { SubmitToHardwarePanel } from './SubmitToHardwarePanel.js'
+export type { SubmitToHardwarePanelProps } from './SubmitToHardwarePanel.js'

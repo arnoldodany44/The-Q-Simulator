@@ -133,5 +133,40 @@
     "source": "The program that was submitted",
     "sourceNote": "OpenQASM 3 over the device’s own qubits — $53 is physical qubit 53, not a wire in the drawing. This is the stored text, exactly as it was sent.",
     "sourceLabel": "The submitted OpenQASM 3, scrollable"
+  },
+  "credentials": {
+    "heading": "IBM Quantum",
+    "note": "A key is stored encrypted and is never shown again. It is sent to this application once and used from the server; the browser never talks to IBM.",
+    "signedOut": "Sign in to store a key.",
+    "apiKey": "API key",
+    "apiKeyHint": "From the IBM Quantum Platform dashboard.",
+    "instance": "Instance CRN",
+    "instanceHint": "The long identifier that begins with crn:v1.",
+    "label": "Label (optional)",
+    "save": "Store the key",
+    "none": "No key stored yet.",
+    "unlabelled": "Unlabelled key",
+    "remove": "Remove"
+  },
+  "submit": {
+    "heading": "Run on real hardware",
+    "signedOut": "Sign in to send a circuit to a device.",
+    "saveFirst": "Save this circuit first. A run is stored beside the circuit it belongs to, so it needs one with a home.",
+    "noCredential": "No IBM Quantum key stored. Add one in your settings.",
+    "loading": "Looking for a stored key…",
+    "loadingDevices": "Asking IBM which devices are free…",
+    "credential": "Key",
+    "backend": "Device",
+    "pickBackend": "Choose a device…",
+    "device": "{{name}} — {{queue}} waiting, {{qubits}} qubits, {{state}}",
+    "queueUnknown": "queue unknown",
+    "qubitsUnknown": "qubits unknown",
+    "online": "online",
+    "offline": "not accepting work",
+    "shots": "Shots",
+    "shotsHint": "How many times the device runs the circuit. A thousand is plenty to see the shape and costs a fraction of a second of quantum time.",
+    "send": "Send to the device",
+    "queued": "Queued.",
+    "openRun": "Open the run"
   }
 }

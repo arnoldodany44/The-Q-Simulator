@@ -226,6 +226,21 @@ export const hardwareKeys = {
 
   jobs: () => [...hardwareKeys.all, 'job'] as const,
   job: (id: string) => [...hardwareKeys.jobs(), id] as const,
+
+  /** The caller's stored keys. One list, so one key and no parameters. */
+  credentials: () => [...hardwareKeys.all, 'credential'] as const,
+
+  /**
+   * The devices one credential can see, keyed *by that credential*.
+   *
+   * Two keys on one account can be pointed at different instances and see
+   * different devices with different queues, so a single `['backends']` would
+   * serve one credential's fleet to the other and rank a queue that was never
+   * measured. It is also why this is not invalidated when a credential is
+   * added: the new one has its own entry and nothing already cached is stale.
+   */
+  backends: (credentialId: string) =>
+    [...hardwareKeys.all, 'backends', credentialId] as const,
 } as const
 
 /**

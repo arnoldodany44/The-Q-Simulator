@@ -102,29 +102,38 @@ function accountPayload(overrides: Record<string, unknown> = {}) {
 /**
  * Requests this file is not about, filtered out of the ledger.
  *
- * The screen also lists the account's API keys (§3.5), which is a second
- * request on mount and would otherwise shift every positional assertion below
- * by one — and, worse, would make "one request, and it is the one that loaded
- * the account" quietly mean something else. Filtering by URL keeps each
- * assertion about the thing its test names.
+ * The screen also lists the account's API keys (§3.5) and its stored hardware
+ * credentials (§3.7), each a further request on mount that would otherwise
+ * shift every positional assertion below — and, worse, would make "one
+ * request, and it is the one that loaded the account" quietly mean something
+ * else. Filtering by URL keeps each assertion about the thing its test names.
  */
 function accountCalls<Call extends { url: string }>(transport: {
   calls: readonly Call[]
 }): readonly Call[] {
-  return transport.calls.filter((call) => !call.url.includes('/api-keys'))
+  return transport.calls.filter(
+    (call) =>
+      !call.url.includes('/api-keys') && !call.url.includes('/hardware/')
+  )
 }
 
 /**
  * `responses` is the queue for the *account* requests, in order.
  *
- * The empty key listing is spliced in behind the first entry because that is
- * where it lands: `ApiKeysSection` only mounts once `GET /me` has resolved, so
- * the order is deterministic and every test can go on describing the requests
- * it actually cares about.
+ * The two empty listings are spliced in behind the first entry because that is
+ * where they land: `ApiKeysSection` and `HardwareCredentialsSection` both mount
+ * once `GET /me` has resolved, in the order the route renders them, so the
+ * sequence is deterministic and every test can go on describing the requests it
+ * actually cares about.
  */
 function mount(responses: readonly unknown[]) {
   const [account, ...rest] = responses
-  const transport = stubFetch([account, jsonResponse({ apiKeys: [] }), ...rest])
+  const transport = stubFetch([
+    account,
+    jsonResponse({ apiKeys: [] }),
+    jsonResponse({ credentials: [] }),
+    ...rest,
+  ])
   const client = createApiClient({
     baseUrl: TEST_BASE_URL,
     fetch: transport.fetch,

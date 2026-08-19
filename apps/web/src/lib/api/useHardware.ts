@@ -18,13 +18,27 @@
  * overnight is not a request every second for eight hours.
  */
 
-import { useQuery } from '@tanstack/react-query'
-import type { UseQueryResult } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query'
 import { HardwareJobStatus } from '@qsim/contract'
-import type { HardwareJob, HardwareJobStatus as Status } from '@qsim/contract'
+import type {
+  CreateHardwareCredentialBody,
+  CreateHardwareJobBody,
+  HardwareBackendResponse,
+  HardwareCredential,
+  HardwareJob,
+  HardwareJobStatus as Status,
+} from '@qsim/contract'
 
 import { useApiClient } from './ApiContext.js'
-import { getHardwareJob } from './hardware.js'
+import {
+  createHardwareCredential,
+  createHardwareJob,
+  deleteHardwareCredential,
+  getHardwareJob,
+  listHardwareBackends,
+  listHardwareCredentials,
+} from './hardware.js'
 import { hardwareKeys } from './queryKeys.js'
 
 /** How often an unfinished job is asked about. See the header. */
@@ -63,5 +77,109 @@ export function useHardwareJob(
       query.state.data !== undefined && isTerminal(query.state.data.status)
         ? false
         : HARDWARE_POLL_MS,
+  })
+}
+
+/** `GET /hardware/credentials` — the keys this account has stored. */
+export function useHardwareCredentials(
+  enabled = true
+): UseQueryResult<readonly HardwareCredential[], unknown> {
+  const client = useApiClient()
+  return useQuery({
+    queryKey: hardwareKeys.credentials(),
+    queryFn: ({ signal }) => listHardwareCredentials(client, { signal }),
+    enabled,
+  })
+}
+
+/**
+ * `POST /hardware/credentials`.
+ *
+ * Only the credential list is invalidated. The per-credential device lists are
+ * deliberately left alone: a key that was just added has no entry to be stale,
+ * and the entries that exist belong to other keys pointed at other instances —
+ * see `hardwareKeys.backends`.
+ */
+export function useCreateHardwareCredential(): UseMutationResult<
+  HardwareCredential,
+  unknown,
+  CreateHardwareCredentialBody
+> {
+  const client = useApiClient()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: CreateHardwareCredentialBody) =>
+      createHardwareCredential(client, request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: hardwareKeys.credentials(),
+      })
+    },
+  })
+}
+
+/**
+ * `DELETE /hardware/credentials/:id`.
+ *
+ * This one *does* drop the device lists, all of them: the removed key's entry
+ * is now unreachable, and leaving it in the cache would let a picker offer
+ * devices bought with a credential that no longer exists.
+ */
+export function useDeleteHardwareCredential(): UseMutationResult<
+  HardwareCredential,
+  unknown,
+  string
+> {
+  const client = useApiClient()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteHardwareCredential(client, id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hardwareKeys.all })
+    },
+  })
+}
+
+/**
+ * `GET /hardware/backends` — the devices, with their queues.
+ *
+ * Reaches the provider through our API, so it is slow and it is metered by
+ * somebody's rate limit rather than free. `staleTime` is a minute: a queue
+ * moves, but not between two renders of a form, and a picker that refetched on
+ * every focus change would spend a person's allowance drawing the same list.
+ */
+export function useHardwareBackends(
+  credentialId: string | null
+): UseQueryResult<readonly HardwareBackendResponse[], unknown> {
+  const client = useApiClient()
+  return useQuery({
+    queryKey: hardwareKeys.backends(credentialId ?? ''),
+    queryFn: ({ signal }) =>
+      listHardwareBackends(client, credentialId ?? '', { signal }),
+    enabled: credentialId !== null && credentialId !== '',
+    staleTime: 60_000,
+  })
+}
+
+/**
+ * `POST /hardware/jobs`.
+ *
+ * Seeds the job cache with the row the server returned, so the run page it
+ * navigates to renders immediately and then starts polling, rather than showing
+ * a spinner for a job whose receipt is already in hand.
+ */
+export function useSubmitHardwareJob(): UseMutationResult<
+  HardwareJob,
+  unknown,
+  CreateHardwareJobBody
+> {
+  const client = useApiClient()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: CreateHardwareJobBody) =>
+      createHardwareJob(client, request),
+    onSuccess: (job) => {
+      queryClient.setQueryData(hardwareKeys.job(job.id), job)
+    },
   })
 }

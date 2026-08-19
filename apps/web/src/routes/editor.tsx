@@ -132,6 +132,13 @@ import {
  */
 import { ForkButton, ForkedFromNotice, StarButton } from '../features/gallery'
 /*
+ * Sending this circuit to a real device (3.7). Mounted by the page and not
+ * by the editor for the reason everything else here is: it is a command
+ * about the *document* -- it names a stored circuit, and an unsaved draft
+ * has nothing for the job row to key against.
+ */
+import { SubmitToHardwarePanel } from '../features/hardware'
+/*
  * From `src/embed/`, which is otherwise a document of its own with its own
  * entry point. This one component is the exception and it is a deliberate
  * one: it imports only `embed/paths.ts` (which imports nothing) and
@@ -333,6 +340,10 @@ export function EditorRoute() {
             />
           )}
           <SaveCircuitPanel document={doc} carried={!url.tooLarge} />
+          <SubmitToHardwarePanel
+            handle={base?.slug ?? null}
+            signedIn={session.status === 'authenticated'}
+          />
           {/*
            * Only for a document that has a home. An unsaved circuit has no
            * versions, and a panel that could only ever say "nothing here" is

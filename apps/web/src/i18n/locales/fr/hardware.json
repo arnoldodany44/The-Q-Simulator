@@ -133,5 +133,40 @@
     "source": "Le programme qui a été soumis",
     "sourceNote": "OpenQASM 3 sur les qubits propres de l’appareil — $53 est le qubit physique 53, pas un fil du dessin. Voici le texte enregistré, exactement tel qu’il a été envoyé.",
     "sourceLabel": "L’OpenQASM 3 envoyé, défilant"
+  },
+  "credentials": {
+    "heading": "IBM Quantum",
+    "note": "Une clé est stockée chiffrée et n’est jamais réaffichée. Elle est envoyée une fois à cette application et utilisée depuis le serveur ; le navigateur ne parle jamais à IBM.",
+    "signedOut": "Connectez-vous pour stocker une clé.",
+    "apiKey": "Clé d’API",
+    "apiKeyHint": "Depuis le tableau de bord IBM Quantum Platform.",
+    "instance": "CRN de l’instance",
+    "instanceHint": "Le long identifiant qui commence par crn:v1.",
+    "label": "Étiquette (facultative)",
+    "save": "Stocker la clé",
+    "none": "Aucune clé stockée pour l’instant.",
+    "unlabelled": "Clé sans étiquette",
+    "remove": "Retirer"
+  },
+  "submit": {
+    "heading": "Exécuter sur du matériel réel",
+    "signedOut": "Connectez-vous pour envoyer un circuit à un appareil.",
+    "saveFirst": "Enregistrez d’abord ce circuit. Une exécution est stockée à côté du circuit auquel elle appartient, il lui en faut donc un qui ait un domicile.",
+    "noCredential": "Aucune clé IBM Quantum stockée. Ajoutez-en une dans vos réglages.",
+    "loading": "Recherche d’une clé stockée…",
+    "loadingDevices": "Demande à IBM quels appareils sont libres…",
+    "credential": "Clé",
+    "backend": "Appareil",
+    "pickBackend": "Choisissez un appareil…",
+    "device": "{{name}} — {{queue}} en attente, {{qubits}} qubits, {{state}}",
+    "queueUnknown": "file inconnue",
+    "qubitsUnknown": "qubits inconnus",
+    "online": "en ligne",
+    "offline": "n’accepte pas de travaux",
+    "shots": "Tirs",
+    "shotsHint": "Combien de fois l’appareil exécute le circuit. Mille suffisent pour voir la forme et coûtent une fraction de seconde de temps quantique.",
+    "send": "Envoyer à l’appareil",
+    "queued": "En file.",
+    "openRun": "Ouvrir l’exécution"
   }
 }
