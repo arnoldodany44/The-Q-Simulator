@@ -379,7 +379,10 @@ body {
 }
 
 .language-picker select {
-  background: var(--bg-elevated);
+  /* `background-color` and not the `background` shorthand: the shorthand
+     resets `background-image`, which is where the base rule for `select`
+     draws the arrow it removed the native one to replace. */
+  background-color: var(--bg-elevated);
   color: var(--text);
   border: 1px solid var(--wire);
   border-radius: 0.375rem;
@@ -1816,7 +1819,10 @@ body {
 
 .timeline__speed,
 .timeline__play {
-  background: var(--bg-elevated);
+  /* `background-color` and not the `background` shorthand: the shorthand
+     resets `background-image`, which is where the base rule for `select`
+     draws the arrow it removed the native one to replace. */
+  background-color: var(--bg-elevated);
   color: var(--text);
   border: 1px solid var(--wire);
   border-radius: 0.375rem;
@@ -3208,7 +3214,10 @@ td.histogram__delta--loss {
   padding: 0.25rem 0.4rem;
   border: 1px solid var(--wire);
   border-radius: 4px;
-  background: var(--bg-deep);
+  /* `background-color` and not the `background` shorthand: the shorthand
+     resets `background-image`, which is where the base rule for `select`
+     draws the arrow it removed the native one to replace. */
+  background-color: var(--bg-deep);
   color: var(--text);
   font-family: var(--font-mono);
   font-size: var(--text-data);
@@ -7519,4 +7528,138 @@ td.histogram__delta--loss {
 
 .hardware-form__saved:empty {
   margin: 0;
+}
+
+/* ==========================================================================
+   Form controls, app-wide
+   ==========================================================================
+
+   There were no base rules for these at all: thirty-seven inputs, ten selects
+   and seven fieldsets took the user agent's styling, so a form looked like raw
+   HTML dropped onto a dark page. The few that looked deliberate were the ones
+   whose own feature had written a rule, which is why the app disagreed with
+   itself from one screen to the next.
+
+   Stated once here rather than per feature, for the same reason the colour
+   tokens are: a control should not have to be adopted by a component before it
+   matches the product.
+
+   The selector enumerates what to EXCLUDE rather than what to include, so an
+   `<input>` with no `type` — which is a text input — is covered, while
+   checkboxes, radios, ranges, files and the button-like types keep their own
+   affordances. Getting that backwards is how a checkbox ends up 2.4rem wide.
+   ========================================================================== */
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not(
+    [type='file']
+  ):not([type='color']):not([type='submit']):not([type='button']),
+select,
+textarea {
+  background: var(--bg-deep);
+  color: var(--text);
+  border: 1px solid var(--wire);
+  border-radius: 0.375rem;
+  padding: 0.45rem 0.6rem;
+  /* `font: inherit` before the size, or the shorthand discards it. */
+  font: inherit;
+  font-size: var(--text-body);
+  /* A grid or flex child floors at its content width without this, and a long
+     placeholder then widens the column it sits in. */
+  min-width: 0;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+::placeholder {
+  color: var(--text-muted);
+  opacity: 0.65;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: var(--text-muted);
+  border-color: var(--wire);
+  cursor: not-allowed;
+}
+
+/*
+ * The arrow has to be drawn here, because `appearance: none` is what stops the
+ * platform painting its own grey button on the end of the field — and leaving
+ * the native one while restyling everything around it is exactly the mismatch
+ * this block exists to remove. An inline SVG in a data URI so it needs no
+ * network and inherits nothing it should not; `--text-muted` is written into it
+ * literally, because a data URI cannot read a custom property.
+ *
+ * `padding-right` leaves room for it, and the arrow is placed from the right so
+ * it stays put whatever the field's width.
+ */
+select {
+  appearance: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%238b93c4' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+}
+
+/*
+ * The options panel is drawn by the operating system and cannot be themed, so
+ * it stays light on most platforms. Naming the colours here at least keeps the
+ * ones that do honour it from inheriting the field's dark ground with the
+ * platform's dark text.
+ */
+select option {
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+/* The one line of CSS that makes a checkbox belong to the palette. */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+}
+
+/*
+ * A grouping, without the box.
+ *
+ * `<fieldset>` is the right element for "these controls answer one question" and
+ * its default border is a grey rule around three sides that the user agent draws
+ * — the line enclosing a section that looks like a stray artefact on a dark
+ * panel, because nothing else in this design encloses anything that way. The
+ * semantics are worth keeping and the border is not: sections here are cards,
+ * and a card inside a card reads as a mistake.
+ *
+ * The legend keeps the weight and colour every other field label has, so the
+ * group reads as a labelled set rather than as a heading in the middle of a
+ * form.
+ */
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+legend {
+  padding: 0;
+  margin-bottom: 0.35rem;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+/* See the note in each rule above: a shorthand `padding` there outranks the
+   base `select` rule, so the space the arrow needs is restated for the three
+   selects that carry their own. Split out from the shared rules because their
+   other halves — a play button and a number field — have no arrow and no need
+   of the gap. */
+.language-picker select,
+.timeline__speed,
+.noise__select {
+  padding-right: 2rem;
 }
