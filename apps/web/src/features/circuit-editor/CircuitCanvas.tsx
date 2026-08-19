@@ -235,7 +235,18 @@ export function CircuitCanvas({
 
   const size = gridSizeOf(circuit, minColumns)
   const width = plotWidth(size, metrics)
-  const height = plotHeight(size, metrics)
+  /*
+   * The register's gutter is offered even when the register is empty, so its
+   * strip of height has to be reserved even then — `plotHeight` counts it only
+   * when there are bits, which is right for an export (a diagram of a circuit
+   * with no classical register should not carry a blank lane) and wrong for an
+   * editor that has to show the way to create one.
+   */
+  const offersRegister =
+    size.clbits === 0 && !locked && onAddClbit !== undefined
+  const height =
+    plotHeight(size, metrics) +
+    (offersRegister ? metrics.registerGap + metrics.rowHeight : 0)
   // For the ARIA grid below; the plot builds its own from the same prop.
   const selected = new Set(selection)
   /*
@@ -305,7 +316,19 @@ export function CircuitCanvas({
               onInsertBelow={locked ? undefined : onInsertQubitBelow}
             />
           ))}
-          {size.clbits > 0 ? (
+          {/*
+           * Drawn when the register has bits *or* when it has none and could
+           * have some.
+           *
+           * The second half is the whole point and was missing. Adding a bit is
+           * only possible from this gutter, and this gutter was drawn only when
+           * `clbits > 0` — so a circuit that starts with an empty register could
+           * never acquire one, which is every worked example but teleportation.
+           * Placing a measurement on such a circuit refused with "that classical
+           * bit is outside the circuit — add one to the classical register", and
+           * the control it named did not exist. Reported exactly that way.
+           */}
+          {size.clbits > 0 || offersRegister ? (
             <ClassicalRowHeader
               size={size}
               metrics={metrics}
