@@ -38,6 +38,7 @@ import {
   getHardwareJob,
   listHardwareBackends,
   listHardwareCredentials,
+  listHardwareJobs,
 } from './hardware.js'
 import { hardwareKeys } from './queryKeys.js'
 
@@ -180,6 +181,35 @@ export function useSubmitHardwareJob(): UseMutationResult<
       createHardwareJob(client, request),
     onSuccess: (job) => {
       queryClient.setQueryData(hardwareKeys.job(job.id), job)
+      // So the listing under the form shows the run that was just started.
+      void queryClient.invalidateQueries({ queryKey: hardwareKeys.jobs() })
+    },
+  })
+}
+
+/**
+ * `GET /hardware/jobs` — the runs of one circuit, or of the whole account.
+ *
+ * Polled while any of them is unfinished, and left alone once they are all
+ * terminal. Without that, a listing beside a queued run would go stale the
+ * moment it rendered and a person would refresh the page to find out what a
+ * page is meant to tell them.
+ */
+export function useHardwareJobs(
+  circuitId: string | null,
+  enabled = true
+): UseQueryResult<readonly HardwareJob[], unknown> {
+  const client = useApiClient()
+  return useQuery({
+    queryKey: hardwareKeys.jobList(circuitId),
+    queryFn: ({ signal }) => listHardwareJobs(client, circuitId, { signal }),
+    enabled,
+    refetchInterval: (query) => {
+      const jobs = query.state.data
+      if (jobs === undefined) return false
+      return jobs.every((job) => isTerminal(job.status))
+        ? false
+        : HARDWARE_POLL_MS
     },
   })
 }

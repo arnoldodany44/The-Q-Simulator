@@ -44,6 +44,7 @@ import {
   useApiErrorMessage,
   useHardwareBackends,
   useHardwareCredentials,
+  useHardwareJobs,
   useSubmitHardwareJob,
 } from '../../lib/api'
 import { hardwareRunPath } from './paths'
@@ -110,6 +111,15 @@ function refusalCodeOf(error: unknown): string | null {
 export interface SubmitToHardwarePanelProps {
   /** The saved circuit's slug, or null for a draft with no home yet. */
   readonly handle: string | null
+  /**
+   * The saved circuit's id, for listing its runs.
+   *
+   * The slug addresses a circuit for a person and the id is what a job row
+   * keys against, and the listing filter wants the id. Separate props rather
+   * than one, because a draft has neither and a reader of this signature should
+   * not have to know which of the two the API happens to take.
+   */
+  readonly circuitId: string | null
   readonly signedIn: boolean
 }
 
@@ -126,6 +136,7 @@ function byQueue(
 
 export function SubmitToHardwarePanel({
   handle,
+  circuitId,
   signedIn,
 }: SubmitToHardwarePanelProps) {
   const { t, i18n } = useTranslation('hardware')
@@ -135,6 +146,19 @@ export function SubmitToHardwarePanel({
   const [backend, setBackend] = useState('')
   const [shots, setShots] = useState(DEFAULT_SHOTS)
   const submit = useSubmitHardwareJob()
+  /*
+   * This circuit's runs, so a result survives navigating away from it.
+   *
+   * `/runs/:jobId` renders forever and there was no way back to it: the only
+   * address a person ever saw was the link the panel showed once, right after
+   * submitting. Leave the page and the run was unreachable — while the server
+   * held it and could list it. Reported exactly that way.
+   */
+  const runs = useHardwareJobs(circuitId, signedIn && circuitId !== null)
+  const dates = new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
 
   /*
    * The first stored credential, until the reader picks another. Most people
@@ -305,6 +329,38 @@ export function SubmitToHardwarePanel({
               </Link>
             </p>
           )}
+
+          {/*
+           * Every run this circuit has had, newest first. Not only the one just
+           * started: the reason this list exists is that a result outlived the
+           * one link that pointed at it.
+           */}
+          {runs.data !== undefined && runs.data.length > 0 ? (
+            <div className="submit-hardware__runs">
+              <h3 className="submit-hardware__runs-heading">
+                {t('runs.heading')}
+              </h3>
+              <ul className="submit-hardware__run-list">
+                {runs.data.map((job) => (
+                  <li key={job.id}>
+                    <Link to={hardwareRunPath(job.id)}>
+                      {t('runs.entry', {
+                        backend: job.backend,
+                        shots: numbers.format(job.shots),
+                        // `submittedAt`, not a created stamp: the row is written when the
+                        // submission is accepted, and that is the moment a person
+                        // means by "when did I run this".
+                        date: dates.format(new Date(job.submittedAt)),
+                      })}
+                    </Link>{' '}
+                    <span className="submit-hardware__run-status">
+                      {t(`runs.status.${job.status}`)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </>
       )}
     </section>

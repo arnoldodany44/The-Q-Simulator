@@ -195,5 +195,19 @@
     "search-exhausted": "La búsqueda de una disposición se quedó sin presupuesto antes de decidir. Un circuito más pequeño u otro backend lo resuelven.",
     "too-deep": "Reescrito con las compuertas propias de este dispositivo, el circuito queda más largo de lo que un circuito puede ser aquí.",
     "no-measurement": "No se mide nada, así que el dispositivo no devolvería ni un bit. Añade una medición a cada qubit cuyo resultado quieras — los ejemplos la omiten a propósito, porque en un simulador medir colapsa el estado que viniste a ver."
+  },
+  "runs": {
+    "heading": "Ejecuciones de este circuito",
+    "none": "Todavía no hay ejecuciones.",
+    "open": "Abrir",
+    "entry": "{{backend}} · {{shots}} tiros · {{date}}",
+    "status": {
+      "SUBMITTED": "en camino",
+      "QUEUED": "en cola",
+      "RUNNING": "ejecutándose",
+      "DONE": "terminada",
+      "FAILED": "falló",
+      "CANCELLED": "cancelada"
+    }
   }
 }

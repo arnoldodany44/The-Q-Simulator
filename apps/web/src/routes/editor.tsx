@@ -342,6 +342,7 @@ export function EditorRoute() {
           <SaveCircuitPanel document={doc} carried={!url.tooLarge} />
           <SubmitToHardwarePanel
             handle={base?.slug ?? null}
+            circuitId={doc.detail?.id ?? null}
             signedIn={session.status === 'authenticated'}
           />
           {/*

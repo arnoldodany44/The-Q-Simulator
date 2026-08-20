@@ -195,5 +195,19 @@
     "search-exhausted": "The search for a layout ran out of budget before deciding. A smaller circuit or another backend will settle it.",
     "too-deep": "Rewritten into this device’s own gates, the circuit becomes longer than a circuit here may be.",
     "no-measurement": "Nothing is measured, so the device would return no bits at all. Add a measurement to each qubit whose result you want — the worked examples leave it out on purpose, because in a simulator measuring collapses the state you came to look at."
+  },
+  "runs": {
+    "heading": "Runs of this circuit",
+    "none": "No runs yet.",
+    "open": "Open",
+    "entry": "{{backend}} · {{shots}} shots · {{date}}",
+    "status": {
+      "SUBMITTED": "on its way",
+      "QUEUED": "queued",
+      "RUNNING": "running",
+      "DONE": "done",
+      "FAILED": "failed",
+      "CANCELLED": "cancelled"
+    }
   }
 }

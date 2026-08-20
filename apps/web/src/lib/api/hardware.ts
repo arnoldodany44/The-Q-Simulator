@@ -168,3 +168,27 @@ export function createHardwareJob(
     })
     .then((envelope) => envelope.job)
 }
+
+/**
+ * `GET /hardware/jobs` — this caller's runs, newest first.
+ *
+ * `circuit` narrows it to one document's runs, which is what the editor wants:
+ * the panel that submitted a run is where a person looks for it afterwards. The
+ * route names the filter `circuit` and the repository calls it `circuitId`; it
+ * is an id and not a slug.
+ */
+export function listHardwareJobs(
+  client: ApiClient,
+  circuitId: string | null,
+  context: RequestContext = {}
+): Promise<readonly HardwareJob[]> {
+  return client
+    .request({
+      method: 'GET',
+      path: hardwarePath.jobs(),
+      ...(circuitId === null ? {} : { query: { circuit: circuitId } }),
+      schema: wireHardwareResponses.HardwareJobListEnvelope,
+      ...context,
+    })
+    .then((envelope) => envelope.jobs)
+}

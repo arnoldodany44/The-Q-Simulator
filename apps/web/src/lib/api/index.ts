@@ -136,6 +136,7 @@ export {
   getHardwareJob,
   listHardwareBackends,
   listHardwareCredentials,
+  listHardwareJobs,
 } from './hardware.js'
 export {
   useCreateHardwareCredential,
@@ -143,6 +144,7 @@ export {
   useHardwareBackends,
   useHardwareCredentials,
   useHardwareJob,
+  useHardwareJobs,
   useSubmitHardwareJob,
 } from './useHardware.js'
 

@@ -227,6 +227,16 @@ export const hardwareKeys = {
   jobs: () => [...hardwareKeys.all, 'job'] as const,
   job: (id: string) => [...hardwareKeys.jobs(), id] as const,
 
+  /**
+   * A listing, keyed by the circuit it is filtered to.
+   *
+   * Under `jobs()` so that submitting a run — which invalidates that
+   * prefix — refreshes the list a person is looking at, without touching
+   * the credential or device caches beside it.
+   */
+  jobList: (circuitId: string | null) =>
+    [...hardwareKeys.jobs(), 'list', circuitId ?? 'all'] as const,
+
   /** The caller's stored keys. One list, so one key and no parameters. */
   credentials: () => [...hardwareKeys.all, 'credential'] as const,
 

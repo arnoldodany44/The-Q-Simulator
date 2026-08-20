@@ -195,5 +195,19 @@
     "search-exhausted": "La recherche d’une disposition a épuisé son budget avant de décider. Un circuit plus petit ou un autre backend la règlera.",
     "too-deep": "Réécrit avec les portes propres à cet appareil, le circuit devient plus long qu’un circuit ne peut l’être ici.",
     "no-measurement": "Rien n’est mesuré, l’appareil ne renverrait donc aucun bit. Ajoutez une mesure à chaque qubit dont vous voulez le résultat — les exemples l’omettent exprès, car dans un simulateur mesurer effondre l’état que vous venez observer."
+  },
+  "runs": {
+    "heading": "Exécutions de ce circuit",
+    "none": "Aucune exécution pour l’instant.",
+    "open": "Ouvrir",
+    "entry": "{{backend}} · {{shots}} tirs · {{date}}",
+    "status": {
+      "SUBMITTED": "en route",
+      "QUEUED": "en file",
+      "RUNNING": "en cours",
+      "DONE": "terminée",
+      "FAILED": "échouée",
+      "CANCELLED": "annulée"
+    }
   }
 }
