@@ -56,12 +56,26 @@ measure q[0] -> c[0];
 if(c==1) x q[2];
 `
 
+/**
+ * The two presses the import now takes, and the dialog they open.
+ *
+ * It used to be a `<details>` above the canvas and this helper clicked its
+ * `<summary>`. It moved behind the toolbar's overflow in `dece047`, this helper
+ * was not updated, and these four tests went red for twelve commits — the E2E
+ * workflow is separate from CI and nobody, me included, looked at it. Every
+ * assertion below is unchanged; only the way in is.
+ *
+ * The dialog is returned rather than the panel, because that is the scope the
+ * controls now live in and it is what keeps `readButton` from finding the
+ * overflow trigger.
+ */
 async function openImport(page: Page, language: UiLanguage = 'en') {
   await openEditor(page, language)
-  const panel = page.locator('details.import-panel')
-  await panel.locator('summary').click()
-  await expect(panel.locator('textarea')).toBeVisible()
-  return panel
+  await page.locator('.toolbar-overflow__trigger').click()
+  await page.locator('.toolbar-overflow__menu [role="menuitem"]').click()
+  const dialog = page.locator('dialog.modal')
+  await expect(dialog.locator('textarea')).toBeVisible()
+  return dialog
 }
 
 /**
@@ -110,11 +124,24 @@ test('a pasted OpenQASM 2 program is read as OpenQASM 2', async ({ page }) => {
 test('a broken program says which line, and leaves the circuit alone', async ({
   page,
 }) => {
-  const panel = await openImport(page)
-  // One gate on the canvas first, so "the circuit is untouched" is a claim with
-  // something in it.
+  /*
+   * The gate goes on the canvas BEFORE the dialog opens, and the order is not
+   * incidental.
+   *
+   * A modal makes the rest of the document inert — that is what `showModal()`
+   * is for — so a drag aimed at the canvas while it is open lands on nothing.
+   * This test used to open the panel first, because the panel was a `<details>`
+   * above the canvas and left it reachable. The assertion is unchanged: one
+   * gate first, so "the circuit is untouched" is a claim with something in it.
+   */
+  await openEditor(page)
   await dragOnto(page, gateChip(page, 'x'), cellAt(page, 0, 0))
   await expect(cellAt(page, 0, 0)).toHaveAccessibleName('X')
+
+  await page.locator('.toolbar-overflow__trigger').click()
+  await page.locator('.toolbar-overflow__menu [role="menuitem"]').click()
+  const panel = page.locator('dialog.modal')
+  await expect(panel.locator('textarea')).toBeVisible()
 
   await panel.locator('textarea').fill('qubit[2] q;\nh q[0]\ncx q[0], q[1];')
   await readButton(panel).click()
